@@ -26,7 +26,9 @@ M9 – Folder / Category / Tag đã hoàn tất ngày `2026-09-18`: 12 project-s
 
 M10 – MinIO Storage Infrastructure đã hoàn tất ngày `2026-09-18`: `StorageService` là port streaming không chứa authorization/document logic; `MinioStorageService` cô lập SDK, hỗ trợ upload/full get/range get/stat/delete/deleteAll, dịch lỗi provider thành internal storage exceptions và luôn consume kết quả batch-delete. `StorageKeyFactory` tạo `projects/{projectId}/documents/{documentId}.{extension}` từ UUID và extension lowercase đã validate. `MinioClient` là Spring singleton với timeout cấu hình; local profile có thể tạo/validate bucket, base/production mặc định không auto-create, test profile tắt startup validation. Adapter không đổi policy/versioning/retention/object lock; bucket test được xác nhận không versioning-enabled. Unit/config 7/7, MinIO Testcontainer 2/2 và full suite 169/169 pass qua `mvn test` và `mvn clean verify`. Không implement document lifecycle/API, project hard delete hoặc frontend/M11.
 
-M12 – Document Search / Pagination / Sorting đã hoàn tất ngày `2026-09-18`: `GET /api/v1/projects/{projectId}/documents` dùng `DocumentSearchService` + `DocumentSearchCriteria`; query luôn authorize bằng `ProjectAuthorizationService.requireProjectAccess` và luôn có predicate `projectId`. Search chỉ metadata (`displayName`, `originalFilename`, `description`, category/tag name); tag dùng `EXISTS` để không duplicate document. Baseline `page=0`, `size=20`, clamp 100 và sort canonical whitelist `displayName`, `createdAt`, `updatedAt`, `sizeBytes` được giữ. `DocumentSearchIntegrationTest` 2/2 trên PostgreSQL Testcontainer real filter chain, focused regression 16/16, full suite 188/188 và `mvn clean verify` pass. Không đổi schema, lifecycle, MinIO, authorization baseline hay frontend; M13 OpenAPI runtime vẫn deferred.
+M12 – Document Search / Pagination / Sorting đã hoàn tất ngày `2026-09-18`: `GET /api/v1/projects/{projectId}/documents` dùng `DocumentSearchService` + `DocumentSearchCriteria`; query luôn authorize bằng `ProjectAuthorizationService.requireProjectAccess` và luôn có predicate `projectId`. Search chỉ metadata (`displayName`, `originalFilename`, `description`, category/tag name); tag dùng `EXISTS` để không duplicate document. Baseline `page=0`, `size=20`, clamp 100 và sort canonical whitelist `displayName`, `createdAt`, `updatedAt`, `sizeBytes` được giữ. `DocumentSearchIntegrationTest` 2/2 trên PostgreSQL Testcontainer real filter chain, focused regression 16/16, full suite 188/188 và `mvn clean verify` pass. Không đổi schema, lifecycle, MinIO, authorization baseline hay frontend.
+
+M13 – OpenAPI / Swagger đã hoàn tất ngày `2026-09-18`: `config/OpenApiConfig` khai báo metadata "KBase Core API v1", security scheme `bearerAuth` (HTTP bearer + JWT), 12 tags canonical và `OperationCustomizer` thêm `401 AUTHENTICATION_REQUIRED` dùng chung `ApiErrorResponse` cho protected operations. 12 controllers / 48 operations được annotate: auth public endpoints (register/verify-email/resend-verification-otp/login/refresh + logout) không có security requirement, protected endpoints khai báo `bearerAuth` per-controller, ADMIN endpoints ghi "Requires SystemRole.ADMIN", project/document endpoints ghi rule MEMBER/OWNER/ADMIN và uploader. Multipart upload document part `file`/`files` binary + `metadata` JSON; download/preview là binary schema; preview document `Range`, `206` với `Content-Range` và `416`. Swagger UI bật mặc định local/dev qua `kbase.openapi.*` (prod mặc định tắt; SecurityConfig chỉ permit docs paths khi enabled). `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2 verify spec, security requirements, schemas, error codes và việc che docs khi disabled; full suite 209/209 qua `mvn test` và `mvn clean verify`. M14 Docker runtime vẫn deferred.
 
 Docker CLI và Docker daemon hiện khả dụng. Compose dependency startup, readiness và restart smoke của PostgreSQL/Redis/MinIO đã được xác minh ngày `2026-09-17`; PostgreSQL và Redis Testcontainers đã chạy cho migration/OTP verification; fake SMTP đã chạy cho mail verification; MinIO Testcontainers và full backend runtime vẫn chờ milestone tương ứng.
 
@@ -91,6 +93,7 @@ M7_AUTHZ_TEST_COMMAND=mvn -B -ntp "-Dtest=UserProjectMembershipIntegrationTest" 
 M7_UNIT_TEST_COMMAND=mvn -B -ntp "-Dtest=UserServiceTest,ProjectAuthorizationServiceTest,ProjectServiceTest,ProjectMemberServiceTest" test
 M8_INVITATION_TEST_COMMAND=mvn -B -ntp "-Dtest=InvitationLifecycleIntegrationTest" test
 M8_UNIT_TEST_COMMAND=mvn -B -ntp "-Dtest=InvitationServiceTest" test
+M13_OPENAPI_TEST_COMMAND=mvn -B -ntp "-Dtest=OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest" test
 ```
 
 `.env.example` chỉ là danh sách tên biến và placeholder an toàn. Không tạo hoặc commit `.env` chứa credential thật.
@@ -141,8 +144,8 @@ INTEGRATION_TEST_COMMAND=mvn -B -ntp -Dtest=FlywayMigrationIntegrityTest,JpaMapp
 E2E_COMMAND=<không áp dụng cho frontend trong phase hiện tại>
 GENERATE_DB_SCHEMA_COMMAND=<thủ công - tái sinh docs/generated/db-schema.md cùng thay đổi migration; generator tự động chưa được thiết lập>
 VERIFY_DB_SCHEMA_COMMAND=mvn -B -ntp -Dtest=FlywayMigrationIntegrityTest test
-GENERATE_API_SCHEMA_COMMAND=<chưa khả dụng - thiết lập sau OpenAPI>
-VERIFY_API_SCHEMA_COMMAND=<chưa khả dụng - thiết lập sau OpenAPI contract tests>
+GENERATE_API_SCHEMA_COMMAND=<thủ công - chạy backend, lấy GET /v3/api-docs và đồng bộ docs/generated/api-schema.md cùng thay đổi API contract>
+VERIFY_API_SCHEMA_COMMAND=mvn -B -ntp "-Dtest=OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest" test
 ```
 
 M1 verification record bên dưới là baseline M1. Mỗi migration, integration behavior, Testcontainers hoặc schema generation chỉ được ghi là đã xác minh sau khi command tương ứng chạy thành công ở milestone sở hữu nó.
@@ -312,12 +315,25 @@ Các kiểm tra sau đã chạy ngày `2026-09-18`:
 
 M10 không thay đổi Flyway migration, REST endpoint hay generated API/DB schema; vì vậy `docs/generated/db-schema.md` và `docs/generated/api-schema.md` không cần tái sinh.
 
+### M13 verification record
+
+Các kiểm tra sau đã chạy ngày `2026-09-18`:
+
+| Lệnh hoặc kiểm tra | Kết quả | Ghi chú |
+|---|---|---|
+| `mvn -B -ntp "-Dtest=OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest" test` | Pass — 21/21 (19 + 2) | Full context profile `test` không cần external infrastructure (docs endpoints không chạm DB), real SecurityFilterChain: `/v3/api-docs` 200 và spec OpenAPI 3 "KBase Core API v1" với đúng 32 paths / 48 operations; `bearerAuth` là HTTP bearer JWT; 6 auth public endpoints không có security requirement; mọi operation khác require `bearerAuth`; 4 admin operations ghi "Requires SystemRole.ADMIN" và tag `Admin - *`; 12 tags canonical theo đúng thứ tự; permission descriptions MEMBER/OWNER/ADMIN + storage-first + uploader rules; upload multipart `file` binary + `metadata` JSON, batch `files` array binary; download/preview binary string/format; `Range` header + `206` + `416` + `Content-Range` + `PREVIEW_NOT_SUPPORTED`; `ApiErrorResponse` schema đầy đủ và được tham chiếu >20 lần; OTP/Gmail/storage error codes đúng endpoint; không có `passwordHash`/`tokenHash`/`storageKey`/`refreshToken` hay schema "Entity"; không có AI/RAG paths; Swagger UI redirect trong khi `/api/v1/users/me` vẫn 401; khi `kbase.openapi.enabled=false` thì `/v3/api-docs` + swagger-ui 401 |
+| `mvn -B -ntp test` (M13 final) | Pass — 209 tests, 0 failures, 0 errors, 0 skipped | Full suite M1–M13 (188 cũ + 21 OpenAPI) |
+| `mvn -B -ntp clean verify` (M13 final) | Pass — BUILD SUCCESS; 209 tests | Compile/package và Spring Boot jar repackage pass |
+| Static M13 scope/leakage review | Pass | Không endpoint mới, không đổi runtime contract, không nới SecurityConfig/CORS (chỉ permit docs paths khi flag bật), không đổi auth/OTP/Redis/Gmail/storage; refresh token không document thành bearer/JSON field; OTP chỉ là email verification; invitation giữ token riêng; JPA entity không xuất hiện trong spec |
+
+M13 không thay đổi Flyway migration; `docs/generated/db-schema.md` không cần sinh lại. `docs/generated/api-schema.md` đã được cập nhật: runtime `/v3/api-docs` là contract máy đọc được từ milestone này.
+
 ## Tài liệu Generated
 
 | Tài liệu | Nguồn sự thật | Cách cập nhật | Cách xác minh |
 |---|---|---|---|
 | `docs/generated/db-schema.md` | Flyway migration + PostgreSQL schema thực tế | `Thủ công trong cùng thay đổi migration; generator tự động chưa được thiết lập` | `mvn -B -ntp -Dtest=FlywayMigrationIntegrityTest test (Flyway từ DB rỗng + Hibernate validate + PostgreSQL catalog inspection)` |
-| `docs/generated/api-schema.md` | Spring controller/DTO + springdoc OpenAPI | `Chưa tự động hóa; thiết lập trong OpenAPI milestone` | `/v3/api-docs` contract test và đối chiếu REST spec |
+| `docs/generated/api-schema.md` | springdoc runtime `/v3/api-docs` sinh từ controllers/DTO đã verify | `Thủ công cùng thay đổi API contract; runtime spec là contract máy đọc được từ M13` | `mvn -B -ntp "-Dtest=OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest" test` và đối chiếu REST spec |
 
 Quy tắc:
 

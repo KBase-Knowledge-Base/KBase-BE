@@ -1,5 +1,7 @@
 package com.kbase.auth.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -13,5 +15,6 @@ public record LoginRequest(
         String email,
 
         @NotBlank(message = "Password is required")
+        @Schema(format = "password")
         String password) {
 }

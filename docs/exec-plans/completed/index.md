@@ -62,4 +62,9 @@
   - Result: `M12 Gate PASS` ngày `2026-09-18`
   - Evidence: project-scoped `DocumentSearchService`/criteria/endpoint, all approved metadata filters, pagination/sort whitelist canonicalization, tag `EXISTS` duplicate guard and MEMBER/OWNER/ADMIN/non-member API matrix; PostgreSQL Testcontainer API 2/2, focused suite 16/16, full `mvn test` and `mvn clean verify` 188/188 pass
 
+- `KBase_Core_v1_M13_OpenAPI_Swagger.md`
+  - Milestone: `M13 – OpenAPI / Swagger`
+  - Result: `M13 Gate PASS` ngày `2026-09-18`
+  - Evidence: `config/OpenApiConfig` (metadata, `bearerAuth` HTTP Bearer JWT, 12 canonical tags, shared 401 customizer), 12 controllers / 48 operations annotated with correct public/protected/ADMIN security requirements and MEMBER/OWNER/ADMIN permission rules, multipart `file`/`files` + `metadata` JSON parts, binary download/preview, MP4 `Range`/`206`/`416`, OTP/Gmail/Redis/storage error codes, exposure flags per environment; `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2 trên real SecurityFilterChain; full `mvn test` and `mvn clean verify` 209/209 pass
+
 Di chuyển các kế hoạch đã hoàn thành ở đây thay vì xóa chúng. Các kế hoạch đã hoàn thành là một phần của bề mặt bộ nhớ kho lưu trữ và giúp các lần chạy agent sau hiểu tại sao mã trông như vậy.

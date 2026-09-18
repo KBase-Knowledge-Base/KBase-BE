@@ -6,7 +6,7 @@
 ## Cập nhật Lần cuối
 
 * Ngày cập nhật: `2026-09-18`
-* Người hoặc agent cập nhật: `Codex - M12 Document Search / Pagination / Sorting`
+* Người hoặc agent cập nhật: `Codex - M13 OpenAPI / Swagger`
 * Nhánh hiện tại: `N/A - archive harness chưa gắn với repository implementation`
 * Commit gần nhất đã kiểm chứng: `N/A`
 
@@ -14,16 +14,16 @@
 
 | Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
 | ---------------- | ------------- | ----------------------- |
-| Build            | Ổn định      | `mvn -B -ntp clean verify` và `mvn -B -ntp test` đã pass (188 tests) |
+| Build            | Ổn định      | `mvn -B -ntp clean verify` và `mvn -B -ntp test` đã pass (209 tests) |
 | Frontend         | Không áp dụng | Optional theo đề bài; hoãn khỏi phase implementation hiện tại |
-| Backend          | Ổn định | M0–M12 đã hoàn tất; project-scoped document metadata search/filter/pagination/sorting đã xong; M13 OpenAPI runtime chưa mở |
-| Database         | Ổn định      | Flyway 3 migrations tạo 10 persistent tables; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; M2 Gate PASS; M8 và M9 không đổi schema |
-| API contract     | Ổn định | M12 document-search contract đã implement, API-test và đồng bộ thủ công vào `docs/generated/api-schema.md`; OpenAPI runtime thuộc M13 |
+| Backend          | Ổn định | M0–M13 đã hoàn tất; OpenAPI/Swagger runtime bật qua springdoc 3.1.1; M14 full Docker runtime chưa mở |
+| Database         | Ổn định      | Flyway 3 migrations tạo 10 persistent tables; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; M2 Gate PASS; M8, M9 và M13 không đổi schema |
+| API contract     | Ổn định | Runtime OpenAPI (`/v3/api-docs`) là contract máy đọc được từ M13; 21 contract tests verify security requirements, multipart/binary/range schemas, error codes và sensitive-field absence; `docs/generated/api-schema.md` đồng bộ theo runtime |
 | Integration      | Đang thực hiện | PostgreSQL/Redis Testcontainers, fake SMTP, auth, user/project/membership, invitation, organization và MinIO adapter suite đã verify; full backend runtime còn ở M14 |
-| Unit test        | Ổn định | M12 service 2/2 và controller regression 1/1; full suite 188/188 pass |
-| Integration test | Ổn định | PostgreSQL/Redis/fake SMTP suites, MinIO adapter/lifecycle/API suites và M12 real-filter-chain PostgreSQL search API 2/2 đã pass |
+| Unit test        | Ổn định | Full suite 209/209 pass, gồm 19 OpenAPI contract tests |
+| Integration test | Ổn định | PostgreSQL/Redis/fake SMTP suites, MinIO adapter/lifecycle/API suites, M12 search API và M13 OpenAPI contract suites đã pass |
 | End-to-end test  | Không áp dụng | Frontend E2E hoãn; backend critical workflows dùng API/integration tests |
-| Security checks  | Ổn định | M12 verify non-member search denial, MEMBER/OWNER/ADMIN access, project isolation and no storage-key response exposure |
+| Security checks  | Ổn định | M13 contract tests chứng minh public auth endpoints không Bearer-required, protected/ADMIN endpoints đúng requirement, docs routes không nới `/api/v1/**`, spec không expose sensitive/internal fields |
 | Deployment       | Đang thực hiện | M1 Compose dependency skeleton và M5 Redis ephemeral runtime đã verified; full backend wiring/Dockerfile thuộc M14 |
 
 Trạng thái nên dùng:
@@ -41,13 +41,13 @@ Trạng thái nên dùng:
 
 * Mục tiêu: `Triển khai KBase Core v1 backend theo source-of-truth và Implementation Plan đã duyệt.`
 * Execution plan: `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md`
-* Active slice: `M12 đã pass; M13 OpenAPI/Swagger là milestone kế tiếp nhưng chưa được mở.`
+* Active slice: `M13 đã pass; M14 Full Docker Runtime Verification là milestone kế tiếp nhưng chưa được mở.`
 * Product spec liên quan: `docs/product-specs/KBase - Core v1 Specification.md`
 * Design document liên quan: `docs/design-docs/index.md`
 
 ### Bước Đang Thực hiện
 
-* `M12 Gate đã pass ngày 2026-09-18. Dừng sau M12; không mở M13.`
+* `M13 Gate đã pass ngày 2026-09-18. Dừng sau M13; không mở M14.`
 
 ## Đã Hoàn thành và Kiểm chứng
 
@@ -111,9 +111,13 @@ Trạng thái nên dùng:
 
   * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M12_Document_Search.md`, `src/main/java/com/kbase/document/service/DocumentSearchService.java`, `src/test/java/com/kbase/integration/DocumentSearchIntegrationTest.java`, `docs/generated/api-schema.md`
 
+* M13 – OpenAPI / Swagger đã pass toàn bộ M13 Gate: `config/OpenApiConfig` với metadata "KBase Core API v1", security scheme `bearerAuth` (HTTP bearer JWT), 12 tags canonical và shared 401 customizer dùng `ApiErrorResponse`; 12 controllers / 48 operations được annotate (auth public endpoints không Bearer-required, protected endpoints có security requirement đúng, ADMIN ghi SystemRole.ADMIN, project/document permission rules rõ ràng); multipart `file`/`files` binary + `metadata` JSON, download/preview binary, preview `Range`/`206`/`416` được document đúng; OTP chỉ là email verification OTP, refresh token chỉ là HttpOnly cookie, invitation giữ token riêng; Swagger UI bật local/dev và prod mặc định tắt qua `kbase.openapi.*` không nới `/api/v1/**`; `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2; full suite 209/209 qua `mvn test` và `mvn clean verify`.
+
+  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M13_OpenAPI_Swagger.md`, `src/main/java/com/kbase/config/OpenApiConfig.java`, `src/test/java/com/kbase/integration/OpenApiContractIntegrationTest.java`, `docs/generated/api-schema.md`
+
 ## Đã Hoàn thành nhưng Chưa Kiểm chứng
 
-* `Không có hạng mục M12 còn thiếu xác minh. M13 OpenAPI runtime không thuộc M12.`
+* `Không có hạng mục M13 còn thiếu xác minh. M14 full Docker runtime không thuộc M13.`
 
 ## Blocker Hiện tại
 
@@ -140,10 +144,17 @@ Trạng thái nên dùng:
 * `M10 đã thêm storage infrastructure không public API: StorageService/MinioStorageService stream binary sau boundary adapter; StorageKeyFactory tạo projects/{projectId}/documents/{documentId}.{extension}; local-only auto-create/validation, production-safe defaults, range read và checked batch deletion; không đổi Flyway/API/auth/organization behavior.`
 * `M11 đã thêm DocumentController/DocumentService/DocumentAuthorizationService và project hard delete; binary luôn qua StorageService, response không expose storageKey, rename/move không đổi key và preview/download streaming không buffer whole file.`
 * `M12 đã thêm project-scoped metadata search endpoint/service/criteria; `DocumentSpecification` bắt buộc project predicate và tag `EXISTS`, `PaginationParser` canonicalize sort whitelist trước persistence, không thêm content/full-text/vector/semantic/AI/RAG search.`
+* `M13 đã bật OpenAPI runtime qua springdoc 3.1.1: OpenApiConfig (metadata, bearerAuth, 12 tags canonical, 401 customizer), 12 controllers / 48 operations annotated với security requirements và permission rules, multipart/binary/Range documentation, Swagger UI flags per environment; không đổi runtime API contract.`
 
 Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhiệm lưu thay đổi code chi tiết.
 
 ## Verification Gần nhất
+
+| Lệnh hoặc kiểm tra | Kết quả       | Thời điểm | Ghi chú |
+| ------------------ | ------------- | --------- | ------- |
+| `mvn -B -ntp "-Dtest=OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest" test` | Đạt | 2026-09-18 | 21/21; full context real SecurityFilterChain: spec 32 paths/48 operations, bearerAuth scheme, public auth không Bearer, protected/ADMIN requirements, multipart/binary/Range/206/416, ApiErrorResponse + error codes, sensitive-field absence, AI-free, Swagger UI redirect, disabled-flags 401 |
+| `mvn -B -ntp test` (M13 final) | Đạt | 2026-09-18 | Full suite 209 tests, 0 failures/errors/skips |
+| `mvn -B -ntp clean verify` (M13 final) | Đạt | 2026-09-18 | BUILD SUCCESS; 209 tests; compile/package/repackage pass; M13 Gate pass |
 
 | `mvn -B -ntp clean verify` (M12 final) | Đạt | 2026-09-18 | 188 tests, 0 failures/errors/skips; compile/package/repackage pass; M12 Gate pass |
 
@@ -181,12 +192,13 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
   * `M3 mapping dùng scalar FK + read-only association view để tương thích Hibernate 7; Flyway composite FK vẫn là lớp integrity authoritative và đã được negative-test.`
   * `Full backend runtime với Flyway trên Compose local vẫn thuộc M14; không coi migration/auth/authz Testcontainer verification là full application runtime smoke.`
   * `JWT access token không có revocation: logout chỉ revoke refresh; access token cũ còn hiệu lực đến khi hết hạn trừ khi filter chặn theo DB status (DISABLED). Đây là baseline Core v1 đã chốt trong SD-07.`
-  * `M13 OpenAPI runtime là scope kế tiếp; không mở trong M12.`
+  * `OpenAPI Markdown snapshot (docs/generated/api-schema.md) vẫn được đồng bộ thủ công từ runtime /v3/api-docs; contract tests chặn drift ở mức security/multipart/binary/error-code nhưng chi tiết field-level trong Markdown phụ thuộc kỷ luật sync cùng thay đổi API.`
+  * `M14 Full Docker Runtime Verification là scope kế tiếp; không mở trong M13.`
 
 ## Bước Tiếp theo
 
-1. `M12 đã hoàn thành; không bắt đầu M13 trong task này.`
-2. `Khi mở M13, giữ document search authorization/project isolation/sort whitelist qua regression tests.`
+1. `M13 đã hoàn thành; không bắt đầu M14 trong task này.`
+2. `Khi mở M14, giữ OpenAPI exposure flags trong Docker runtime env (KBASE_OPENAPI_ENABLED/KBASE_SWAGGER_UI_ENABLED).`
 3. `Giữ frontend deferred.`
 
 ## Quy tắc Cập nhật

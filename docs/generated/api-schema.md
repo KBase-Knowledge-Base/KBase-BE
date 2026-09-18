@@ -1,22 +1,45 @@
 # API Schema
 
-> Trạng thái: **CHƯA ĐƯỢC SINH TỪ RUNTIME** (springdoc endpoint schema thuộc M13 OpenAPI).
-> Nguồn thiết kế: `docs/design-docs/KBase - Core v1 REST API Specification.md`.
-> Phần authentication (M6), user/project/membership (M7), invitation (M8) và folder/category/tag (M9) endpoints được đồng bộ thủ công
-> từ source code đã verify (`AuthController`, `UserController`, `AdminUserController`, `ProjectController`,
-> `AdminProjectController`, `ProjectMemberController`, `InvitationController`, `InvitationAcceptController`,
-> `FolderController`, `CategoryController`, `TagController`
-> và DTO/tests tương ứng).
-> Sau OpenAPI milestone, nguồn sự thật runtime là springdoc `/v3/api-docs` và source code/DTO đã được xác minh.
+> Trạng thái: **RUNTIME OPENAPI ĐÃ HOẠT ĐỘNG (M13)**. springdoc `/v3/api-docs` là contract máy đọc được.
+> Nguồn sự thật: `springdoc-openapi 3.1.1` sinh từ `AuthController`, `UserController`, `AdminUserController`,
+> `ProjectController`, `AdminProjectController`, `ProjectMemberController`, `InvitationController`,
+> `InvitationAcceptController`, `FolderController`, `CategoryController`, `TagController`, `DocumentController`
+> và DTO tương ứng. File này là snapshot Markdown đồng bộ từ runtime; `OpenApiContractIntegrationTest`
+> (21 test) xác minh security scheme, security requirement theo endpoint, multipart/binary/range schemas,
+> error codes và sự vắng mặt của field nhạy cảm trong spec runtime.
 
 ## Metadata
 
-* Ngày sinh hoặc cập nhật: `2026-09-18` (M12 — document metadata-search endpoint đồng bộ từ source code đã verify)
-* Phiên bản API: `v1 theo design`
+* Ngày sinh hoặc cập nhật: `2026-09-18` (M13 — OpenAPI runtime bật qua springdoc; spec được verify bằng contract tests)
+* Phiên bản API: `v1` (khớp path `/api/v1`)
 * Base URL development: `http://localhost:8080/api/v1` (port theo `KBASE_SERVER_PORT`)
 * Base URL production: `Chưa cấu hình`
-* Nguồn sinh: `Chưa cấu hình runtime; shared error schema (M4) và M6–M12 endpoints được đồng bộ thủ công từ source code đã verify`
+* Nguồn sinh: `springdoc-openapi-starter-webmvc-ui 3.1.1 trên Spring Boot 4.1.1; spec máy đọc được tại GET /v3/api-docs (JSON) và /v3/api-docs.yaml; Swagger UI tại /swagger-ui.html`
 * Commit tương ứng: `N/A`
+
+## OpenAPI Runtime (M13)
+
+* Endpoint máy đọc được: `GET /v3/api-docs` (OpenAPI 3 JSON), `GET /v3/api-docs.yaml`; Swagger UI: `GET /swagger-ui.html`
+* Security scheme: `bearerAuth` — `type: http`, `scheme: bearer`, `bearerFormat: JWT`; chỉ đại diện cho access token
+* Security requirement: per-controller/per-operation, không áp global. Public (không Bearer): `register`, `verify-email`,
+  `resend-verification-otp`, `login`, `refresh`, `logout`. Mọi operation khác khai báo `bearerAuth`
+* Refresh token: HttpOnly cookie `kbase_refresh_token` (document qua parameter cookie ở `refresh`/`logout` và description);
+  không bao giờ là JSON field hay bearer scheme
+* OTP: chỉ là email verification OTP (Redis-backed, Gmail SMTP, 6 chữ số, TTL 5m, cooldown 60s, tối đa 5 attempts);
+  không document như OTP login/MFA/password reset; invitation dùng invitation token riêng
+* Tags (12, theo thứ tự canonical trong `config/OpenApiConfig`): `Authentication`, `Users`, `Admin - Users`, `Projects`,
+  `Admin - Projects`, `Project Members`, `Project Invitations`, `Invitations`, `Folders`, `Categories`, `Tags`, `Documents`
+* Role rules trong description: ADMIN endpoints ghi "Requires SystemRole.ADMIN"; project-scoped endpoints ghi
+  MEMBER/OWNER/ADMIN; document mutation ghi rule uploader MEMBER vs OWNER/ADMIN
+* Multipart upload: `POST .../documents` với part `file` (string/binary) + part `metadata` JSON tùy chọn
+  (`DocumentMetadataRequest`); batch dùng part `files` (array of binary) + `metadata` chung
+* Binary response: `download`/`preview` là `type: string, format: binary` (application/octet-stream), không phải DTO;
+  `preview` document `Range` header, `206 Partial Content` (header `Content-Range`) và `416` (header `Content-Range: bytes */total`)
+* Shared error: mọi error response tham chiếu schema `ApiErrorResponse`; protected operations nhận `401 AUTHENTICATION_REQUIRED`
+  qua `OperationCustomizer` dùng chung; OTP/Gmail/Redis/storage error codes document trên đúng endpoint
+* DTO là contract: JPA entity không xuất hiện; `passwordHash`, token hash, `storageKey`, credential không có trong schema
+* Exposure flags: `KBASE_OPENAPI_ENABLED` / `KBASE_SWAGGER_UI_ENABLED` (local/dev mặc định bật; prod mặc định tắt);
+  SecurityConfig chỉ permit các docs path khi `kbase.openapi.enabled=true`, không nới `/api/v1/**`
 
 ## Quy ước Chung
 
@@ -96,7 +119,7 @@ Không ghi secret, private key hoặc credential thật.
 | GET | `/api/v1/documents/{documentId}/preview` | Stream inline preview; MP4 single Range | Bearer JWT (project member/ADMIN) | Optional `Range` | 200/206 binary stream |
 | DELETE | `/api/v1/documents/{documentId}` | Hard delete storage-first (MEMBER chỉ file của mình) | Bearer JWT | Không body | 204 No Content |
 
-Chưa triển khai: OpenAPI runtime (M13).
+Đã triển khai: OpenAPI runtime (M13) — bảng trên khớp 32 paths / 48 operations trong `/v3/api-docs`, được xác minh bởi `OpenApiContractIntegrationTest`.
 
 ## Chi tiết Endpoint
 

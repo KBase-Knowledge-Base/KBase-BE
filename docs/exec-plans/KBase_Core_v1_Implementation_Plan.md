@@ -3151,6 +3151,10 @@ Goal:
 Make implemented REST contract accurately discoverable.
 ```
 
+Status: `DONE` — M13 Gate `PASS` ngày `2026-09-18`.
+
+Evidence: `config/OpenApiConfig` (metadata "KBase Core API v1", `bearerAuth` HTTP Bearer JWT, 12 canonical tags, shared 401 customizer dùng `ApiErrorResponse`); 12 controllers / 48 operations annotated với security requirements đúng (public auth endpoints không Bearer-required, protected endpoints require `bearerAuth`, ADMIN ghi `SystemRole.ADMIN`), project/document permission descriptions, multipart `file`/`files` binary + `metadata` JSON parts, binary download/preview schemas, MP4 `Range`/`206`/`416` documentation và OTP/Gmail/Redis/storage error codes đúng endpoint. `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2 trên real SecurityFilterChain; full suite 209/209 qua `mvn -B -ntp test` và `mvn -B -ntp clean verify`. Swagger UI bật local/dev, prod mặc định tắt qua `kbase.openapi.*` không nới `/api/v1/**`; không document AI/RAG hay JPA entity.
+
 ---
 
 ## API-DOC-01 – OpenApiConfig + bearerAuth
