@@ -1,6 +1,6 @@
 # Active Plans
 
-Không có active KBase slice. M10 đã hoàn tất với M10 Gate PASS (169/169); M11 chưa được mở trong phiên này.
+- Không có active slice. M11 đã PASS (184/184 `mvn -B -ntp clean verify`); M12 chưa được mở theo yêu cầu dừng sau M11.
 
 ## Quy tắc
 

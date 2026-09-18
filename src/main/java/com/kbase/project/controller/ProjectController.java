@@ -19,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,8 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Project APIs for the current user. Listing is strictly membership-scoped;
- * ADMIN sees all projects only through the separate admin endpoint. Project
- * hard delete arrives with the MinIO-integrated milestone.
+ * ADMIN sees all projects only through the separate admin endpoint.
  */
 @RestController
 @RequestMapping("/api/v1/projects")
@@ -85,5 +85,11 @@ public class ProjectController {
             @Valid @RequestBody UpdateProjectRequest request) {
         return ResponseEntity.ok(projectService.updateProject(
                 projectId, request, currentUserService.requirePrincipal()));
+    }
+
+    @DeleteMapping("/{projectId}")
+    public ResponseEntity<Void> deleteProject(@PathVariable UUID projectId) {
+        projectService.deleteProject(projectId, currentUserService.requirePrincipal());
+        return ResponseEntity.noContent().build();
     }
 }

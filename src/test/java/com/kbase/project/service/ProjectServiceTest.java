@@ -19,6 +19,8 @@ import com.kbase.project.entity.ProjectMember;
 import com.kbase.project.enums.ProjectRole;
 import com.kbase.project.repository.ProjectMemberRepository;
 import com.kbase.project.repository.ProjectRepository;
+import com.kbase.document.repository.DocumentRepository;
+import com.kbase.document.repository.DocumentStorageKeyProjection;
 import com.kbase.project.service.ProjectAuthorizationService.ProjectAccess;
 import com.kbase.security.principal.CustomUserPrincipal;
 import com.kbase.shared.exception.BusinessException;
@@ -28,6 +30,9 @@ import com.kbase.user.entity.User;
 import com.kbase.user.enums.SystemRole;
 import com.kbase.user.enums.UserStatus;
 import com.kbase.user.repository.UserRepository;
+import com.kbase.storage.service.StorageService;
+import com.kbase.storage.exception.StorageDeleteException;
+import com.kbase.shared.exception.KBaseException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -105,6 +110,36 @@ class ProjectServiceTest {
         ProjectResponse adminView = service.getProject(project.getId(), principal);
         assertThat(adminView.currentUserRole()).isNull();
         assertThat(adminView.id()).isEqualTo(project.getId());
+    }
+
+    @Test
+    void hardDeleteUsesDbKeyProjectionThenStorageThenProjectAndStopsOnStorageFailure() {
+        DocumentRepository documents = mock(DocumentRepository.class);
+        StorageService storage = mock(StorageService.class);
+        ProjectService deletingService = new ProjectService(projectRepository, projectMemberRepository,
+                authorizationService, userRepository, documents, storage);
+        when(authorizationService.requireOwner(project.getId(), principal))
+                .thenReturn(new ProjectAccess(project, ProjectRole.OWNER, false));
+        DocumentStorageKeyProjection first = mock(DocumentStorageKeyProjection.class);
+        DocumentStorageKeyProjection second = mock(DocumentStorageKeyProjection.class);
+        when(first.getStorageKey()).thenReturn("projects/a/documents/one.pdf");
+        when(second.getStorageKey()).thenReturn("projects/a/documents/two.pdf");
+        when(documents.findStorageKeysByProjectId(project.getId())).thenReturn(java.util.List.of(first, second));
+
+        deletingService.deleteProject(project.getId(), principal);
+        verify(storage).deleteAll(java.util.List.of("projects/a/documents/one.pdf", "projects/a/documents/two.pdf"));
+        verify(projectRepository).delete(project);
+
+        org.mockito.Mockito.reset(projectRepository, storage);
+        when(authorizationService.requireOwner(project.getId(), principal))
+                .thenReturn(new ProjectAccess(project, ProjectRole.OWNER, false));
+        when(documents.findStorageKeysByProjectId(project.getId())).thenReturn(java.util.List.of());
+        org.mockito.Mockito.doThrow(new StorageDeleteException("failed", new RuntimeException()))
+                .when(storage).deleteAll(any());
+        assertThatThrownBy(() -> deletingService.deleteProject(project.getId(), principal))
+                .isInstanceOf(KBaseException.class)
+                .extracting(error -> ((KBaseException) error).getErrorCode()).isEqualTo(ErrorCode.PROJECT_DELETE_FAILED);
+        verify(projectRepository, never()).delete(org.mockito.ArgumentMatchers.<Project>any());
     }
 
     @Test

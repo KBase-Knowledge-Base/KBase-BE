@@ -59,3 +59,10 @@ Tài liệu này định nghĩa các yêu cầu về độ tin cậy và bằng 
 - SMTP timeout là configurable (`kbase.mail.timeout`, mặc định 10 giây); không retry tự động operation gửi mail không-idempotent.
 - Redis Testcontainer 6/6 và fake SMTP/unit suite 5/5 đã pass; không gọi Gmail thật, không log raw OTP/invitation token/credential.
 - Golden journey `registration → verify → login` vẫn chưa chạy vì registration/login thuộc M6.
+
+## Trạng thái M11 đã xác minh
+
+- `DocumentService` dùng upload streaming qua `StorageService`; DB persistence failure sau upload gọi compensation delete best-effort và log internal IDs/key nếu cleanup cũng lỗi, không trả storage key qua API.
+- `DocumentApiIntegrationTest` chạy qua real security filter chain với PostgreSQL + MinIO: upload/batch và reject contract, same-project metadata, MEMBER/OWNER/ADMIN/former-member matrix, stream attachment, Office rejection, MP4 single-range `206`/invalid `416`, và project hard-delete cascade.
+- `DocumentController` dùng `InputStreamResource` trực tiếp từ `StorageService`, vì vậy không materialize file lớn trong JVM; download dùng attachment/displayName còn preview dùng inline và `Content-Range` khi MP4 range hợp lệ.
+- `mvn -B -ntp test` và `mvn -B -ntp clean verify` đã pass 184 tests; M11 Gate pass. M12 chưa được mở.

@@ -6,7 +6,7 @@
 ## Cập nhật Lần cuối
 
 * Ngày cập nhật: `2026-09-18`
-* Người hoặc agent cập nhật: `Codex - M10 MinIO Storage Infrastructure`
+* Người hoặc agent cập nhật: `Codex - M11 Document Lifecycle + Project Hard Delete`
 * Nhánh hiện tại: `N/A - archive harness chưa gắn với repository implementation`
 * Commit gần nhất đã kiểm chứng: `N/A`
 
@@ -14,16 +14,16 @@
 
 | Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
 | ---------------- | ------------- | ----------------------- |
-| Build            | Ổn định      | `mvn -B -ntp clean verify` và `mvn -B -ntp test` đã pass (169 tests) |
+| Build            | Ổn định      | `mvn -B -ntp clean verify` và `mvn -B -ntp test` đã pass (184 tests) |
 | Frontend         | Không áp dụng | Optional theo đề bài; hoãn khỏi phase implementation hiện tại |
-| Backend          | Đang thực hiện | M0–M10 đã hoàn tất; MinIO storage infrastructure đã xong; document lifecycle/project hard delete, search và OpenAPI runtime còn ở milestone sau |
+| Backend          | Ổn định | M0–M11 đã hoàn tất; document lifecycle và storage-aware project hard delete đã xong; M12 search và M13 OpenAPI runtime chưa mở |
 | Database         | Ổn định      | Flyway 3 migrations tạo 10 persistent tables; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; M2 Gate PASS; M8 và M9 không đổi schema |
-| API contract     | Đang thực hiện | 38 endpoints đã implement + verify (6 auth + 15 user/project/membership + 5 invitation + 12 folder/category/tag) và đồng bộ vào `docs/generated/api-schema.md`; OpenAPI runtime thuộc M13 |
+| API contract     | Ổn định | M11 document/project-delete contract đã implement, API-test và đồng bộ thủ công vào `docs/generated/api-schema.md`; OpenAPI runtime thuộc M13 |
 | Integration      | Đang thực hiện | PostgreSQL/Redis Testcontainers, fake SMTP, auth, user/project/membership, invitation, organization và MinIO adapter suite đã verify; full backend runtime còn ở M14 |
 | Unit test        | Đang thực hiện | 169 tests pass qua full suite, gồm M10 storage/config unit tests |
-| Integration test | Đang thực hiện | PostgreSQL/Redis/fake SMTP suites và MinIO Testcontainer 2/2 (bucket init, stream/range/stat/delete) đã pass; M11 document lifecycle integration chưa triển khai |
+| Integration test | Ổn định | PostgreSQL/Redis/fake SMTP suites, MinIO adapter 2/2, M11 lifecycle 1/1 và M11 real-filter-chain PostgreSQL+MinIO API matrix 3/3 đã pass |
 | End-to-end test  | Không áp dụng | Frontend E2E hoãn; backend critical workflows dùng API/integration tests |
-| Security checks  | Đang thực hiện | M6 auth, M7 authorization matrix (OWNER/MEMBER/ADMIN, single-OWNER), M8 invitation token/lock và M9 organization authorization đã verify; document-level authorization thuộc M11 |
+| Security checks  | Ổn định | M11 verify MEMBER read/own-write, OWNER/ADMIN override và former-member revocation qua API; storage key không lộ ra response |
 | Deployment       | Đang thực hiện | M1 Compose dependency skeleton và M5 Redis ephemeral runtime đã verified; full backend wiring/Dockerfile thuộc M14 |
 
 Trạng thái nên dùng:
@@ -41,13 +41,13 @@ Trạng thái nên dùng:
 
 * Mục tiêu: `Triển khai KBase Core v1 backend theo source-of-truth và Implementation Plan đã duyệt.`
 * Execution plan: `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md`
-* Active slice: `Không có; M10 đã chuyển completed. M11 chưa được mở.`
+* Active slice: `M11 đã pass và sẽ được chuyển completed; M12 chưa được mở.`
 * Product spec liên quan: `docs/product-specs/KBase - Core v1 Specification.md`
 * Design document liên quan: `docs/design-docs/index.md`
 
 ### Bước Đang Thực hiện
 
-* `M10 đã hoàn tất và M10 Gate PASS ngày 2026-09-18. Không mở M11 trong phiên này.`
+* `M11 Gate đã pass ngày 2026-09-18. Dừng sau M11; không mở M12.`
 
 ## Đã Hoàn thành và Kiểm chứng
 
@@ -103,11 +103,13 @@ Trạng thái nên dùng:
 
   * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M10_MinIO_Storage_Infrastructure.md`, `src/main/java/com/kbase/storage/`, `src/test/java/com/kbase/storage/`, `src/test/java/com/kbase/integration/MinioStorageIntegrationTest.java`, `docker-compose.yml`
 
+* `M11 – Document Lifecycle + Project Hard Delete đã pass toàn bộ M11 Gate: single/batch upload qua StorageService với validation/same-project metadata, compensation khi DB persistence fail, document metadata/get/update/download/preview MP4 range, storage-first document hard delete và OWNER/ADMIN project storage-first hard delete. MEMBER đọc mọi document khi còn membership nhưng chỉ modify/delete document của chính mình; OWNER/ADMIN manage toàn bộ; former member mất quyền dù uploadedBy vẫn là User cũ. API matrix 3/3 và lifecycle 1/1 chạy với PostgreSQL+MinIO Testcontainers; full suite 184/184 qua mvn test và mvn clean verify.`
+
+  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M11_Document_Lifecycle_Project_Hard_Delete.md`, `src/main/java/com/kbase/document/`, `src/test/java/com/kbase/integration/DocumentApiIntegrationTest.java`, `src/test/java/com/kbase/integration/DocumentLifecycleStorageIntegrationTest.java`, `docs/generated/api-schema.md`
+
 ## Đã Hoàn thành nhưng Chưa Kiểm chứng
 
-* `M10 là infrastructure-only và đã hoàn thành; không có M10 REST endpoint hay database schema change.`
-
-  * Phần còn thiếu: document lifecycle, project hard delete, search và OpenAPI runtime; `DELETE /api/v1/projects/{projectId}` thuộc M11.
+* `Không có hạng mục M11 còn thiếu xác minh. M12 search/filter/pagination và M13 OpenAPI runtime không thuộc M11.`
 
 ## Blocker Hiện tại
 
@@ -132,10 +134,13 @@ Trạng thái nên dùng:
 * `M8 đã thêm invitation lifecycle: OWNER/ADMIN tạo invitation qua MailService.sendProjectInvitation với secure token riêng (không OTP); PostgreSQL chỉ lưu SHA-256 token hash; một PENDING per project+email; resend thay token + reset expiry; cancel CANCELLED không physical delete; accept authenticated với PESSIMISTIC_WRITE tạo MEMBER + ACCEPTED + acceptedAt; mail fail khi create rollback invitation; KBASE_INVITATION_ACCEPT_URL cấu hình invitation link.`
 * `M9 đã thêm folder/category/tag organization APIs: 12 project-scoped endpoints, service-owned authorization, nested folder hierarchy với ancestor walk chống cycle, case-insensitive uniqueness, child/document non-empty folder delete, category in-use protection và DocumentTag-only tag delete; không đổi Flyway schema.`
 * `M10 đã thêm storage infrastructure không public API: StorageService/MinioStorageService stream binary sau boundary adapter; StorageKeyFactory tạo projects/{projectId}/documents/{documentId}.{extension}; local-only auto-create/validation, production-safe defaults, range read và checked batch deletion; không đổi Flyway/API/auth/organization behavior.`
+* `M11 đã thêm DocumentController/DocumentService/DocumentAuthorizationService và project hard delete; binary luôn qua StorageService, response không expose storageKey, rename/move không đổi key và preview/download streaming không buffer whole file.`
 
 Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhiệm lưu thay đổi code chi tiết.
 
 ## Verification Gần nhất
+
+| `mvn -B -ntp clean verify` (M11 final) | Đạt | 2026-09-18 | 184 tests, 0 failures/errors/skips; compile/package/repackage pass; M11 Gate pass |
 
 | Lệnh hoặc kiểm tra | Kết quả       | Thời điểm | Ghi chú |
 | ------------------ | ------------- | --------- | ------- |
@@ -158,6 +163,8 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 | `mvn -B -ntp test` (M10 final) | Đạt | 2026-09-18 | Full suite 169 tests, 0 failures, 0 errors, 0 skipped |
 | `mvn -B -ntp clean verify` (M10 final) | Đạt | 2026-09-18 | BUILD SUCCESS; 169 tests, Spring Boot jar repackage pass |
 | Static M10 scope/boundary review | Đạt | 2026-09-18 | SDK chỉ trong storage adapter/config; no document API/M11/frontend/schema; no bucket policy/versioning/retention mutation; `minio_data:/data` preserved |
+| `mvn -B -ntp "-Dtest=DocumentApiIntegrationTest" test` | Đạt | 2026-09-18 | 3/3 PostgreSQL+MinIO+real SecurityFilterChain: upload/batch all-or-fail validation, same-project metadata, ownership/former-member/OWNER/ADMIN, stream/preview/range và project cascade |
+| `mvn -B -ntp "-Dtest=DocumentLifecycleStorageIntegrationTest" test` | Đạt | 2026-09-18 | 1/1 PostgreSQL+MinIO: upload PDF → stream → storage-first document delete → DB/DocumentTag cascade/object absent |
 
 ## Rủi ro và Technical Debt Liên quan
 
@@ -169,12 +176,12 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
   * `M3 mapping dùng scalar FK + read-only association view để tương thích Hibernate 7; Flyway composite FK vẫn là lớp integrity authoritative và đã được negative-test.`
   * `Full backend runtime với Flyway trên Compose local vẫn thuộc M14; không coi migration/auth/authz Testcontainer verification là full application runtime smoke.`
   * `JWT access token không có revocation: logout chỉ revoke refresh; access token cũ còn hiệu lực đến khi hết hạn trừ khi filter chặn theo DB status (DISABLED). Đây là baseline Core v1 đã chốt trong SD-07.`
-  * `DELETE /api/v1/projects/{projectId} chưa triển khai — thuộc M11 (PROJ-DELETE-01) sau MinIO integration; M7 chỉ có create/list/get/update + admin listing.`
+  * `M12 document metadata search/filter/pagination và M13 OpenAPI runtime vẫn là scope sau M11.`
 
 ## Bước Tiếp theo
 
-1. `M10 Gate đã PASS; M11 chưa được mở. Khi được ủy quyền, bắt đầu M11 từ execution plan mới và dùng StorageService thay vì MinIO SDK.`
-2. `Giữ Flyway/JPA/error-request/Redis OTP/mail/security-auth/user-project/invitation/organization và M10 storage baselines qua regression tests.`
+1. `M11 đã hoàn thành; không bắt đầu M12 trong task này.`
+2. `Khi mở M12, giữ DocumentService/StorageService, authorization và hard-delete baseline M11 qua regression tests.`
 3. `Giữ frontend deferred.`
 
 ## Quy tắc Cập nhật
