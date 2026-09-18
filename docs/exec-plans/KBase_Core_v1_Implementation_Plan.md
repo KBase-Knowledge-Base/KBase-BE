@@ -3037,6 +3037,10 @@ Goal:
 Complete Core v1 metadata discovery.
 ```
 
+Status: `DONE` — M12 Gate `PASS` ngày `2026-09-18`.
+
+Evidence: `DocumentSearchCriteria`, `DocumentSearchService`, `DocumentController` project-scoped endpoint và canonical `PaginationParser` sort mapping; `DocumentSearchIntegrationTest` 2/2 với PostgreSQL 17 Testcontainer + real security filter chain, focused search/repository suite 16/16, full suite 188/188 qua `mvn -B -ntp test` và `mvn -B -ntp clean verify`. Search remains metadata-only and tag predicates use `EXISTS` to prevent duplicate document rows.
+
 ---
 
 ## SEARCH-01 – Implement DocumentSearchCriteria

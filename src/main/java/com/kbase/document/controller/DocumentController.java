@@ -1,6 +1,7 @@
 package com.kbase.document.controller;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -8,10 +9,16 @@ import com.kbase.document.dto.request.DocumentMetadataRequest;
 import com.kbase.document.dto.request.UpdateDocumentRequest;
 import com.kbase.document.dto.response.BatchDocumentUploadResponse;
 import com.kbase.document.dto.response.DocumentResponse;
+import com.kbase.document.dto.response.DocumentSummaryResponse;
+import com.kbase.document.enums.FileKind;
+import com.kbase.document.service.DocumentSearchCriteria;
+import com.kbase.document.service.DocumentSearchService;
 import com.kbase.document.service.DocumentService;
 import com.kbase.document.service.FileDelivery;
 import com.kbase.document.service.InvalidRangeException;
 import com.kbase.security.service.CurrentUserService;
+import com.kbase.shared.pagination.PageResponse;
+import com.kbase.shared.pagination.PaginationParser;
 import com.kbase.shared.response.ApiErrorResponse;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,6 +29,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -31,19 +40,52 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-/** Authorized document lifecycle endpoints. No metadata search endpoint is introduced before M12. */
+/** Authorized document lifecycle and metadata-only search endpoints. */
 @RestController
 @RequestMapping("/api/v1")
 public class DocumentController {
-    private final DocumentService documentService;
-    private final CurrentUserService currentUserService;
+    private static final List<String> SORTABLE_FIELDS =
+            List.of("displayName", "createdAt", "updatedAt", "sizeBytes");
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
 
-    public DocumentController(DocumentService documentService, CurrentUserService currentUserService) {
+    private final DocumentService documentService;
+    private final DocumentSearchService documentSearchService;
+    private final CurrentUserService currentUserService;
+    private final PaginationParser paginationParser;
+
+    public DocumentController(DocumentService documentService,
+            DocumentSearchService documentSearchService,
+            CurrentUserService currentUserService,
+            PaginationParser paginationParser) {
         this.documentService = documentService;
+        this.documentSearchService = documentSearchService;
         this.currentUserService = currentUserService;
+        this.paginationParser = paginationParser;
+    }
+
+    @GetMapping("/projects/{projectId}/documents")
+    public ResponseEntity<PageResponse<DocumentSummaryResponse>> search(
+            @PathVariable UUID projectId,
+            @RequestParam(name = "q", required = false) String q,
+            @RequestParam(name = "folderId", required = false) UUID folderId,
+            @RequestParam(name = "categoryId", required = false) UUID categoryId,
+            @RequestParam(name = "tagId", required = false) UUID tagId,
+            @RequestParam(name = "fileKind", required = false) FileKind fileKind,
+            @RequestParam(name = "uploadedBy", required = false) UUID uploadedBy,
+            @RequestParam(name = "createdFrom", required = false) Instant createdFrom,
+            @RequestParam(name = "createdTo", required = false) Instant createdTo,
+            @RequestParam(name = "page", required = false) Integer page,
+            @RequestParam(name = "size", required = false) Integer size,
+            @RequestParam(name = "sort", required = false) String sort) {
+        Pageable pageable = paginationParser.parse(page, size, sort, SORTABLE_FIELDS, DEFAULT_SORT);
+        DocumentSearchCriteria criteria = new DocumentSearchCriteria(q, folderId, categoryId, tagId,
+                fileKind, uploadedBy, createdFrom, createdTo);
+        return ResponseEntity.ok(documentSearchService.search(
+                projectId, criteria, currentUserService.requirePrincipal(), pageable));
     }
 
     @PostMapping(value = "/projects/{projectId}/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

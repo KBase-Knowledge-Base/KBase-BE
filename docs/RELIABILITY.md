@@ -65,4 +65,11 @@ Tài liệu này định nghĩa các yêu cầu về độ tin cậy và bằng 
 - `DocumentService` dùng upload streaming qua `StorageService`; DB persistence failure sau upload gọi compensation delete best-effort và log internal IDs/key nếu cleanup cũng lỗi, không trả storage key qua API.
 - `DocumentApiIntegrationTest` chạy qua real security filter chain với PostgreSQL + MinIO: upload/batch và reject contract, same-project metadata, MEMBER/OWNER/ADMIN/former-member matrix, stream attachment, Office rejection, MP4 single-range `206`/invalid `416`, và project hard-delete cascade.
 - `DocumentController` dùng `InputStreamResource` trực tiếp từ `StorageService`, vì vậy không materialize file lớn trong JVM; download dùng attachment/displayName còn preview dùng inline và `Content-Range` khi MP4 range hợp lệ.
-- `mvn -B -ntp test` và `mvn -B -ntp clean verify` đã pass 184 tests; M11 Gate pass. M12 chưa được mở.
+- `mvn -B -ntp test` và `mvn -B -ntp clean verify` đã pass 184 tests; M11 Gate pass.
+
+## Trạng thái M12 đã xác minh
+
+- `DocumentSearchService` authorize bằng `ProjectAuthorizationService.requireProjectAccess` trước khi gọi repository và luôn ghép predicate `document.project.id = projectId`; ADMIN giữ override, non-member nhận `PROJECT_ACCESS_FORBIDDEN`.
+- PostgreSQL search dùng metadata fields được duyệt; tag filter và tag-name query dùng `EXISTS`, tránh duplicate result/count khi một document có nhiều tag khớp.
+- `PaginationParser` canonicalize sort field từ whitelist trước khi tạo `Sort`, nên raw client path (kể cả `storageKey`) không chạm persistence; baseline page/size và max-size vẫn giữ nguyên.
+- `DocumentSearchIntegrationTest` 2/2 và full regression 188/188 pass; không có content extraction, full-text content, vector, semantic, AI hoặc RAG behavior.

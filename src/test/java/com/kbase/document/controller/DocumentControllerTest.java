@@ -10,11 +10,13 @@ import java.io.ByteArrayInputStream;
 import java.util.UUID;
 
 import com.kbase.document.service.DocumentService;
+import com.kbase.document.service.DocumentSearchService;
 import com.kbase.document.service.FileDelivery;
 import com.kbase.document.service.InvalidRangeException;
 import com.kbase.security.principal.CustomUserPrincipal;
 import com.kbase.security.service.CurrentUserService;
 import com.kbase.shared.exception.ConstraintViolationTranslator;
+import com.kbase.shared.pagination.PaginationParser;
 import com.kbase.user.enums.SystemRole;
 import com.kbase.user.enums.UserStatus;
 
@@ -33,7 +35,9 @@ import org.springframework.test.web.servlet.MockMvc;
 class DocumentControllerTest {
     @Autowired private MockMvc mockMvc;
     @MockitoBean private DocumentService documentService;
+    @MockitoBean private DocumentSearchService documentSearchService;
     @MockitoBean private CurrentUserService currentUserService;
+    @MockitoBean private PaginationParser paginationParser;
 
     @Test
     void mp4RangeReturns206WithRequiredHeadersAndInvalidRangeReturns416() throws Exception {

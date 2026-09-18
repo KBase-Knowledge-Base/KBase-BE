@@ -11,11 +11,11 @@
 
 ## Metadata
 
-* Ngày sinh hoặc cập nhật: `2026-09-18` (M11 — document lifecycle và project hard-delete endpoints đồng bộ từ source code đã verify)
+* Ngày sinh hoặc cập nhật: `2026-09-18` (M12 — document metadata-search endpoint đồng bộ từ source code đã verify)
 * Phiên bản API: `v1 theo design`
 * Base URL development: `http://localhost:8080/api/v1` (port theo `KBASE_SERVER_PORT`)
 * Base URL production: `Chưa cấu hình`
-* Nguồn sinh: `Chưa cấu hình runtime; shared error schema (M4) và M6–M11 endpoints được đồng bộ thủ công từ source code đã verify`
+* Nguồn sinh: `Chưa cấu hình runtime; shared error schema (M4) và M6–M12 endpoints được đồng bộ thủ công từ source code đã verify`
 * Commit tương ứng: `N/A`
 
 ## Quy ước Chung
@@ -87,6 +87,7 @@ Không ghi secret, private key hoặc credential thật.
 | POST | `/api/v1/projects/{projectId}/tags` | Tạo shared tag | Bearer JWT (MEMBER/OWNER/ADMIN) | CreateTagRequest | 201 TagResponse |
 | PATCH | `/api/v1/projects/{projectId}/tags/{tagId}` | Rename shared tag | Bearer JWT (OWNER/ADMIN) | UpdateTagRequest | 200 TagResponse |
 | DELETE | `/api/v1/projects/{projectId}/tags/{tagId}` | Xóa tag và các DocumentTag relation | Bearer JWT (OWNER/ADMIN) | Không body | 204 No Content |
+| GET | `/api/v1/projects/{projectId}/documents` | Browse/search metadata document trong project | Bearer JWT (MEMBER/OWNER/ADMIN) | Query `q`, `folderId`, `categoryId`, `tagId`, `fileKind`, `uploadedBy`, `createdFrom`, `createdTo`, pagination/sort | 200 `PageResponse<DocumentSummaryResponse>` |
 | POST | `/api/v1/projects/{projectId}/documents` | Upload một file với metadata tùy chọn | Bearer JWT (MEMBER/OWNER/ADMIN) | multipart `file`, optional `metadata` JSON | 201 DocumentResponse |
 | POST | `/api/v1/projects/{projectId}/documents/batch` | Upload batch atomic-at-application-level khi khả thi | Bearer JWT (MEMBER/OWNER/ADMIN) | multipart `files`, optional common `metadata` JSON | 201 BatchDocumentUploadResponse |
 | GET | `/api/v1/documents/{documentId}` | Xem document metadata | Bearer JWT (project member/ADMIN) | Không body | 200 DocumentResponse |
@@ -95,7 +96,7 @@ Không ghi secret, private key hoặc credential thật.
 | GET | `/api/v1/documents/{documentId}/preview` | Stream inline preview; MP4 single Range | Bearer JWT (project member/ADMIN) | Optional `Range` | 200/206 binary stream |
 | DELETE | `/api/v1/documents/{documentId}` | Hard delete storage-first (MEMBER chỉ file của mình) | Bearer JWT | Không body | 204 No Content |
 
-Chưa triển khai: document search/filter/pagination (M12) và OpenAPI runtime (M13).
+Chưa triển khai: OpenAPI runtime (M13).
 
 ## Chi tiết Endpoint
 
@@ -702,12 +703,13 @@ Case-insensitive uniqueness is enforced by service pre-checks and the existing P
 Schema thực tế phải tuân theo `docs/API_CONVENTIONS.md` và `docs/design-docs/KBase - Core v1 Exception Handling Design.md`.
 Security-layer responses (401 entry point, 403 access denied, JWT/account-state rejections trong filter) dùng cùng schema qua `RestSecurityErrorWriter`.
 
-## Document Endpoints (M11 — implemented and verified)
+## Document Endpoints (M11–M12 — implemented and verified)
 
 All endpoints below require bearer authentication. `storageKey` is never a response field. `MEMBER` may read/download/preview every document in a current project membership, but may update/delete only a document uploaded by that user; `OWNER` and `ADMIN` may manage all project documents.
 
 | Method | Path | Request | Success | Principal errors |
 | --- | --- | --- | --- | --- |
+| GET | `/api/v1/projects/{projectId}/documents` | Query optional `q`, `folderId`, `categoryId`, `tagId`, `fileKind`, `uploadedBy`, `createdFrom`, `createdTo`, `page`, `size`, `sort` | `200 PageResponse<DocumentSummaryResponse>` | `403 PROJECT_ACCESS_FORBIDDEN`; unsupported sort → `400 VALIDATION_ERROR` |
 | POST | `/api/v1/projects/{projectId}/documents` | multipart `file`, optional JSON `metadata` (`displayName`, `description`, `folderId`, `categoryId`, `tagIds`) | `201 DocumentResponse` | `FILE_EMPTY` 400, `FILE_TOO_LARGE` 413, `UNSUPPORTED_FILE_TYPE`/`MIME_TYPE_MISMATCH` 415, same-project metadata errors, storage 500/503 |
 | POST | `/api/v1/projects/{projectId}/documents/batch` | multipart repeated `files`, common optional JSON metadata | `201 {documents: DocumentResponse[]}` | same as upload; no partial-success contract |
 | GET | `/api/v1/documents/{documentId}` | — | `200 DocumentResponse` | `DOCUMENT_NOT_FOUND` 404, `PROJECT_ACCESS_FORBIDDEN` 403 |
@@ -718,6 +720,8 @@ All endpoints below require bearer authentication. `storageKey` is never a respo
 | DELETE | `/api/v1/projects/{projectId}` | — | `204` | OWNER/ADMIN only; `PROJECT_DELETE_FAILED` 500; storage 503 |
 
 `DocumentResponse` contains public metadata only: ID, project ID, uploader `{id, displayName}`, folder/category/tag projections, display/original names, kind, extension, MIME, byte size, description and timestamps. It does not contain object-storage credentials or keys. Project delete resolves storage keys through PostgreSQL, deletes all objects, then deletes the project for relational DB cascade.
+
+`DocumentSummaryResponse` is the fixed paginated-browser projection: `id`, `displayName`, `originalFilename`, `fileKind`, `extension`, `mimeType`, `sizeBytes`, `folderId`, `createdAt`, `updatedAt`. It never exposes `storageKey` or a persistence entity. `q` is metadata-only over display/original names, description, category name and tag name; it does not inspect file content. The query always includes the path `projectId`; tag matching uses an `EXISTS` subquery so tag rows cannot duplicate documents. Pagination defaults to `page=0`, `size=20`, clamps size to `100`; only `displayName`, `createdAt`, `updatedAt`, and `sizeBytes` are accepted as sort fields (ASC/DESC), with unsupported fields returning `VALIDATION_ERROR`.
 
 ## Enum và Kiểu Dùng Chung
 

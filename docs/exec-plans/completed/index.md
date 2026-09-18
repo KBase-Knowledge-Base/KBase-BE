@@ -57,4 +57,9 @@
   - Result: `M10 Gate PASS` ngày `2026-09-18`
   - Evidence: vendor-neutral `StorageService`, singleton configured `MinioClient`, local-only bucket initializer, stream upload/full/range read/stat/single and batch delete, typed internal exception translation and backend-controlled object keys; storage/config unit 7/7, real MinIO Testcontainer 2/2, full suite `mvn test` và `mvn clean verify` 169/169 pass; private unversioned bucket boundary and `minio_data:/data` Compose volume preserved
 
+- `KBase_Core_v1_M12_Document_Search.md`
+  - Milestone: `M12 – Document Search / Pagination / Sorting`
+  - Result: `M12 Gate PASS` ngày `2026-09-18`
+  - Evidence: project-scoped `DocumentSearchService`/criteria/endpoint, all approved metadata filters, pagination/sort whitelist canonicalization, tag `EXISTS` duplicate guard and MEMBER/OWNER/ADMIN/non-member API matrix; PostgreSQL Testcontainer API 2/2, focused suite 16/16, full `mvn test` and `mvn clean verify` 188/188 pass
+
 Di chuyển các kế hoạch đã hoàn thành ở đây thay vì xóa chúng. Các kế hoạch đã hoàn thành là một phần của bề mặt bộ nhớ kho lưu trữ và giúp các lần chạy agent sau hiểu tại sao mã trông như vậy.

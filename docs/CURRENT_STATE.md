@@ -6,7 +6,7 @@
 ## Cập nhật Lần cuối
 
 * Ngày cập nhật: `2026-09-18`
-* Người hoặc agent cập nhật: `Codex - M11 Document Lifecycle + Project Hard Delete`
+* Người hoặc agent cập nhật: `Codex - M12 Document Search / Pagination / Sorting`
 * Nhánh hiện tại: `N/A - archive harness chưa gắn với repository implementation`
 * Commit gần nhất đã kiểm chứng: `N/A`
 
@@ -14,16 +14,16 @@
 
 | Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
 | ---------------- | ------------- | ----------------------- |
-| Build            | Ổn định      | `mvn -B -ntp clean verify` và `mvn -B -ntp test` đã pass (184 tests) |
+| Build            | Ổn định      | `mvn -B -ntp clean verify` và `mvn -B -ntp test` đã pass (188 tests) |
 | Frontend         | Không áp dụng | Optional theo đề bài; hoãn khỏi phase implementation hiện tại |
-| Backend          | Ổn định | M0–M11 đã hoàn tất; document lifecycle và storage-aware project hard delete đã xong; M12 search và M13 OpenAPI runtime chưa mở |
+| Backend          | Ổn định | M0–M12 đã hoàn tất; project-scoped document metadata search/filter/pagination/sorting đã xong; M13 OpenAPI runtime chưa mở |
 | Database         | Ổn định      | Flyway 3 migrations tạo 10 persistent tables; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; M2 Gate PASS; M8 và M9 không đổi schema |
-| API contract     | Ổn định | M11 document/project-delete contract đã implement, API-test và đồng bộ thủ công vào `docs/generated/api-schema.md`; OpenAPI runtime thuộc M13 |
+| API contract     | Ổn định | M12 document-search contract đã implement, API-test và đồng bộ thủ công vào `docs/generated/api-schema.md`; OpenAPI runtime thuộc M13 |
 | Integration      | Đang thực hiện | PostgreSQL/Redis Testcontainers, fake SMTP, auth, user/project/membership, invitation, organization và MinIO adapter suite đã verify; full backend runtime còn ở M14 |
-| Unit test        | Đang thực hiện | 169 tests pass qua full suite, gồm M10 storage/config unit tests |
-| Integration test | Ổn định | PostgreSQL/Redis/fake SMTP suites, MinIO adapter 2/2, M11 lifecycle 1/1 và M11 real-filter-chain PostgreSQL+MinIO API matrix 3/3 đã pass |
+| Unit test        | Ổn định | M12 service 2/2 và controller regression 1/1; full suite 188/188 pass |
+| Integration test | Ổn định | PostgreSQL/Redis/fake SMTP suites, MinIO adapter/lifecycle/API suites và M12 real-filter-chain PostgreSQL search API 2/2 đã pass |
 | End-to-end test  | Không áp dụng | Frontend E2E hoãn; backend critical workflows dùng API/integration tests |
-| Security checks  | Ổn định | M11 verify MEMBER read/own-write, OWNER/ADMIN override và former-member revocation qua API; storage key không lộ ra response |
+| Security checks  | Ổn định | M12 verify non-member search denial, MEMBER/OWNER/ADMIN access, project isolation and no storage-key response exposure |
 | Deployment       | Đang thực hiện | M1 Compose dependency skeleton và M5 Redis ephemeral runtime đã verified; full backend wiring/Dockerfile thuộc M14 |
 
 Trạng thái nên dùng:
@@ -41,13 +41,13 @@ Trạng thái nên dùng:
 
 * Mục tiêu: `Triển khai KBase Core v1 backend theo source-of-truth và Implementation Plan đã duyệt.`
 * Execution plan: `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md`
-* Active slice: `M11 đã pass và sẽ được chuyển completed; M12 chưa được mở.`
+* Active slice: `M12 đã pass; M13 OpenAPI/Swagger là milestone kế tiếp nhưng chưa được mở.`
 * Product spec liên quan: `docs/product-specs/KBase - Core v1 Specification.md`
 * Design document liên quan: `docs/design-docs/index.md`
 
 ### Bước Đang Thực hiện
 
-* `M11 Gate đã pass ngày 2026-09-18. Dừng sau M11; không mở M12.`
+* `M12 Gate đã pass ngày 2026-09-18. Dừng sau M12; không mở M13.`
 
 ## Đã Hoàn thành và Kiểm chứng
 
@@ -107,9 +107,13 @@ Trạng thái nên dùng:
 
   * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M11_Document_Lifecycle_Project_Hard_Delete.md`, `src/main/java/com/kbase/document/`, `src/test/java/com/kbase/integration/DocumentApiIntegrationTest.java`, `src/test/java/com/kbase/integration/DocumentLifecycleStorageIntegrationTest.java`, `docs/generated/api-schema.md`
 
+* M12 – Document Search / Pagination / Sorting đã pass toàn bộ M12 Gate: `GET /api/v1/projects/{projectId}/documents` dùng `DocumentSearchCriteria` và `DocumentSearchService`, chỉ search metadata `displayName`, `originalFilename`, `description`, category/tag name; tất cả filter, combined filter, pagination baseline, sort ASC/DESC/whitelist, non-member denial, MEMBER/OWNER/ADMIN access và Project A/B isolation được chứng minh qua PostgreSQL Testcontainer real filter chain. Tag predicates dùng `EXISTS` nên không duplicate document rows; full suite 188/188 qua mvn test và mvn clean verify.
+
+  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M12_Document_Search.md`, `src/main/java/com/kbase/document/service/DocumentSearchService.java`, `src/test/java/com/kbase/integration/DocumentSearchIntegrationTest.java`, `docs/generated/api-schema.md`
+
 ## Đã Hoàn thành nhưng Chưa Kiểm chứng
 
-* `Không có hạng mục M11 còn thiếu xác minh. M12 search/filter/pagination và M13 OpenAPI runtime không thuộc M11.`
+* `Không có hạng mục M12 còn thiếu xác minh. M13 OpenAPI runtime không thuộc M12.`
 
 ## Blocker Hiện tại
 
@@ -135,12 +139,13 @@ Trạng thái nên dùng:
 * `M9 đã thêm folder/category/tag organization APIs: 12 project-scoped endpoints, service-owned authorization, nested folder hierarchy với ancestor walk chống cycle, case-insensitive uniqueness, child/document non-empty folder delete, category in-use protection và DocumentTag-only tag delete; không đổi Flyway schema.`
 * `M10 đã thêm storage infrastructure không public API: StorageService/MinioStorageService stream binary sau boundary adapter; StorageKeyFactory tạo projects/{projectId}/documents/{documentId}.{extension}; local-only auto-create/validation, production-safe defaults, range read và checked batch deletion; không đổi Flyway/API/auth/organization behavior.`
 * `M11 đã thêm DocumentController/DocumentService/DocumentAuthorizationService và project hard delete; binary luôn qua StorageService, response không expose storageKey, rename/move không đổi key và preview/download streaming không buffer whole file.`
+* `M12 đã thêm project-scoped metadata search endpoint/service/criteria; `DocumentSpecification` bắt buộc project predicate và tag `EXISTS`, `PaginationParser` canonicalize sort whitelist trước persistence, không thêm content/full-text/vector/semantic/AI/RAG search.`
 
 Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhiệm lưu thay đổi code chi tiết.
 
 ## Verification Gần nhất
 
-| `mvn -B -ntp clean verify` (M11 final) | Đạt | 2026-09-18 | 184 tests, 0 failures/errors/skips; compile/package/repackage pass; M11 Gate pass |
+| `mvn -B -ntp clean verify` (M12 final) | Đạt | 2026-09-18 | 188 tests, 0 failures/errors/skips; compile/package/repackage pass; M12 Gate pass |
 
 | Lệnh hoặc kiểm tra | Kết quả       | Thời điểm | Ghi chú |
 | ------------------ | ------------- | --------- | ------- |
@@ -176,12 +181,12 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
   * `M3 mapping dùng scalar FK + read-only association view để tương thích Hibernate 7; Flyway composite FK vẫn là lớp integrity authoritative và đã được negative-test.`
   * `Full backend runtime với Flyway trên Compose local vẫn thuộc M14; không coi migration/auth/authz Testcontainer verification là full application runtime smoke.`
   * `JWT access token không có revocation: logout chỉ revoke refresh; access token cũ còn hiệu lực đến khi hết hạn trừ khi filter chặn theo DB status (DISABLED). Đây là baseline Core v1 đã chốt trong SD-07.`
-  * `M12 document metadata search/filter/pagination và M13 OpenAPI runtime vẫn là scope sau M11.`
+  * `M13 OpenAPI runtime là scope kế tiếp; không mở trong M12.`
 
 ## Bước Tiếp theo
 
-1. `M11 đã hoàn thành; không bắt đầu M12 trong task này.`
-2. `Khi mở M12, giữ DocumentService/StorageService, authorization và hard-delete baseline M11 qua regression tests.`
+1. `M12 đã hoàn thành; không bắt đầu M13 trong task này.`
+2. `Khi mở M13, giữ document search authorization/project isolation/sort whitelist qua regression tests.`
 3. `Giữ frontend deferred.`
 
 ## Quy tắc Cập nhật

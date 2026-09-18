@@ -1,6 +1,6 @@
 # Active Plans
 
-- Không có active slice. M11 đã PASS (184/184 `mvn -B -ntp clean verify`); M12 chưa được mở theo yêu cầu dừng sau M11.
+- Không có active slice. M12 đã PASS (188/188 `mvn -B -ntp clean verify`); M13 chưa được mở theo yêu cầu dừng sau M12.
 
 ## Quy tắc
 

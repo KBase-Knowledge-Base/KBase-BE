@@ -17,14 +17,14 @@ Tài liệu này theo dõi liệu kho lưu trữ có đang trở nên mạnh hơ
 | Authentication & Email Verification | A | M6 registration/verify/resend/login/refresh/logout đã implement và verify qua `AuthenticationSecurityIntegrationTest` 14/14 (PostgreSQL+Redis Testcontainers, real filter chain) + unit 32/32; JWT/refresh/disabled-account/401-403 contract đã chứng minh | Cao - spec/security/service docs rõ | Auth unit + integration suite đã pass trong full suite 104/104 | Admin disable-user API và password change (M7) chưa triển khai để dùng revokeAllForUser; OTP Redis-unavailable mapping mới verify ở adapter/unit level | 2026-09-17 |
 | Project / Membership / Invitation | A | M7/M8 integration vẫn pass; M11 thêm project hard delete storage-first qua PostgreSQL+MinIO API integration | Cao - spec/service/security docs rõ | OWNER/ADMIN delete và storage failure stop-DB contract được cover | Invitation email manual smoke với Gmail thật thuộc M14 | 2026-09-18 |
 | Folder / Category / Tag | A | M9 suites vẫn pass; M11 API test chứng minh folder/category/tag cross-project bị reject lúc upload | Cao - product/design/service/API rules rõ | Authorization, hierarchy, uniqueness, delete dependency và cross-project integrity đã được test | OpenAPI runtime thuộc M13 | 2026-09-18 |
-| Document / MinIO / Search | A | M11 focused document unit/controller 10/10, lifecycle 1/1 và API matrix 3/3 trên PostgreSQL+MinIO Testcontainers; full suite 184/184 | Cao | Storage port, streaming, compensation, lifecycle và authorization boundary được cover; no SDK leaks from port | M12 search/filter/pagination chưa mở | 2026-09-18 |
+| Document / MinIO / Search | A | M12 service 2/2, controller regression 1/1, search API 2/2 và JPA repository 11/11 pass trên PostgreSQL Testcontainers; full suite 188/188 | Cao | Storage/lifecycle/search authorization boundary và project isolation được cover; tag `EXISTS` avoids duplicate rows | OpenAPI runtime thuộc M13 | 2026-09-18 |
 
 ## Lớp Kiến trúc
 
 | Lớp | Điểm | Thực thi Ranh giới | Khả năng đọc của Agent | Khoảng trống chính | Cập nhật lần cuối |
 |-------|-------|---------------------|-----------------|----------|-------------|
-| Controller / API | A | M11 thêm 8 document/project-delete endpoints, streamed binary headers/range và real-filter-chain API matrix trên PostgreSQL+MinIO | Cao - REST/OpenAPI design có sẵn | OpenAPI runtime/schema generation thuộc M13; M12 search chưa triển khai | 2026-09-18 |
-| Service / Authorization | A | `ProjectAuthorizationService` + `DocumentAuthorizationService` thực thi membership/ownership/ADMIN override; lifecycle, compensation và storage-first deletes đã verify | Cao - Service/Security design rõ | M12 metadata search chưa triển khai | 2026-09-18 |
+| Controller / API | A | M12 thêm project-scoped paginated metadata-search API với filter/sort whitelist và real-filter-chain PostgreSQL matrix | Cao - REST/OpenAPI design có sẵn | OpenAPI runtime/schema generation thuộc M13 | 2026-09-18 |
+| Service / Authorization | A | `ProjectAuthorizationService` được tái sử dụng cho M12 read access; mandatory project predicate, canonical sort whitelist và metadata-only query đã verify | Cao - Service/Security design rõ | M13 OpenAPI runtime | 2026-09-18 |
 | Repository / Persistence | A | 10 JPA entity, 10 feature-local repository, projection/query/specification và Hibernate `ddl-auto=validate` đã verify trên PostgreSQL Testcontainer; Flyway vẫn là schema source-of-truth | Cao - DB/JPA design và integration evidence rõ | Chưa có service/business transaction ngoài auth | 2026-09-17 |
 | Infrastructure Adapters | A | Redis OTP, Gmail SMTP và M10 MinIO adapters đã implement/verify sau port boundary; real MinIO Testcontainer kiểm tra stream/range/stat/delete | Cao - adapter boundaries rõ | Full backend runtime và Gmail SMTP manual smoke chưa triển khai | 2026-09-18 |
 | UI | - | Không áp dụng phase hiện tại | Frontend optional | Hoãn | 2026-09-17 |
@@ -33,10 +33,10 @@ Tài liệu này theo dõi liệu kho lưu trữ có đang trở nên mạnh hơ
 
 | Năng lực | Điểm | Bằng chứng | Khoảng trống chính | Cập nhật lần cuối |
 |---|---|---|---|---|
-| Backend | A | M0–M11 gồm lifecycle/document API và project hard delete qua `StorageService`; full regression 184/184 | M12 search/filter/pagination và M13 OpenAPI runtime | 2026-09-18 |
+| Backend | A | M0–M12 gồm project-scoped metadata search/filter/pagination/sorting; full regression 188/188 | M13 OpenAPI runtime | 2026-09-18 |
 | Frontend | - | `docs/FRONTEND.md` | Optional và hoãn khỏi phase hiện tại | 2026-09-17 |
 | Database và migration | B | 3 Flyway migrations (V1 tables, V2 partial/expression unique, V3 query indexes), Flyway integrity 12/12 và JPA mapping/repository 11/11 pass trên PostgreSQL 17 Testcontainer; Hibernate validate pass; `docs/generated/db-schema.md` đã đối chiếu | Chưa có generator schema tự động; chưa chạy migration trên Compose runtime thật (M14) | 2026-09-17 |
-| API contract | B | M11 document/project-delete contracts đã verify và đồng bộ thủ công vào `docs/generated/api-schema.md` | Chưa generate endpoint schema từ springdoc/runtime (M13); M12 search endpoints chưa có | 2026-09-18 |
+| API contract | B | M12 document-search contract đã verify và đồng bộ thủ công vào `docs/generated/api-schema.md` | Chưa generate endpoint schema từ springdoc/runtime (M13) | 2026-09-18 |
 | Tích hợp hệ thống | A | PostgreSQL+MinIO API integration cover upload/batch/range/authorization/hard-delete, ngoài adapter and prior integration suites | Full backend runtime và Gmail SMTP manual smoke chưa triển khai | 2026-09-18 |
 | Kiểm thử | A | M11 focused document unit/controller 10/10 + project-delete unit flow + PostgreSQL/MinIO lifecycle 1/1 + API matrix 3/3; full 184/184 | M13 OpenAPI runtime contract | 2026-09-18 |
 | Thiết lập development | B | Maven commands, Compose dependency smoke, PostgreSQL/Redis/MinIO Testcontainers và fake SMTP đã được verify | Backend startup runtime và Gmail SMTP manual smoke chưa verify | 2026-09-18 |
@@ -69,6 +69,7 @@ Tài liệu này theo dõi liệu kho lưu trữ có đang trở nên mạnh hơ
 | 2026-09-18 | `KBase backend harness - M8 Gate` | M8 Invitation Lifecycle | N/A | M8 Gate pass; InvitationService với secure token (hash-only, không OTP), MailService reuse + rollback, cancel/resend lifecycle, accept PESSIMISTIC_WRITE với concurrency test 2 thread; integration 5/5 trên PostgreSQL; full suite 143/143; M9 chưa bắt đầu |
 | 2026-09-18 | `KBase backend harness - M9 Gate` | M9 Folder / Category / Tag | N/A | M9 Gate pass; 12 project-scoped endpoints, authorization matrix, nested folder cycle prevention, case-insensitive uniqueness, non-empty/in-use deletes, DocumentTag-only tag delete; unit 12/12, integration 6/6, integrity regression 23/23, full suite 161/161 |
 | 2026-09-18 | `KBase backend harness - M10 Gate` | M10 MinIO Storage Infrastructure | N/A | M10 Gate pass; private unversioned bucket boundary, singleton MinIO adapter behind streaming port, range read and safe batch-delete result handling; unit/config 7/7, MinIO Testcontainer 2/2, full suite 169/169 |
+| 2026-09-18 | `KBase backend harness - M12 Gate` | M12 Document Search / Pagination / Sorting | N/A | M12 Gate pass; metadata-only project-scoped search, all filters/combined filters, pagination/sort whitelist, tag duplicate guard and authorization/isolation API matrix pass on PostgreSQL; full suite 188/188 |
 
 ## Nhật ký Đơn giản hóa
 
