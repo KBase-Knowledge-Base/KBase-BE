@@ -62,3 +62,4 @@ M12 Gate is PASS on `2026-09-18`: project-scoped metadata search/filter/paginati
 - No runtime API contract, schema, security or authorization behavior changed; documentation-only milestone.
 - No blocker remains beyond the archive-level absence of Git implementation history recorded in `CURRENT_STATE.md`.
 - M14 was not started.
+- Correction (M15, 2026-09-19): the progress-log phrase "12 controllers / 48 operations" was a manual miscount. The runtime spec verified in M15 contains exactly **47 operations on 32 paths** (counted from `/v3/api-docs` and cross-checked against the 47 controller mappings and the 47 endpoint definitions in SD-04). Living docs were corrected; this note preserves the original record.

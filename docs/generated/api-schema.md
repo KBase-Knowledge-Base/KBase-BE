@@ -119,7 +119,7 @@ Không ghi secret, private key hoặc credential thật.
 | GET | `/api/v1/documents/{documentId}/preview` | Stream inline preview; MP4 single Range | Bearer JWT (project member/ADMIN) | Optional `Range` | 200/206 binary stream |
 | DELETE | `/api/v1/documents/{documentId}` | Hard delete storage-first (MEMBER chỉ file của mình) | Bearer JWT | Không body | 204 No Content |
 
-Đã triển khai: OpenAPI runtime (M13) — bảng trên khớp 32 paths / 48 operations trong `/v3/api-docs`, được xác minh bởi `OpenApiContractIntegrationTest`.
+Đã triển khai: OpenAPI runtime (M13) — bảng trên khớp 32 paths / 47 operations trong `/v3/api-docs`, được xác minh bởi `OpenApiContractIntegrationTest`; con số 47 được đếm lại trực tiếp trên runtime spec trong M15 full verification (bản ghi M13 ghi "48" là miscount thủ công, runtime thực tế là 47 operations).
 
 ## Chi tiết Endpoint
 

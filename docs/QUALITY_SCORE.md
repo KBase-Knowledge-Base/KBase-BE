@@ -33,16 +33,16 @@ Tài liệu này theo dõi liệu kho lưu trữ có đang trở nên mạnh hơ
 
 | Năng lực | Điểm | Bằng chứng | Khoảng trống chính | Cập nhật lần cuối |
 |---|---|---|---|---|
-| Backend | A | M0–M14: full implementation + OpenAPI runtime + Docker runtime verification; full regression 210/210 | M15 freeze checklist | 2026-09-18 |
+| Backend | A | M0–M15: full implementation + OpenAPI runtime + Docker runtime verification (M14) + full verification/freeze (M15, 210/210 + runtime re-verification); Core v1 frozen 2026-09-19 | Không còn gap Core v1; thay đổi mới cần phase được duyệt | 2026-09-19 |
 | Frontend | - | `docs/FRONTEND.md` | Optional và hoãn khỏi phase hiện tại | 2026-09-17 |
 | Database và migration | A | Flyway V1–V3 apply trong Docker runtime từ DB rỗng + Hibernate validate; integrity 12/12 và mapping 11/11 trên Testcontainer; Flyway history persist qua restart; `docs/generated/db-schema.md` đã đối chiếu | Chưa có generator schema tự động | 2026-09-18 |
 | API contract | A | Runtime OpenAPI `/v3/api-docs` serve trong container runtime; 21 contract tests; `docs/generated/api-schema.md` đồng bộ theo runtime | Markdown snapshot sync thủ công; chưa có snapshot/breaking-change CI diff (optional theo SD-11) | 2026-09-18 |
 | Tích hợp hệ thống | A | Docker runtime smoke: auth/invitation/document/search/hard-delete flows qua containerized backend; PostgreSQL/Redis/MinIO wiring bằng service name; mail double cho automated path | Gmail thật manual smoke chưa chạy | 2026-09-18 |
 | Kiểm thử | A | M14 regression OWNER-path delete + mọi suites trước đó; full suite 210/210 qua `mvn clean verify` | Docker smoke chưa script hóa (đã ghi command trong DEVELOPMENT.md) | 2026-09-18 |
 | Thiết lập development | A | `docker compose up -d` với `.env` khởi động full topology đã verify; reset commands tài liệu hóa; mock mail double cho verification | Gmail thật (production config) chưa verify | 2026-09-18 |
-| Reliability | - | `docs/RELIABILITY.md` | Golden journey chưa chạy | 2026-09-17 |
-| Deployment và rollback | B | M1 `docker-compose.yml` với PostgreSQL/MinIO/Redis, named-volume boundary, Redis ephemeral policy và live dependency smoke | Backend Dockerfile/full Compose wiring, application runtime và rollback procedure chưa triển khai | 2026-09-17 |
-| Quản lý trạng thái repository | B | `docs/CURRENT_STATE.md`, completed/active execution plans, source registry | Chưa có Git implementation history; archive không có `.git` | 2026-09-17 |
+| Reliability | A | Toàn bộ golden journeys trong `docs/RELIABILITY.md` đã chạy trong Docker runtime (M14 và re-run M15): auth/OTP lifecycle, invitation, document lifecycle, member removal, hard delete storage-first; restart/recreate evidence trong DEVELOPMENT.md | Health/metrics endpoint chuyên dụng chưa có (không yêu cầu Core v1); monitoring là scope sau freeze | 2026-09-19 |
+| Deployment và rollback | A | M14: Dockerfile multi-stage + full Compose wiring + healthcheck-gated startup + named volumes + rollback local đã verify; M15: re-verification từ volume rỗng pass | Chưa có deployment target production (chưa khóa; không tự chọn K8s/Terraform) | 2026-09-19 |
+| Quản lý trạng thái repository | A | Git history theo milestone trên nhánh `dev` (M0–M15); `docs/CURRENT_STATE.md`, completed/active execution plans, source registry được duy trì đồng bộ trong M15 | Commits cỡ milestone thay vì cỡ task (master plan §38 khuyến nghị task-level) | 2026-09-19 |
 
 ### Quy tắc Đánh giá Năng lực
 
@@ -70,8 +70,9 @@ Tài liệu này theo dõi liệu kho lưu trữ có đang trở nên mạnh hơ
 | 2026-09-18 | `KBase backend harness - M9 Gate` | M9 Folder / Category / Tag | N/A | M9 Gate pass; 12 project-scoped endpoints, authorization matrix, nested folder cycle prevention, case-insensitive uniqueness, non-empty/in-use deletes, DocumentTag-only tag delete; unit 12/12, integration 6/6, integrity regression 23/23, full suite 161/161 |
 | 2026-09-18 | `KBase backend harness - M10 Gate` | M10 MinIO Storage Infrastructure | N/A | M10 Gate pass; private unversioned bucket boundary, singleton MinIO adapter behind streaming port, range read and safe batch-delete result handling; unit/config 7/7, MinIO Testcontainer 2/2, full suite 169/169 |
 | 2026-09-18 | `KBase backend harness - M12 Gate` | M12 Document Search / Pagination / Sorting | N/A | M12 Gate pass; metadata-only project-scoped search, all filters/combined filters, pagination/sort whitelist, tag duplicate guard and authorization/isolation API matrix pass on PostgreSQL; full suite 188/188 |
-| 2026-09-18 | `KBase backend harness - M13 Gate` | M13 OpenAPI / Swagger | N/A | M13 Gate pass; springdoc runtime spec (32 paths/48 operations), bearerAuth scheme, public/protected/ADMIN security requirements verified, multipart/binary/Range/206/416 docs, ApiErrorResponse + OTP/Gmail/Redis error codes, sensitive-field absence, exposure flags per environment; contract 21/21, full suite 209/209 |
+| 2026-09-18 | `KBase backend harness - M13 Gate` | M13 OpenAPI / Swagger | N/A | M13 Gate pass; springdoc runtime spec (32 paths/47 operations — đếm lại trên runtime trong M15; bản ghi gốc ghi 48 là miscount), bearerAuth scheme, public/protected/ADMIN security requirements verified, multipart/binary/Range/206/416 docs, ApiErrorResponse + OTP/Gmail/Redis error codes, sensitive-field absence, exposure flags per environment; contract 21/21, full suite 209/209 |
 | 2026-09-18 | `KBase backend harness - M14 Gate` | M14 Full Docker Runtime Verification | N/A | M14 Gate pass; clean Docker startup với Flyway V1–V3 + Hibernate validate trong container; golden journeys qua containerized backend; postgres_data/minio_data persistence + Redis ephemeral verified; fix 1 bug M11 (OWNER-path project delete) với regression test; full suite 210/210 |
+| 2026-09-19 | `KBase backend harness - M15 Gate (Core v1 Freeze)` | M15 Full Verification / Core v1 Freeze | N/A | M15 Gate pass; **Core v1 FROZEN**. Full release gate 210/210; Docker runtime re-verification từ volume rỗng (Flyway/Hibernate trong container, 10 tables, không OTP table; toàn bộ golden journeys; persistence restart/recreate; Redis ephemeral + resend); static architecture/leakage scans clean; runtime spec 32 paths/47 operations khớp contract test + SD-04 (sửa miscount "48" từ bản ghi M13); consistency audit docs↔code pass; không có code change trong M15 |
 
 ## Nhật ký Đơn giản hóa
 

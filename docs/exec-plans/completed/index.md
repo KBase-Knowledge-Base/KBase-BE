@@ -65,11 +65,16 @@
 - `KBase_Core_v1_M13_OpenAPI_Swagger.md`
   - Milestone: `M13 – OpenAPI / Swagger`
   - Result: `M13 Gate PASS` ngày `2026-09-18`
-  - Evidence: `config/OpenApiConfig` (metadata, `bearerAuth` HTTP Bearer JWT, 12 canonical tags, shared 401 customizer), 12 controllers / 48 operations annotated with correct public/protected/ADMIN security requirements and MEMBER/OWNER/ADMIN permission rules, multipart `file`/`files` + `metadata` JSON parts, binary download/preview, MP4 `Range`/`206`/`416`, OTP/Gmail/Redis/storage error codes, exposure flags per environment; `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2 trên real SecurityFilterChain; full `mvn test` and `mvn clean verify` 209/209 pass
+  - Evidence: `config/OpenApiConfig` (metadata, `bearerAuth` HTTP Bearer JWT, 12 canonical tags, shared 401 customizer), 12 controllers / 47 operations annotated with correct public/protected/ADMIN security requirements and MEMBER/OWNER/ADMIN permission rules (số 47 được đếm lại trên runtime spec trong M15; bản ghi gốc ghi 48 là miscount), multipart `file`/`files` + `metadata` JSON parts, binary download/preview, MP4 `Range`/`206`/`416`, OTP/Gmail/Redis/storage error codes, exposure flags per environment; `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2 trên real SecurityFilterChain; full `mvn test` and `mvn clean verify` 209/209 pass
 
 - `KBase_Core_v1_M14_Docker_Runtime.md`
   - Milestone: `M14 – Full Docker Runtime Verification`
   - Result: `M14 Gate PASS` ngày `2026-09-18`
   - Evidence: `Dockerfile` multi-stage non-root + compose backend/postgres/minio/redis với healthcheck-gated startup; clean startup từ rỗng với Flyway V1–V3 + Hibernate validate trong container; golden journeys qua containerized backend (auth/invitation/organization/document/search/hard delete); `postgres_data`/`minio_data` persistence + Redis ephemeral verified; log leak scan clean; fix bug M11 OWNER-path project hard delete (bulk cascade delete + regression test); full `mvn clean verify` 210/210 pass
+
+- `KBase_Core_v1_M15_Full_Verification_Freeze.md`
+  - Milestone: `M15 – Full Verification / Core v1 Freeze`
+  - Result: `M15 Gate PASS` ngày `2026-09-19` — **Core v1 FROZEN**
+  - Evidence: full suite `mvn -B -ntp clean verify` 210/210 (BUILD SUCCESS); Docker runtime re-verification từ volume rỗng (Flyway V1–V3 + Hibernate validate trong container, 10 persistent tables, không OTP table); toàn bộ golden journeys qua containerized backend (auth journey với Redis OTP state/TTL + mail double, project/organization/upload/download checksum/preview 206+416/search matrix/invitation + MEMBER permissions/hard delete storage-first OWNER-path); persistence qua backend restart + postgres/minio force-recreate + Redis recreation (OTP loss → resend OK); static architecture/leakage scans clean; runtime `/v3/api-docs` = 32 paths / 47 operations khớp contract test và SD-04; error catalog ↔ `ErrorCode` nhất quán; fix một documentation miscount (48→47 operations) với correction note; **không có code change trong M15**. Chi tiết đầy đủ: `KBase_Core_v1_M15_Full_Verification_Freeze.md` (Core v1 Freeze Report)
 
 Di chuyển các kế hoạch đã hoàn thành ở đây thay vì xóa chúng. Các kế hoạch đã hoàn thành là một phần của bề mặt bộ nhớ kho lưu trữ và giúp các lần chạy agent sau hiểu tại sao mã trông như vậy.
