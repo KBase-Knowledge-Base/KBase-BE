@@ -311,6 +311,31 @@ class DocumentApiIntegrationTest {
         assertThatThrownBy(() -> storage.stat(office.getStorageKey())).isInstanceOf(StorageObjectNotFoundException.class);
     }
 
+    /**
+     * M14 regression: the OWNER path loads the caller's managed membership
+     * before the delete, which made a managed-entity remove fail Hibernate 7
+     * flush validation (TransientPropertyValueException) at runtime. The bulk
+     * cascade delete must survive that persistence-context state.
+     */
+    @Test
+    void ownerProjectHardDeleteWorksWhenTheOwnerMembershipIsLoaded() throws Exception {
+        User owner = user(SystemRole.USER, "Owner");
+        User member = user(SystemRole.USER, "Member");
+        Project project = project(owner, "owner-delete");
+        members.saveAndFlush(new ProjectMember(project, member, ProjectRole.MEMBER));
+        Folder folder = folders.saveAndFlush(new Folder(project, null, "Owner"));
+        Document document = storedDocument(project, owner, folder, null, "owner.pdf", "pdf", "application/pdf", PDF);
+
+        mockMvc.perform(delete("/api/v1/projects/{id}", project.getId()).header(HttpHeaders.AUTHORIZATION, bearer(token(owner))))
+                .andExpect(status().isNoContent());
+
+        assertThat(projects.findById(project.getId())).isEmpty();
+        assertThat(documents.findById(document.getId())).isEmpty();
+        assertThat(members.findAllByProjectId(project.getId(), org.springframework.data.domain.PageRequest.of(0, 10)).getContent()).isEmpty();
+        assertThat(folders.findAllByProjectId(project.getId())).isEmpty();
+        assertThatThrownBy(() -> storage.stat(document.getStorageKey())).isInstanceOf(StorageObjectNotFoundException.class);
+    }
+
     private Document storedDocument(Project project, User uploader, Folder folder, Category category, String name,
             String extension, String mimeType, byte[] contents) {
         UUID documentId = UUID.randomUUID();

@@ -67,4 +67,9 @@
   - Result: `M13 Gate PASS` ngày `2026-09-18`
   - Evidence: `config/OpenApiConfig` (metadata, `bearerAuth` HTTP Bearer JWT, 12 canonical tags, shared 401 customizer), 12 controllers / 48 operations annotated with correct public/protected/ADMIN security requirements and MEMBER/OWNER/ADMIN permission rules, multipart `file`/`files` + `metadata` JSON parts, binary download/preview, MP4 `Range`/`206`/`416`, OTP/Gmail/Redis/storage error codes, exposure flags per environment; `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2 trên real SecurityFilterChain; full `mvn test` and `mvn clean verify` 209/209 pass
 
+- `KBase_Core_v1_M14_Docker_Runtime.md`
+  - Milestone: `M14 – Full Docker Runtime Verification`
+  - Result: `M14 Gate PASS` ngày `2026-09-18`
+  - Evidence: `Dockerfile` multi-stage non-root + compose backend/postgres/minio/redis với healthcheck-gated startup; clean startup từ rỗng với Flyway V1–V3 + Hibernate validate trong container; golden journeys qua containerized backend (auth/invitation/organization/document/search/hard delete); `postgres_data`/`minio_data` persistence + Redis ephemeral verified; log leak scan clean; fix bug M11 OWNER-path project hard delete (bulk cascade delete + regression test); full `mvn clean verify` 210/210 pass
+
 Di chuyển các kế hoạch đã hoàn thành ở đây thay vì xóa chúng. Các kế hoạch đã hoàn thành là một phần của bề mặt bộ nhớ kho lưu trữ và giúp các lần chạy agent sau hiểu tại sao mã trông như vậy.

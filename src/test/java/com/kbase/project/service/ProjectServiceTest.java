@@ -128,7 +128,7 @@ class ProjectServiceTest {
 
         deletingService.deleteProject(project.getId(), principal);
         verify(storage).deleteAll(java.util.List.of("projects/a/documents/one.pdf", "projects/a/documents/two.pdf"));
-        verify(projectRepository).delete(project);
+        verify(projectRepository).deleteProjectCascade(project.getId());
 
         org.mockito.Mockito.reset(projectRepository, storage);
         when(authorizationService.requireOwner(project.getId(), principal))
@@ -139,7 +139,7 @@ class ProjectServiceTest {
         assertThatThrownBy(() -> deletingService.deleteProject(project.getId(), principal))
                 .isInstanceOf(KBaseException.class)
                 .extracting(error -> ((KBaseException) error).getErrorCode()).isEqualTo(ErrorCode.PROJECT_DELETE_FAILED);
-        verify(projectRepository, never()).delete(org.mockito.ArgumentMatchers.<Project>any());
+        verify(projectRepository, never()).deleteProjectCascade(org.mockito.ArgumentMatchers.any(UUID.class));
     }
 
     @Test

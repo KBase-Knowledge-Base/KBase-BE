@@ -1,0 +1,15 @@
+# Optional local mail double for automated runtime verification ONLY.
+# It replaces the external Gmail SMTP dependency with a catch-all SMTP sink so
+# the OTP/invitation emails can be inspected. Gmail itself stays outside the
+# designed topology (docker-compose.yml has no mail service). Start with:
+#   docker compose -f docker-compose.yml -f docker-compose.mail-test.yml up -d
+# and point the backend at it with:
+#   KBASE_GMAIL_SMTP_HOST=mail-test KBASE_GMAIL_SMTP_PORT=1025
+#   KBASE_GMAIL_SMTP_AUTH=false KBASE_GMAIL_SMTP_STARTTLS=false
+services:
+  mail-test:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"

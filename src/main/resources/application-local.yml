@@ -7,3 +7,6 @@ kbase:
   storage:
     auto-create-bucket: ${KBASE_STORAGE_AUTO_CREATE:true}
     initialize-on-startup: ${KBASE_STORAGE_INITIALIZE_ON_STARTUP:true}
+  # Local runs over plain http, so the refresh cookie must not be Secure (prod stays true).
+  refresh-cookie:
+    secure: ${KBASE_REFRESH_COOKIE_SECURE:false}

@@ -1,6 +1,6 @@
 # Active Plans
 
-- Không có active slice. M13 đã PASS (209/209 `mvn -B -ntp clean verify`); M14 chưa được mở theo yêu cầu dừng sau M13.
+- Không có active slice. M14 đã PASS (210/210 `mvn -B -ntp clean verify` + Docker runtime smoke); M15 chưa được mở theo yêu cầu dừng sau M14.
 
 ## Quy tắc
 

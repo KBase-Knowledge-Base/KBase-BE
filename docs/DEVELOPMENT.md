@@ -28,9 +28,11 @@ M10 – MinIO Storage Infrastructure đã hoàn tất ngày `2026-09-18`: `Stora
 
 M12 – Document Search / Pagination / Sorting đã hoàn tất ngày `2026-09-18`: `GET /api/v1/projects/{projectId}/documents` dùng `DocumentSearchService` + `DocumentSearchCriteria`; query luôn authorize bằng `ProjectAuthorizationService.requireProjectAccess` và luôn có predicate `projectId`. Search chỉ metadata (`displayName`, `originalFilename`, `description`, category/tag name); tag dùng `EXISTS` để không duplicate document. Baseline `page=0`, `size=20`, clamp 100 và sort canonical whitelist `displayName`, `createdAt`, `updatedAt`, `sizeBytes` được giữ. `DocumentSearchIntegrationTest` 2/2 trên PostgreSQL Testcontainer real filter chain, focused regression 16/16, full suite 188/188 và `mvn clean verify` pass. Không đổi schema, lifecycle, MinIO, authorization baseline hay frontend.
 
-M13 – OpenAPI / Swagger đã hoàn tất ngày `2026-09-18`: `config/OpenApiConfig` khai báo metadata "KBase Core API v1", security scheme `bearerAuth` (HTTP bearer + JWT), 12 tags canonical và `OperationCustomizer` thêm `401 AUTHENTICATION_REQUIRED` dùng chung `ApiErrorResponse` cho protected operations. 12 controllers / 48 operations được annotate: auth public endpoints (register/verify-email/resend-verification-otp/login/refresh + logout) không có security requirement, protected endpoints khai báo `bearerAuth` per-controller, ADMIN endpoints ghi "Requires SystemRole.ADMIN", project/document endpoints ghi rule MEMBER/OWNER/ADMIN và uploader. Multipart upload document part `file`/`files` binary + `metadata` JSON; download/preview là binary schema; preview document `Range`, `206` với `Content-Range` và `416`. Swagger UI bật mặc định local/dev qua `kbase.openapi.*` (prod mặc định tắt; SecurityConfig chỉ permit docs paths khi enabled). `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2 verify spec, security requirements, schemas, error codes và việc che docs khi disabled; full suite 209/209 qua `mvn test` và `mvn clean verify`. M14 Docker runtime vẫn deferred.
+M13 – OpenAPI / Swagger đã hoàn tất ngày `2026-09-18`: `config/OpenApiConfig` khai báo metadata "KBase Core API v1", security scheme `bearerAuth` (HTTP bearer + JWT), 12 tags canonical và `OperationCustomizer` thêm `401 AUTHENTICATION_REQUIRED` dùng chung `ApiErrorResponse` cho protected operations. 12 controllers / 48 operations được annotate: auth public endpoints (register/verify-email/resend-verification-otp/login/refresh + logout) không có security requirement, protected endpoints khai báo `bearerAuth` per-controller, ADMIN endpoints ghi "Requires SystemRole.ADMIN", project/document endpoints ghi rule MEMBER/OWNER/ADMIN và uploader. Multipart upload document part `file`/`files` binary + `metadata` JSON; download/preview là binary schema; preview document `Range`, `206` với `Content-Range` và `416`. Swagger UI bật mặc định local/dev qua `kbase.openapi.*` (prod mặc định tắt; SecurityConfig chỉ permit docs paths khi enabled). `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2 verify spec, security requirements, schemas, error codes và việc che docs khi disabled; full suite 209/209 qua `mvn test` và `mvn clean verify`.
 
-Docker CLI và Docker daemon hiện khả dụng. Compose dependency startup, readiness và restart smoke của PostgreSQL/Redis/MinIO đã được xác minh ngày `2026-09-17`; PostgreSQL và Redis Testcontainers đã chạy cho migration/OTP verification; fake SMTP đã chạy cho mail verification; MinIO Testcontainers và full backend runtime vẫn chờ milestone tương ứng.
+M14 – Full Docker Runtime Verification đã hoàn tất ngày `2026-09-18`: `Dockerfile` multi-stage (Maven build → `eclipse-temurin:21-jre`, non-root, stateless, env-driven) và `docker-compose.yml` đủ 4 services. Backend join network qua service name (`postgres:5432`, `redis:6379`, `http://minio:9000`), healthcheck-gated startup (`pg_isready`, `redis-cli ping`, MinIO health/live) không dùng sleep. Clean startup từ rỗng: Flyway apply V1–V3 trên PostgreSQL 17 container, Hibernate `ddl-auto=validate` pass. Golden journeys đã chạy qua containerized backend: register → OTP state trong Redis container (key + TTL) → email nhận bởi mail double (`docker-compose.mail-test.yml`, Gmail vẫn external) → verify → login/refresh/logout (cookie HttpOnly, Secure=false local) → project/folder/category/tag → upload multipart → download checksum khớp → MP4 preview `206`/`416` → search filter/sort → invitation accept → MEMBER permissions → remove member/documents remain → document + project hard delete storage-first. Persistence: `postgres_data`/`minio_data` giữ data qua backend restart và container force-recreate; Redis recreation làm mất pending OTP và resend vẫn hoạt động. M14 tìm và sửa một bug runtime từ M11: `ProjectService.deleteProject` OWNER-path fail `TransientPropertyValueException` trên Hibernate 7.4 (membership managed trong persistence context) — sửa bằng bulk delete query `ProjectRepository.deleteProjectCascade` giữ nguyên DB FK cascade và thêm regression test OWNER-path trong `DocumentApiIntegrationTest` (trước đó chỉ ADMIN path được test trên DB thật). Đồng thời exclude `UserDetailsServiceAutoConfiguration` để log không in generated password. Full suite 210/210 qua `mvn test` và `mvn clean verify`.
+
+Docker CLI và Docker daemon hiện khả dụng. Compose dependency startup, readiness và restart smoke của PostgreSQL/Redis/MinIO đã được xác minh ngày `2026-09-17`; PostgreSQL và Redis Testcontainers đã chạy cho migration/OTP verification; fake SMTP đã chạy cho mail verification; MinIO Testcontainers đã chạy cho storage verification (M10); full backend Docker runtime đã được xác minh trong M14 (xem M14 verification record).
 
 ## Technical baseline đã chốt tại M0
 
@@ -70,7 +72,7 @@ Baseline đã được chốt:
 - Frontend: Optional, chưa thuộc phase hiện tại.
 - Port mặc định M1 được định nghĩa trong Docker Compose/application config; thay đổi runtime phải theo các giá trị cấu hình thực tế, không hard-code ngoài config.
 
-Môi trường M0 ghi nhận Docker CLI `29.8.0` nhưng daemon chưa khả dụng tại thời điểm preflight. Sau khi Docker được bật, M1 đã xác minh local dependency runtime bằng Compose, M2/M3/M4 đã xác minh PostgreSQL Testcontainers, và M5 đã xác minh Redis Testcontainer + fake SMTP; MinIO Testcontainers và full backend runtime vẫn để cho milestone tương ứng.
+Môi trường M0 ghi nhận Docker CLI `29.8.0` nhưng daemon chưa khả dụng tại thời điểm preflight. Sau khi Docker được bật, M1 đã xác minh local dependency runtime bằng Compose, M2/M3/M4 đã xác minh PostgreSQL Testcontainers, M5 đã xác minh Redis Testcontainer + fake SMTP, M10 đã xác minh MinIO Testcontainer và M14 đã xác minh full backend Docker runtime.
 
 Không để thông tin thực tế của runtime chỉ tồn tại trong lịch sử chat hoặc trí nhớ cá nhân.
 
@@ -94,6 +96,7 @@ M7_UNIT_TEST_COMMAND=mvn -B -ntp "-Dtest=UserServiceTest,ProjectAuthorizationSer
 M8_INVITATION_TEST_COMMAND=mvn -B -ntp "-Dtest=InvitationLifecycleIntegrationTest" test
 M8_UNIT_TEST_COMMAND=mvn -B -ntp "-Dtest=InvitationServiceTest" test
 M13_OPENAPI_TEST_COMMAND=mvn -B -ntp "-Dtest=OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest" test
+M14_DOC_TEST_COMMAND=mvn -B -ntp "-Dtest=DocumentApiIntegrationTest" test
 ```
 
 `.env.example` chỉ là danh sách tên biến và placeholder an toàn. Không tạo hoặc commit `.env` chứa credential thật.
@@ -112,25 +115,30 @@ Yêu cầu môi trường cho M6 verification: Docker daemon phải chạy vì a
 
 ## Chạy dự án
 
-M1 đã tạo Compose skeleton cho dependency local. Các lệnh dưới đây phản ánh command thật; dependency startup/restart đã được xác minh với process-only local placeholders:
+M1 đã tạo Compose skeleton cho dependency local; M14 đã hoàn tất backend Dockerfile và Compose wiring. Các lệnh dưới đây phản ánh command thật đã chạy:
 
 ```text
-START_ALL_COMMAND=<chưa khả dụng - full backend Compose wiring khóa tại M14>
-START_FRONTEND_COMMAND=<không áp dụng trong phase backend hiện tại>
-START_BACKEND_COMMAND=mvn -B -ntp spring-boot:run (chưa xác minh runtime)
+BUILD_BACKEND_IMAGE=docker compose build backend
+START_ALL_COMMAND=docker compose up -d (backend + postgres + minio + redis; cần .env với các biến :?required)
+START_BACKEND_ONLY=docker compose up -d --build backend
 START_DEPENDENCIES_COMMAND=docker compose -f docker-compose.yml up -d postgres minio redis (đã xác minh runtime dependency)
+START_WITH_MAIL_DOUBLE=docker compose -f docker-compose.yml -f docker-compose.mail-test.yml up -d backend mail-test kèm KBASE_GMAIL_SMTP_HOST=mail-test KBASE_GMAIL_SMTP_PORT=1025 KBASE_GMAIL_SMTP_AUTH=false KBASE_GMAIL_SMTP_STARTTLS=false
+STOP_ALL_COMMAND=docker compose down (giữ postgres_data/minio_data)
+RESET_ALL_COMMAND=docker compose down -v (destructive: xóa cả hai named volume)
+START_FRONTEND_COMMAND=<không áp dụng trong phase backend hiện tại>
 ```
 
-Compose skeleton M1 hiện chỉ khai báo dependency; backend chạy từ Maven trong local development. Runtime local mục tiêu sau khi implementation hoàn tất:
+Topologgie runtime local mục tiêu đã chạy thật:
 
 ```text
-backend
+backend (image kbase-backend:local, port 8080)
 postgres + postgres_data
-minio + minio_data
-redis (ephemeral OTP state)
+minio + minio_data (+ console 9001)
+redis (ephemeral OTP state, tmpfs)
+Gmail SMTP là external integration và không chạy trong Docker Compose.
 ```
 
-Gmail SMTP là external integration và không chạy trong Docker Compose.
+`docker-compose.mail-test.yml` là optional override chỉ dùng cho verification tự động (mailpit sink bắt OTP/invitation email để kiểm chứng MailService boundary); không thuộc designed topology và không bắt buộc khi chạy product.
 
 ## Baseline verification
 
@@ -328,6 +336,28 @@ Các kiểm tra sau đã chạy ngày `2026-09-18`:
 
 M13 không thay đổi Flyway migration; `docs/generated/db-schema.md` không cần sinh lại. `docs/generated/api-schema.md` đã được cập nhật: runtime `/v3/api-docs` là contract máy đọc được từ milestone này.
 
+### M14 verification record
+
+Các kiểm tra sau đã chạy ngày `2026-09-18` trên Docker Desktop 29.8.0 + Compose v5.5.1:
+
+| Lệnh hoặc kiểm tra | Kết quả | Ghi chú |
+|---|---|---|
+| `docker compose -f docker-compose.yml config --quiet` và với override mail-test | Pass | Config hợp lệ, các biến `:?required` bắt buộc từ `.env` (git-ignored) |
+| Clean startup: `docker compose down -v` → `docker compose up -d --build` | Pass | Build image thành công; redis/minio/postgres lần lượt Healthy trước khi backend start (depends_on service_healthy, không sleep); `kbase_postgres_data`/`kbase_minio_data` tạo mới |
+| Backend startup logs | Pass | Flyway: `Empty Schema → migrating V1, V2, V3 → successfully applied 3 migrations ... now at version v3` trên `jdbc:postgresql://postgres:5432/kbase`; Hibernate `ddl-auto=validate` pass; Tomcat 8080; bucket `kbase-documents` auto-created theo local config |
+| Docker-internal wiring | Pass | Backend env: `KBASE_POSTGRES_HOST=postgres`, `KBASE_REDIS_HOST=redis`, `KBASE_STORAGE_ENDPOINT=http://minio:9000`; không nhắm localhost từ trong container |
+| OpenAPI trong container | Pass | `GET /v3/api-docs` → 200; `/swagger-ui.html` → 302 redirect |
+| Auth journey qua container (mail double `axllent/mailpit`) | Pass | register 201 (unverified); Redis OTP state key + TTL 287s; email "Verify your KBase email address" nhận tại mail double (MailService boundary); verify-email 200; Redis state bị xóa sau verify; login 200 (JWT HS256, expiresIn 900, cookie HttpOnly/Path=/api/v1/auth/Secure=false); refresh 200; logout 204; refresh sau logout 401 `REFRESH_SESSION_REVOKED` |
+| Core flows qua container | Pass | project create 201 + OWNER; folder/category/tag 201; upload PDF/MP4 multipart 201; search `q`/tag filter/sort 200; PATCH metadata 200; download MD5 khớp file upload + `Content-Disposition: attachment`; preview PDF 200 inline; MP4 `Range: bytes=0-1023` → 206 + `Content-Range: bytes 0-1023/2097176`; invalid range → 416 + `bytes */2097176`; invitation create 201 → token từ email link → user thứ hai register/verify/login → accept 200 role MEMBER; MEMBER đọc/download 200 nhưng delete doc của OWNER 403 `DOCUMENT_MODIFICATION_FORBIDDEN`; remove member 204; former member search 403 `PROJECT_ACCESS_FORBIDDEN` |
+| Persistence — backend restart | Pass | `docker compose restart backend`: Flyway "Schema is up to date. No migration necessary." (history persist trong `postgres_data`); project/document data nguyên vẹn, MD5 khớp |
+| Persistence — postgres/minio force-recreate (giữ volume) | Pass | Data + JWT user + document binary còn nguyên; `flyway_schema_history` 3 rows success; MinIO object download được sau recreate |
+| Persistence — Redis recreation | Pass | OTP state biến mất (key 0) sau recreate; verify bằng OTP cũ → 400 `OTP_EXPIRED`; resend 204 (cooldown cũng mất); verify OTP mới 200; login 200 |
+| Hard delete storage-first | Pass | document delete 204 → object biến mất khỏi bucket; project delete (OWNER) 204 → project 404 + membership/folder/category/tag/document rows cascade + bucket rỗng |
+| Log leak scan trên `docker compose logs backend` | Pass | Không password/JWT/refresh token/OTP/invitation token/App Password/MinIO secret; line "Using generated security password" đã loại bằng exclude `UserDetailsServiceAutoConfiguration` |
+| `mvn -B -ntp clean verify` (M14 final, sau fix) | Pass — BUILD SUCCESS; 210 tests, 0 failures/errors/skipped | Compile/package/repackage pass |
+
+Bug từ M11 đã sửa trong M14: `ProjectService.deleteProject` (OWNER path) fail `TransientPropertyValueException` trên Hibernate 7.4 vì membership của caller là managed entity khi flush delete project. Fix tối thiểu: `ProjectRepository.deleteProjectCascade` (bulk JPQL delete, DB FK cascade vẫn là lớp authoritative); unit test cập nhật; regression test mới `ownerProjectHardDeleteWorksWhenTheOwnerMembershipIsLoaded` trong `DocumentApiIntegrationTest` (4/4) — trước đó chỉ ADMIN path được test trên DB thật.
+
 ## Tài liệu Generated
 
 | Tài liệu | Nguồn sự thật | Cách cập nhật | Cách xác minh |
@@ -345,16 +375,14 @@ Quy tắc:
 
 ## Reset môi trường
 
-Khi Docker runtime đã được tạo, phải tài liệu hóa command thật để:
+Docker runtime M14 đã có thật; reset command chuẩn:
 
-- Dừng process/container.
-- Xóa build artifact.
-- Xóa cache local an toàn.
-- Reset PostgreSQL development/test khi có chủ ý.
-- Chạy lại Flyway migration.
-- Xóa/recreate MinIO development data khi có chủ ý.
-- Restart Redis OTP store; mất pending OTP là chấp nhận được vì Redis OTP là ephemeral.
-- Khởi động lại dependency.
+- `docker compose down`: dừng và xóa containers/network, giữ `postgres_data` + `minio_data` (non-destructive).
+- `docker compose down -v`: reset hoàn toàn — xóa cả hai named volume; Flyway sẽ chạy lại từ database rỗng ở lần start sau (destructive, chỉ dùng khi chủ ý reset development data).
+- Restart riêng: `docker compose restart backend|postgres|minio|redis`.
+- Reset Redis OTP: recreate container là đủ; mất pending OTP là chấp nhận được vì Redis OTP là ephemeral và user có thể resend.
+- Reset MinIO development objects: xóa bucket qua MinIO Console (host port 9001) hoặc `docker compose down -v` khi muốn reset cả database.
+- Xóa build artifact: `mvn clean`, image `kbase-backend:local` xóa bằng `docker rmi`.
 
 Không xóa `postgres_data` hoặc `minio_data` như một bước reset mặc định. Không đưa destructive command cho production vào phần này.
 

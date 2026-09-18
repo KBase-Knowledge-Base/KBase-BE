@@ -3309,6 +3309,10 @@ Goal:
 Run Core v1 using the intended local Docker topology and verify persistence boundaries.
 ```
 
+Status: `DONE` — M14 Gate `PASS` ngày `2026-09-18`.
+
+Evidence: `Dockerfile` multi-stage (Maven build → JRE 21, non-root, stateless) và `docker-compose.yml` đủ backend/postgres/minio/redis với healthcheck-gated startup (`pg_isready`, `redis-cli ping`, MinIO health) không dùng sleep. Clean startup từ rỗng: Flyway V1–V3 apply trong container, Hibernate `ddl-auto=validate` pass. Golden journeys chạy qua containerized backend: auth journey (register → Redis OTP key/TTL → mail double → verify → login/refresh/logout), project/organization/upload/download checksum khớp/preview MP4 206+416/search/invitation accept/MEMBER permissions/hard delete storage-first. `postgres_data`/`minio_data` giữ data qua backend restart và force-recreate; Redis recreation mất pending OTP và resend hoạt động. Log runtime không leak secret. Fix một bug runtime từ M11: OWNER-path project hard delete `TransientPropertyValueException` (Hibernate 7.4) → `ProjectRepository.deleteProjectCascade` + regression test OWNER-path; full suite 210/210 qua `mvn clean verify`. Gmail SMTP giữ external (`docker-compose.mail-test.yml` chỉ là optional mail double cho verification).
+
 ---
 
 ## DOCKER-01 – Backend Dockerfile

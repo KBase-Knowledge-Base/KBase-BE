@@ -26,6 +26,19 @@ M2 đã thêm ba Flyway migrations làm schema source-of-truth và xác minh ch�
 
 M10 đã bổ sung storage adapter nhưng không thay đổi Docker topology. Local profile dùng `KBASE_STORAGE_AUTO_CREATE=true` và `KBASE_STORAGE_INITIALIZE_ON_STARTUP=true` để validate/tạo bucket cấu hình khi cần; base/production mặc định là `false`, yêu cầu bucket private được pre-provision. Runtime không thay bucket policy, versioning, retention hay object lock; Core v1 giữ hard-delete semantics với bucket unversioned. `KBASE_STORAGE_ENDPOINT`, access key, secret key, bucket, region và connect/write/read timeout đều externalized; access key/secret không được hard-code. Binary local vẫn nằm tại MinIO `/data` mount từ named volume `minio_data`, đã được giữ nguyên và static-verified; M10 MinIO Testcontainer xác minh stream/range/stat/delete nhưng full backend Compose runtime vẫn thuộc M14.
 
+### Trạng thái M14 đã xác minh
+
+M14 đã hoàn tất ngày `2026-09-18` và verify full topology trong Docker runtime thật:
+
+- `Dockerfile` multi-stage: build với `maven:3.9-eclipse-temurin-21` (skip tests — tests chạy qua Maven/Testcontainers pipeline), runtime `eclipse-temurin:21-jre`, user non-root `kbase`, jar repackaged, entrypoint `java -XX:MaxRAMPercentage=75.0`; backend container stateless, mọi credential qua environment.
+- `docker-compose.yml` đủ `backend`/`postgres`/`minio`/`redis`: backend dùng service name (`postgres:5432`, `redis:6379`, `http://minio:9000`), startup dependency bằng healthcheck (`pg_isready`, `redis-cli ping`, MinIO `minio/health/live`) qua `depends_on: service_healthy`, không dùng sleep; `postgres_data` và `minio_data` giữ nguyên; Redis vẫn tmpfs ephemeral.
+- Secrets không hard-code: compose dùng `${VAR:?required}`; giá trị local nằm trong `.env` git-ignored; `.env.example` liệt kê tên biến.
+- Flyway migrate từ database rỗng trong container; Hibernate validate pass; Flyway history persist trong `postgres_data` qua backend restart.
+- Persistence đã chứng minh: data sống qua backend restart và force-recreate postgres/minio; Redis recreation làm mất pending OTP (resend vẫn hoạt động) đúng thiết kế.
+- Gmail SMTP không bị Dockerize; `docker-compose.mail-test.yml` là optional mail double (mailpit) chỉ cho verification tự động, không thuộc designed topology.
+- Log runtime không chứa password/JWT/token/OTP/credential; generated-password log của Boot đã loại bằng exclude `UserDetailsServiceAutoConfiguration` (JWT-only, không có in-memory user).
+- Rollback application local: `docker compose up -d --build backend` sau khi revert code (volumes giữ nguyên); không có destructive migration trong Core v1 (chỉ 3 migrations create-only).
+
 ## Môi trường
 
 Mô tả các môi trường:

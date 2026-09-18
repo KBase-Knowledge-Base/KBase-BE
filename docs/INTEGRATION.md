@@ -170,3 +170,11 @@ M6 verification đã chạy:
 
 - AuthenticationSecurityIntegrationTest 14/14 với PostgreSQL 17 + Redis 7.4 Testcontainers và real SecurityFilterChain: register→verify→login→refresh→logout journey, cooldown/resend replace, OTP invalid/expired/exhausted, JWT valid/expired/tampered, disabled account (access cũ + refresh + login đều chặn), refresh session hash-only trong PostgreSQL, cookie attributes, ADMIN route protection và 401/403 error contract.
 - Regression toàn suite 104 tests pass qua `mvn test` và `mvn clean verify`.
+
+## Docker Runtime Wiring (M14)
+
+- Backend container join compose network và kết nối dependency bằng service name với internal port: `postgres:5432`, `redis:6379`, `http://minio:9000`; không bao giờ nhắm `localhost` từ trong container. Host chỉ expose 8080 (backend), 5432/6379/9000/9001 cho dev.
+- Startup dependency dùng healthcheck (`pg_isready`, `redis-cli ping`, MinIO `minio/health/live`) với `depends_on: service_healthy`; không dùng arbitrary sleep.
+- Backend image không chứa secret; mọi credential/endpoint đến từ environment (`${VAR:?required}` trong compose, giá trị thật trong `.env` git-ignored).
+- Gmail SMTP vẫn external. `docker-compose.mail-test.yml` là optional override (mailpit) chỉ dùng cho verification tự động để bắt OTP/invitation email; production giữ Gmail thật qua `KBASE_GMAIL_SMTP_*` và không dùng override này.
+- Persistence đã verify trong runtime: `postgres_data`/`minio_data` giữ data qua backend restart và container force-recreate; Redis recreation làm mất pending OTP và resend vẫn hoạt động.

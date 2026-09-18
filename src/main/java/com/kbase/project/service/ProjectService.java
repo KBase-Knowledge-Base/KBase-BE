@@ -166,7 +166,7 @@ public class ProjectService {
      */
     @Transactional
     public void deleteProject(UUID projectId, CustomUserPrincipal principal) {
-        var access = authorizationService.requireOwner(projectId, principal);
+        authorizationService.requireOwner(projectId, principal);
         try {
             storageService.deleteAll(documentRepository.findStorageKeysByProjectId(projectId).stream()
                     .map(projection -> projection.getStorageKey()).toList());
@@ -175,8 +175,7 @@ public class ProjectService {
                     ? ErrorCode.STORAGE_SERVICE_UNAVAILABLE : ErrorCode.PROJECT_DELETE_FAILED, exception);
         }
         try {
-            projectRepository.delete(access.project());
-            projectRepository.flush();
+            projectRepository.deleteProjectCascade(projectId);
         } catch (RuntimeException exception) {
             org.slf4j.LoggerFactory.getLogger(ProjectService.class).error(
                     "Project DB delete failed after storage deletion projectId={}", projectId, exception);
