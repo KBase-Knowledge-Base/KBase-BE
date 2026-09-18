@@ -1,0 +1,112 @@
+# Hướng dẫn Backend
+
+## Mục đích
+
+Tài liệu này quy định cách tổ chức, phát triển và kiểm chứng mã nguồn backend. Các quy tắc cụ thể theo framework phải được bổ sung dựa trên công nghệ thực tế của dự án.
+
+## Phạm vi
+
+Áp dụng cho:
+
+- API và controller.
+- Application service hoặc use case.
+- Business logic và domain logic.
+- Repository và data access.
+- Background job.
+- Tích hợp dịch vụ bên ngoài.
+- Cấu hình backend.
+
+
+## Baseline KBase Hiện tại
+
+- Phase hiện tại chỉ triển khai backend Core v1; frontend optional được hoãn.
+- Kiến trúc: feature-first modular monolith với root package dự kiến `com.kbase` nếu repository thực tế không quy định package khác.
+- Luồng chính: `Controller -> Service/Application -> Repository`.
+- Project/document authorization phải được gom vào authorization service/component, không phân tán trong controller.
+- External infrastructure đi qua port/adapter: `StorageService -> MinioStorageService`, `MailService -> SmtpMailService`, `OtpStore -> RedisOtpStore`.
+- PostgreSQL lưu persistent metadata/session/invitation state; Redis chỉ lưu email-verification OTP state ngắn hạn; MinIO lưu binary file.
+- Flyway là schema source of truth; JPA mapping phải validate với schema.
+- AI/RAG, OAuth, MFA, password reset, public share link và frontend không được tự thêm vào Core v1.
+
+Tài liệu chi tiết nằm trong `docs/design-docs/index.md` và execution order nằm trong `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md`.
+
+## Phân chia trách nhiệm
+
+### Controller hoặc API layer
+
+- Tiếp nhận request.
+- Xác thực định dạng input.
+- Gọi application service hoặc use case.
+- Chuyển kết quả thành response.
+- Không chứa business logic phức tạp.
+- Không truy cập database trực tiếp.
+
+### Application hoặc Service layer
+
+- Điều phối một use case hoàn chỉnh.
+- Thực thi business rule.
+- Xác định transaction boundary.
+- Phối hợp repository và external adapter.
+- Không phụ thuộc vào chi tiết giao diện người dùng.
+
+### Domain layer
+
+Nếu dự án có domain layer:
+
+- Chứa business rule cốt lõi.
+- Không phụ thuộc vào framework hoặc transport.
+- Không truy cập trực tiếp database hoặc dịch vụ bên ngoài.
+
+### Repository hoặc Data access layer
+
+- Chịu trách nhiệm truy cập và lưu trữ dữ liệu.
+- Không chứa business rule không liên quan đến persistence.
+- Không để query hoặc persistence detail lan sang layer khác.
+
+### Integration hoặc Adapter layer
+
+- Bao bọc dịch vụ bên ngoài sau interface rõ ràng.
+- Xử lý timeout, lỗi, retry và mapping dữ liệu.
+- Không để model hoặc response của nhà cung cấp lan vào domain.
+
+## Quy tắc chung
+
+- Không trả persistence entity trực tiếp qua API nếu chưa được quy định.
+- Dùng request/response model hoặc DTO tại boundary.
+- Validation phía backend là bắt buộc.
+- Exception phải được xử lý và ánh xạ nhất quán.
+- Không bắt exception rồi bỏ qua.
+- Không ghi secret, token hoặc dữ liệu nhạy cảm vào log.
+- Không thêm dependency mới nếu chưa có lý do rõ ràng.
+- Không tạo global mutable state nếu không thật sự cần.
+- Operation quan trọng phải xem xét concurrency và idempotency.
+- Mọi thay đổi lớn về cấu trúc phải được ghi trong `docs/design-docs/`.
+
+## Error handling
+
+- Lỗi nghiệp vụ, validation, authorization và system error phải được phân biệt.
+- Client không được nhận stack trace hoặc implementation detail.
+- Error response phải tuân theo `docs/API_CONVENTIONS.md`.
+- Log lỗi phải có đủ context để chẩn đoán nhưng không làm lộ dữ liệu nhạy cảm.
+
+## Transaction
+
+- Transaction boundary phải nằm ở layer điều phối use case.
+- Không giữ transaction mở trong lúc gọi dịch vụ mạng nếu có thể tránh.
+- Các thao tác nhiều bước phải xác định hành vi rollback.
+- Cần đánh giá duplicate request và concurrent update.
+
+## Verification
+
+Tùy phạm vi thay đổi, phải chạy:
+
+- Build hoặc compile.
+- Static analysis.
+- Unit test.
+- Integration test.
+- Repository test.
+- API hoặc contract test.
+- Security test cho thay đổi nhạy cảm.
+- Performance test cho đường dẫn quan trọng.
+
+Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.

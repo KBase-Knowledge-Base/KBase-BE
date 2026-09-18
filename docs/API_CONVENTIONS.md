@@ -1,0 +1,105 @@
+# Quy ước API
+
+## Mục đích
+
+Tài liệu này định nghĩa chuẩn chung cho API do dự án sở hữu, nhằm giữ contract nhất quán giữa client, backend và các service.
+
+## Tài liệu Contract Hiện tại
+
+File này định nghĩa các quy ước mà API phải tuân theo.
+
+Danh sách endpoint, request, response, error, enum, pagination và kiểu dữ liệu hiện tại được lưu tại:
+
+- `docs/generated/api-schema.md`
+
+Nếu dự án có OpenAPI, GraphQL schema, Protobuf hoặc contract máy đọc được khác, nguồn đó là nguồn sự thật ưu tiên. `docs/generated/api-schema.md` phải được sinh hoặc đồng bộ từ nguồn sự thật đó.
+
+Phân biệt:
+
+- `docs/API_CONVENTIONS.md`: API phải được thiết kế như thế nào.
+- `docs/generated/api-schema.md`: API hiện tại đang có những endpoint và schema nào.
+
+
+## Baseline KBase Core v1
+
+- Base path: `/api/v1`.
+- Protected endpoint dùng Bearer JWT access token; refresh token dùng HttpOnly cookie theo Security design.
+- Registration email verification dùng public `verify-email`/`resend-verification-otp` endpoints theo REST spec; OTP không phải login credential.
+- Pagination baseline: `page=0`, `size=20`, `max size=100`; sort phải dùng whitelist theo từng resource.
+- Error response chuẩn gồm: `timestamp`, `status`, `code`, `message`, `path`, `requestId`, và `errors` khi validation cần field-level detail.
+- Binary preview/download phải được mô tả là binary response; MP4 preview hỗ trợ single byte-range theo design.
+- `storageKey`, password hash, token hash, OTP protected value và persistence-only field không được xuất hiện trong public DTO.
+- Trong giai đoạn trước khi OpenAPI runtime được sinh, `docs/design-docs/KBase - Core v1 REST API Specification.md` là contract thiết kế chi tiết; `docs/generated/api-schema.md` chỉ là placeholder và không được ưu tiên hơn REST spec.
+
+## Thiết kế endpoint
+
+- URL phải nhất quán và mô tả tài nguyên hoặc hành động rõ ràng.
+- HTTP method phải phản ánh đúng ý nghĩa thao tác.
+- Không đưa implementation detail vào URL.
+- Quy ước versioning phải được xác định nếu API cần duy trì tương thích lâu dài.
+- Hành động không phù hợp CRUD phải được mô tả rõ trong contract.
+
+## Request
+
+- Request phải có schema hoặc model rõ ràng.
+- Phân biệt field bắt buộc, tùy chọn và nullable.
+- Validation phía server là bắt buộc.
+- Không tin role, owner hoặc trạng thái bảo mật do client tự khai báo.
+- Định dạng ngày giờ, timezone, số và enum phải thống nhất.
+- Upload file phải có giới hạn và validation phù hợp.
+
+## Response
+
+- Response phải có cấu trúc nhất quán.
+- Không trả field nội bộ hoặc dữ liệu nhạy cảm không cần thiết.
+- Collection phải dùng một quy ước pagination thống nhất.
+- Trạng thái trả về phải phản ánh đúng kết quả thực tế.
+- Không trả persistence entity trực tiếp nếu chưa được chấp nhận trong kiến trúc.
+
+## Error response
+
+Error response nên cung cấp:
+
+- Mã lỗi ổn định.
+- Thông điệp có thể hiểu được.
+- HTTP status phù hợp.
+- Chi tiết field khi validation lỗi.
+- Request hoặc correlation ID nếu hệ thống hỗ trợ.
+
+KBase Core v1 chuẩn hóa thành `ApiErrorResponse` với các field bắt buộc
+`timestamp`, `status`, `code`, `message`, `path`, `requestId`. Validation error
+có thêm `errors` dạng map field → safe message. Mọi response được gắn
+`X-Request-Id`, và giá trị này phải trùng với `requestId` trong error body.
+
+Không trả:
+
+- Stack trace.
+- SQL hoặc query nội bộ.
+- Secret.
+- Thông tin hệ thống không cần thiết.
+
+## Authentication và authorization
+
+- Cơ chế xác thực phải được mô tả trong `docs/SECURITY.md`.
+- Authorization phải được kiểm tra phía server.
+- Endpoint nhạy cảm phải kiểm tra quyền và ownership khi cần.
+- Lỗi authentication và authorization phải dùng status và response nhất quán.
+
+## Idempotency và concurrency
+
+- Operation có tác động khó hoàn tác phải xem xét idempotency.
+- Request lặp hoặc retry phải có hành vi xác định.
+- Concurrent update phải được xử lý bằng cơ chế phù hợp.
+- Idempotency key, version field hoặc locking phải được tài liệu hóa khi sử dụng.
+
+## Contract và compatibility
+
+- OpenAPI hoặc schema tương đương nên là contract có thể kiểm chứng.
+- Breaking change phải được nhận diện trước khi triển khai.
+- Client và server phải được kiểm tra cùng nhau khi contract thay đổi.
+- File contract được sinh nên đặt trong `docs/generated/`.
+- Khi endpoint, method, path, request, response, enum, pagination hoặc error schema thay đổi, phải cập nhật hoặc sinh lại `docs/generated/api-schema.md`.
+- `docs/generated/api-schema.md` không thay thế các quy tắc thiết kế trong file này.
+- Nếu `docs/generated/api-schema.md` mâu thuẫn với contract máy đọc được hoặc source code đã được xác minh, file generated được xem là lỗi thời.
+- Breaking change phải được ghi trong execution plan và trong phần breaking changes của `docs/generated/api-schema.md`.
+- Endpoint hoặc field deprecated phải có hướng thay thế và thời gian loại bỏ nếu có.

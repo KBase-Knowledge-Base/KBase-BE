@@ -1,0 +1,23 @@
+# Maven
+target/
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+
+# IDE and OS files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db
+
+# Local logs
+*.log
+
+# Test/tool caches
+.mvn/timing.properties

@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "registry": "kbase-source-documents",
+  "updatedOn": "2026-09-17",
+  "pathBase": ".",
+  "encoding": "UTF-8",
+  "sourceDocumentCount": 13,
+  "documents": [
+    {
+      "alias": "SD-01",
+      "canonicalTitle": "KBase - Core v1 Specification",
+      "path": "docs/product-specs/KBase - Core v1 Specification.md",
+      "authority": "accepted product behavior and acceptance criteria"
+    },
+    {
+      "alias": "SD-02",
+      "canonicalTitle": "KBase - Core v1 Entity Analysis & ERD",
+      "path": "docs/design-docs/KBase - Core v1 Entity Analysis & ERD.md",
+      "authority": "domain entities and relationships"
+    },
+    {
+      "alias": "SD-03",
+      "canonicalTitle": "KBase - Core v1 Physical Database Design",
+      "path": "docs/design-docs/KBase - Core v1 Physical Database Design.md",
+      "authority": "physical schema, constraints, indexes and delete strategy"
+    },
+    {
+      "alias": "SD-04",
+      "canonicalTitle": "KBase - Core v1 REST API Specification",
+      "path": "docs/design-docs/KBase - Core v1 REST API Specification.md",
+      "authority": "public REST contract and HTTP behavior"
+    },
+    {
+      "alias": "SD-05",
+      "canonicalTitle": "KBase - Core v1 Spring Boot Application Architecture + Module / Package Structure",
+      "path": "docs/design-docs/KBase - Core v1 Spring Boot Application Architecture.md",
+      "authority": "application and package architecture"
+    },
+    {
+      "alias": "SD-06",
+      "canonicalTitle": "KBase - Core v1 JPA Entity Mapping + Repository Design",
+      "path": "docs/design-docs/KBase - Core v1 JPA Entity Mapping Repository Design.md",
+      "authority": "JPA mapping and persistence implementation"
+    },
+    {
+      "alias": "SD-07",
+      "canonicalTitle": "KBase - Core v1 Spring Security + JWT Design",
+      "path": "docs/design-docs/KBase - Core v1 Spring Security JWT Design.md",
+      "authority": "security and authentication behavior"
+    },
+    {
+      "alias": "SD-08",
+      "canonicalTitle": "KBase - Core v1 Service Layer Detailed Design",
+      "path": "docs/design-docs/KBase - Core v1 Service Layer Detailed Design.md",
+      "authority": "service responsibility, orchestration and transactions"
+    },
+    {
+      "alias": "SD-09",
+      "canonicalTitle": "KBase - Core v1 MinIO Integration Design",
+      "path": "docs/design-docs/KBase - Core v1 MinIO Integration Design.md",
+      "authority": "object storage integration boundary and behavior"
+    },
+    {
+      "alias": "SD-10",
+      "canonicalTitle": "KBase - Core v1 Exception Handling Design",
+      "path": "docs/design-docs/KBase - Core v1 Exception Handling Design.md",
+      "authority": "error taxonomy, mapping and sensitive-data logging policy"
+    },
+    {
+      "alias": "SD-11",
+      "canonicalTitle": "KBase - Core v1 OpenAPI / Swagger Configuration Design",
+      "path": "docs/design-docs/KBase - Core v1 OpenAPI Swagger Configuration Design.md",
+      "authority": "OpenAPI and Swagger documentation behavior"
+    },
+    {
+      "alias": "SD-12",
+      "canonicalTitle": "KBase - Core v1 Testing Strategy",
+      "path": "docs/design-docs/KBase - Core v1 Testing Strategy.md",
+      "authority": "required verification and test strategy"
+    },
+    {
+      "alias": "SD-13",
+      "canonicalTitle": "KBase - Core v1 Implementation Plan",
+      "path": "docs/exec-plans/KBase_Core_v1_Implementation_Plan.md",
+      "authority": "implementation order only"
+    }
+  ],
+  "precedence": [
+    {
+      "rank": 1,
+      "aliases": ["SD-01"],
+      "rule": "Explicit accepted business decisions in SD-01 and later approved decisions reflected consistently across SD-02..SD-12."
+    },
+    {
+      "rank": 2,
+      "aliases": ["SD-02", "SD-03"],
+      "rule": "Domain and data structure."
+    },
+    {
+      "rank": 3,
+      "aliases": ["SD-04"],
+      "rule": "Public REST contract."
+    },
+    {
+      "rank": 4,
+      "aliases": ["SD-05"],
+      "rule": "Application and package architecture."
+    },
+    {
+      "rank": 5,
+      "aliases": ["SD-06"],
+      "rule": "Persistence implementation."
+    },
+    {
+      "rank": 6,
+      "aliases": ["SD-07"],
+      "rule": "Security and authentication."
+    },
+    {
+      "rank": 7,
+      "aliases": ["SD-08"],
+      "rule": "Service orchestration."
+    },
+    {
+      "rank": 8,
+      "aliases": ["SD-09"],
+      "rule": "Storage integration."
+    },
+    {
+      "rank": 9,
+      "aliases": ["SD-10"],
+      "rule": "Error and API failure contract."
+    },
+    {
+      "rank": 10,
+      "aliases": ["SD-11"],
+      "rule": "OpenAPI documentation."
+    },
+    {
+      "rank": 11,
+      "aliases": ["SD-12"],
+      "rule": "Required verification."
+    },
+    {
+      "rank": 12,
+      "aliases": ["SD-13"],
+      "rule": "Implementation order only; SD-13 cannot override product or design decisions."
+    }
+  ],
+  "resolutionPolicy": {
+    "aliasLookup": "case-sensitive exact alias",
+    "missingSource": "BLOCK the task, record the missing alias/path, and reload context before continuing",
+    "contextDepletion": "Reload the required source documents from this registry; never fill missing context by guessing",
+    "unresolvedConflict": "BLOCK the task; record the exact conflict, aliases/sections involved, and source-of-truth review required",
+    "sourceChange": "Revalidate the registry paths and affected source documents before relying on prior decisions"
+  },
+  "scopeGuard": {
+    "product": "KBase",
+    "release": "Core v1",
+    "implementationMode": "backend-only",
+    "frontend": "optional/deferred; do not create or modify frontend during the current backend phase",
+    "excludedFromCoreV1": [
+      "AI/RAG",
+      "vector search and embeddings",
+      "document versioning",
+      "public sharing",
+      "comments",
+      "favorites",
+      "ownership transfer"
+    ],
+    "activePlanControlsTaskScope": true
+  }
+}

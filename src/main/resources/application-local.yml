@@ -1,0 +1,9 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+kbase:
+  storage:
+    auto-create-bucket: ${KBASE_STORAGE_AUTO_CREATE:true}
+    initialize-on-startup: ${KBASE_STORAGE_INITIALIZE_ON_STARTUP:true}

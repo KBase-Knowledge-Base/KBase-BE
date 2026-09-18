@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: ${KBASE_POSTGRES_IMAGE:-postgres:17-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${KBASE_POSTGRES_DB:?KBASE_POSTGRES_DB must be set}
+      POSTGRES_USER: ${KBASE_POSTGRES_USERNAME:?KBASE_POSTGRES_USERNAME must be set}
+      POSTGRES_PASSWORD: ${KBASE_POSTGRES_PASSWORD:?KBASE_POSTGRES_PASSWORD must be set}
+    ports:
+      - "${KBASE_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: ${KBASE_MINIO_IMAGE:-quay.io/minio/minio:latest}
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${KBASE_STORAGE_ACCESS_KEY:?KBASE_STORAGE_ACCESS_KEY must be set}
+      MINIO_ROOT_PASSWORD: ${KBASE_STORAGE_SECRET_KEY:?KBASE_STORAGE_SECRET_KEY must be set}
+    ports:
+      - "${KBASE_STORAGE_API_PORT:-9000}:9000"
+      - "${KBASE_STORAGE_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+
+  redis:
+    image: ${KBASE_REDIS_IMAGE:-redis:7.4-alpine}
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # The Redis image declares /data as a volume; tmpfs keeps OTP state ephemeral.
+    volumes: []
+    tmpfs:
+      - /data
+    ports:
+      - "${KBASE_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  minio_data:

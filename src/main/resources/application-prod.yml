@@ -1,0 +1,37 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:postgresql://${kbase.postgres.host}:${kbase.postgres.port}/${kbase.postgres.database}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+server:
+  error:
+    include-message: never
+
+kbase:
+  postgres:
+    host: ${KBASE_POSTGRES_HOST}
+    port: ${KBASE_POSTGRES_PORT}
+    database: ${KBASE_POSTGRES_DB}
+    username: ${KBASE_POSTGRES_USERNAME}
+    password: ${KBASE_POSTGRES_PASSWORD}
+  refresh-cookie:
+    secure: true
+  cors:
+    allowed-origins: ${KBASE_ALLOWED_ORIGINS}
+  openapi:
+    enabled: ${KBASE_OPENAPI_ENABLED:false}
+    swagger-ui-enabled: ${KBASE_SWAGGER_UI_ENABLED:false}
+  storage:
+    endpoint: ${KBASE_STORAGE_ENDPOINT}
+    access-key: ${KBASE_STORAGE_ACCESS_KEY}
+    secret-key: ${KBASE_STORAGE_SECRET_KEY}
+    bucket: ${KBASE_STORAGE_BUCKET}
+    region: ${KBASE_STORAGE_REGION:us-east-1}

@@ -1,0 +1,48 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+  main:
+    web-application-type: none
+  datasource:
+    url: ${KBASE_TEST_DATABASE_URL:jdbc:postgresql://localhost:5432/kbase_test}
+    username: ${KBASE_TEST_DATABASE_USERNAME}
+    password: ${KBASE_TEST_DATABASE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: false
+  data:
+    redis:
+      host: ${KBASE_TEST_REDIS_HOST:localhost}
+      port: ${KBASE_TEST_REDIS_PORT:6379}
+  mail:
+    host: ${KBASE_TEST_SMTP_HOST:localhost}
+    port: ${KBASE_TEST_SMTP_PORT:1025}
+
+kbase:
+  postgres:
+    host: ${KBASE_TEST_DATABASE_HOST:localhost}
+    port: ${KBASE_TEST_DATABASE_PORT:5432}
+    database: ${KBASE_TEST_DATABASE_NAME:kbase_test}
+    username: ${KBASE_TEST_DATABASE_USERNAME}
+    password: ${KBASE_TEST_DATABASE_PASSWORD}
+  jwt:
+    signing-secret: ${KBASE_TEST_JWT_SECRET}
+  otp:
+    hash-secret: ${KBASE_TEST_OTP_HASH_SECRET}
+  redis:
+    host: ${KBASE_TEST_REDIS_HOST:localhost}
+    port: ${KBASE_TEST_REDIS_PORT:6379}
+  mail:
+    host: ${KBASE_TEST_SMTP_HOST:localhost}
+    port: ${KBASE_TEST_SMTP_PORT:1025}
+    username: ${KBASE_TEST_SMTP_USERNAME}
+    app-password: ${KBASE_TEST_SMTP_PASSWORD}
+  storage:
+    endpoint: ${KBASE_TEST_STORAGE_ENDPOINT:http://localhost:9000}
+    access-key: ${KBASE_TEST_STORAGE_ACCESS_KEY}
+    secret-key: ${KBASE_TEST_STORAGE_SECRET_KEY}
+    auto-create-bucket: false
+    initialize-on-startup: false

@@ -1,0 +1,122 @@
+spring:
+  application:
+    name: kbase-backend
+  profiles:
+    default: local
+  datasource:
+    url: jdbc:postgresql://${kbase.postgres.host}:${kbase.postgres.port}/${kbase.postgres.database}
+    username: ${kbase.postgres.username}
+    password: ${kbase.postgres.password}
+    hikari:
+      connection-timeout: ${KBASE_DB_CONNECTION_TIMEOUT_MS:5000}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${kbase.redis.host}
+      port: ${kbase.redis.port}
+      password: ${kbase.redis.password:}
+      timeout: ${kbase.redis.timeout}
+      repositories:
+        enabled: false
+  mail:
+    host: ${kbase.mail.host}
+    port: ${kbase.mail.port}
+    username: ${kbase.mail.username}
+    password: ${kbase.mail.app-password}
+    properties:
+      'mail.smtp.auth': ${kbase.mail.auth}
+      'mail.smtp.starttls.enable': ${kbase.mail.start-tls}
+      'mail.smtp.starttls.required': ${kbase.mail.start-tls}
+      'mail.smtp.connectiontimeout': ${KBASE_SMTP_CONNECTION_TIMEOUT_MS:10000}
+      'mail.smtp.timeout': ${KBASE_SMTP_TIMEOUT_MS:10000}
+      'mail.smtp.writetimeout': ${KBASE_SMTP_WRITE_TIMEOUT_MS:10000}
+  servlet:
+    multipart:
+      max-file-size: ${kbase.upload.video-max-size}
+      max-request-size: ${KBASE_MULTIPART_MAX_REQUEST_SIZE:500MB}
+
+server:
+  port: ${KBASE_SERVER_PORT:8080}
+
+kbase:
+  postgres:
+    host: ${KBASE_POSTGRES_HOST:localhost}
+    port: ${KBASE_POSTGRES_PORT:5432}
+    database: ${KBASE_POSTGRES_DB:kbase}
+    username: ${KBASE_POSTGRES_USERNAME}
+    password: ${KBASE_POSTGRES_PASSWORD}
+  jwt:
+    signing-secret: ${KBASE_JWT_SECRET}
+    algorithm: HS256
+    access-token-ttl: ${KBASE_ACCESS_TOKEN_TTL:15m}
+    refresh-token-ttl: ${KBASE_REFRESH_TOKEN_TTL:7d}
+  refresh-cookie:
+    name: ${KBASE_REFRESH_COOKIE_NAME:kbase_refresh_token}
+    secure: ${KBASE_REFRESH_COOKIE_SECURE:true}
+    same-site: ${KBASE_REFRESH_COOKIE_SAME_SITE:Lax}
+    max-age: ${KBASE_REFRESH_COOKIE_MAX_AGE:7d}
+    path: ${KBASE_REFRESH_COOKIE_PATH:/api/v1/auth}
+  otp:
+    length: ${KBASE_OTP_LENGTH:6}
+    ttl: ${KBASE_OTP_TTL:5m}
+    resend-cooldown: ${KBASE_OTP_RESEND_COOLDOWN:60s}
+    max-attempts: ${KBASE_OTP_MAX_ATTEMPTS:5}
+    hash-secret: ${KBASE_OTP_HASH_SECRET}
+  redis:
+    host: ${KBASE_REDIS_HOST:localhost}
+    port: ${KBASE_REDIS_PORT:6379}
+    password: ${KBASE_REDIS_PASSWORD:}
+    timeout: ${KBASE_REDIS_TIMEOUT:2s}
+  mail:
+    host: ${KBASE_GMAIL_SMTP_HOST:smtp.gmail.com}
+    port: ${KBASE_GMAIL_SMTP_PORT:587}
+    username: ${KBASE_GMAIL_SMTP_USERNAME}
+    app-password: ${KBASE_GMAIL_SMTP_APP_PASSWORD}
+    auth: ${KBASE_GMAIL_SMTP_AUTH:true}
+    start-tls: ${KBASE_GMAIL_SMTP_STARTTLS:true}
+    timeout: ${KBASE_GMAIL_SMTP_TIMEOUT:10s}
+  invitation:
+    expiration: ${KBASE_INVITATION_EXPIRATION:72h}
+    accept-base-url: ${KBASE_INVITATION_ACCEPT_URL:http://localhost:3000/invitations/accept}
+  upload:
+    document-max-size: ${KBASE_UPLOAD_DOCUMENT_MAX_SIZE:50MB}
+    image-max-size: ${KBASE_UPLOAD_IMAGE_MAX_SIZE:20MB}
+    video-max-size: ${KBASE_UPLOAD_VIDEO_MAX_SIZE:500MB}
+    max-batch-files: ${KBASE_UPLOAD_MAX_BATCH_FILES:10}
+  storage:
+    endpoint: ${KBASE_STORAGE_ENDPOINT:http://localhost:9000}
+    access-key: ${KBASE_STORAGE_ACCESS_KEY}
+    secret-key: ${KBASE_STORAGE_SECRET_KEY}
+    bucket: ${KBASE_STORAGE_BUCKET:kbase-documents}
+    region: ${KBASE_STORAGE_REGION:us-east-1}
+    auto-create-bucket: ${KBASE_STORAGE_AUTO_CREATE:false}
+    initialize-on-startup: ${KBASE_STORAGE_INITIALIZE_ON_STARTUP:false}
+    connect-timeout: ${KBASE_STORAGE_CONNECT_TIMEOUT:5s}
+    write-timeout: ${KBASE_STORAGE_WRITE_TIMEOUT:30s}
+    read-timeout: ${KBASE_STORAGE_READ_TIMEOUT:30s}
+  cors:
+    allowed-origins: ${KBASE_ALLOWED_ORIGINS:http://localhost:3000}
+    allow-credentials: ${KBASE_CORS_ALLOW_CREDENTIALS:true}
+  openapi:
+    enabled: ${KBASE_OPENAPI_ENABLED:true}
+    swagger-ui-enabled: ${KBASE_SWAGGER_UI_ENABLED:true}
+    api-docs-path: ${KBASE_OPENAPI_API_DOCS_PATH:/v3/api-docs}
+    swagger-ui-path: ${KBASE_OPENAPI_SWAGGER_UI_PATH:/swagger-ui.html}
+
+springdoc:
+  api-docs:
+    enabled: ${kbase.openapi.enabled}
+    path: ${kbase.openapi.api-docs-path}
+  swagger-ui:
+    enabled: ${kbase.openapi.swagger-ui-enabled}
+    path: ${kbase.openapi.swagger-ui-path}
