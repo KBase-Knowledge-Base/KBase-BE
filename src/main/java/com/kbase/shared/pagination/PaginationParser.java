@@ -49,13 +49,17 @@ public class PaginationParser {
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
 
-        boolean allowed = allowedSortFields.stream()
-                .anyMatch(allowedField -> allowedField.equalsIgnoreCase(field));
-        if (!allowed) {
+        String canonicalField = allowedSortFields.stream()
+                .filter(allowedField -> allowedField.equalsIgnoreCase(field))
+                .findFirst()
+                .orElse(null);
+        if (canonicalField == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "Sort field is not supported for this resource.");
         }
-        return Sort.by(direction, field);
+        // The persistence property always comes from the resource whitelist;
+        // a client-provided spelling is never forwarded as a raw Sort path.
+        return Sort.by(direction, canonicalField);
     }
 
     /** Normalizes a free-text {@code q} filter into a blank-or-lowercase token. */

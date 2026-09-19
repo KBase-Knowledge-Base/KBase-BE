@@ -59,3 +59,25 @@ Tài liệu này định nghĩa các yêu cầu về độ tin cậy và bằng 
 - SMTP timeout là configurable (`kbase.mail.timeout`, mặc định 10 giây); không retry tự động operation gửi mail không-idempotent.
 - Redis Testcontainer 6/6 và fake SMTP/unit suite 5/5 đã pass; không gọi Gmail thật, không log raw OTP/invitation token/credential.
 - Golden journey `registration → verify → login` vẫn chưa chạy vì registration/login thuộc M6.
+
+## Trạng thái M11 đã xác minh
+
+- `DocumentService` dùng upload streaming qua `StorageService`; DB persistence failure sau upload gọi compensation delete best-effort và log internal IDs/key nếu cleanup cũng lỗi, không trả storage key qua API.
+- `DocumentApiIntegrationTest` chạy qua real security filter chain với PostgreSQL + MinIO: upload/batch và reject contract, same-project metadata, MEMBER/OWNER/ADMIN/former-member matrix, stream attachment, Office rejection, MP4 single-range `206`/invalid `416`, và project hard-delete cascade.
+- `DocumentController` dùng `InputStreamResource` trực tiếp từ `StorageService`, vì vậy không materialize file lớn trong JVM; download dùng attachment/displayName còn preview dùng inline và `Content-Range` khi MP4 range hợp lệ.
+- `mvn -B -ntp test` và `mvn -B -ntp clean verify` đã pass 184 tests; M11 Gate pass.
+
+## Trạng thái M12 đã xác minh
+
+- `DocumentSearchService` authorize bằng `ProjectAuthorizationService.requireProjectAccess` trước khi gọi repository và luôn ghép predicate `document.project.id = projectId`; ADMIN giữ override, non-member nhận `PROJECT_ACCESS_FORBIDDEN`.
+- PostgreSQL search dùng metadata fields được duyệt; tag filter và tag-name query dùng `EXISTS`, tránh duplicate result/count khi một document có nhiều tag khớp.
+- `PaginationParser` canonicalize sort field từ whitelist trước khi tạo `Sort`, nên raw client path (kể cả `storageKey`) không chạm persistence; baseline page/size và max-size vẫn giữ nguyên.
+- `DocumentSearchIntegrationTest` 2/2 và full regression 188/188 pass; không có content extraction, full-text content, vector, semantic, AI hoặc RAG behavior.
+
+## Trạng thái M14 đã xác minh
+
+- Golden journeys đã chạy thật trong Docker runtime (backend container + PostgreSQL/Redis/MinIO containers, mail double cho OTP): registration → Redis OTP state (TTL) → email tại MailService boundary → verify → login → refresh → logout; OWNER create project → invitation email → user thứ hai verify/login → accept → MEMBER; upload → metadata PostgreSQL + binary MinIO → search/download/preview range (206/416) → MEMBER read-only với document của OWNER → remove member → former member mất access nhưng documents remain; document + project hard delete storage-first với bucket về rỗng.
+- Persistence boundaries: backend restart giữ data và Flyway history ("No migration necessary"); force-recreate postgres/minio không mất gì nhờ `postgres_data`/`minio_data`; Redis recreation làm mất pending OTP (verify cũ 400 `OTP_EXPIRED`) và resend/verify/login vẫn hoạt động — đúng policy ephemeral.
+- Health/readiness: postgres `pg_isready`, redis `redis-cli ping`, MinIO `minio/health/live` gated backend startup qua `depends_on: service_healthy`; không sleep.
+- Log runtime sạch (59 dòng/whole-smoke container): không password/JWT/token/OTP/credential; generated-password log của Boot đã loại.
+- Fix runtime từ M11: OWNER-path project hard delete fail trên Hibernate 7.4 (`TransientPropertyValueException`); sửa bằng bulk cascade delete + regression test OWNER-path; full suite 210/210.

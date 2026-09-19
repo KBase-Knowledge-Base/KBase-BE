@@ -3037,6 +3037,10 @@ Goal:
 Complete Core v1 metadata discovery.
 ```
 
+Status: `DONE` — M12 Gate `PASS` ngày `2026-09-18`.
+
+Evidence: `DocumentSearchCriteria`, `DocumentSearchService`, `DocumentController` project-scoped endpoint và canonical `PaginationParser` sort mapping; `DocumentSearchIntegrationTest` 2/2 với PostgreSQL 17 Testcontainer + real security filter chain, focused search/repository suite 16/16, full suite 188/188 qua `mvn -B -ntp test` và `mvn -B -ntp clean verify`. Search remains metadata-only and tag predicates use `EXISTS` to prevent duplicate document rows.
+
 ---
 
 ## SEARCH-01 – Implement DocumentSearchCriteria
@@ -3146,6 +3150,10 @@ Goal:
 ```text
 Make implemented REST contract accurately discoverable.
 ```
+
+Status: `DONE` — M13 Gate `PASS` ngày `2026-09-18`.
+
+Evidence: `config/OpenApiConfig` (metadata "KBase Core API v1", `bearerAuth` HTTP Bearer JWT, 12 canonical tags, shared 401 customizer dùng `ApiErrorResponse`); 12 controllers / 47 operations annotated với security requirements đúng (public auth endpoints không Bearer-required, protected endpoints require `bearerAuth`, ADMIN ghi `SystemRole.ADMIN`), project/document permission descriptions, multipart `file`/`files` binary + `metadata` JSON parts, binary download/preview schemas, MP4 `Range`/`206`/`416` documentation và OTP/Gmail/Redis/storage error codes đúng endpoint (số operations được đếm lại trên runtime spec trong M15: 47; bản ghi gốc M13 ghi 48 là miscount). `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2 trên real SecurityFilterChain; full suite 209/209 qua `mvn -B -ntp test` và `mvn -B -ntp clean verify`. Swagger UI bật local/dev, prod mặc định tắt qua `kbase.openapi.*` không nới `/api/v1/**`; không document AI/RAG hay JPA entity.
 
 ---
 
@@ -3300,6 +3308,10 @@ Goal:
 ```text
 Run Core v1 using the intended local Docker topology and verify persistence boundaries.
 ```
+
+Status: `DONE` — M14 Gate `PASS` ngày `2026-09-18`.
+
+Evidence: `Dockerfile` multi-stage (Maven build → JRE 21, non-root, stateless) và `docker-compose.yml` đủ backend/postgres/minio/redis với healthcheck-gated startup (`pg_isready`, `redis-cli ping`, MinIO health) không dùng sleep. Clean startup từ rỗng: Flyway V1–V3 apply trong container, Hibernate `ddl-auto=validate` pass. Golden journeys chạy qua containerized backend: auth journey (register → Redis OTP key/TTL → mail double → verify → login/refresh/logout), project/organization/upload/download checksum khớp/preview MP4 206+416/search/invitation accept/MEMBER permissions/hard delete storage-first. `postgres_data`/`minio_data` giữ data qua backend restart và force-recreate; Redis recreation mất pending OTP và resend hoạt động. Log runtime không leak secret. Fix một bug runtime từ M11: OWNER-path project hard delete `TransientPropertyValueException` (Hibernate 7.4) → `ProjectRepository.deleteProjectCascade` + regression test OWNER-path; full suite 210/210 qua `mvn clean verify`. Gmail SMTP giữ external (`docker-compose.mail-test.yml` chỉ là optional mail double cho verification).
 
 ---
 
@@ -3487,6 +3499,10 @@ Goal:
 ```text
 Prove Core v1 is stable before any AI/RAG work.
 ```
+
+Status: `DONE` — M15 Gate `PASS` ngày `2026-09-19`. **Core v1 FROZEN.**
+
+Evidence: full release gate `mvn -B -ntp clean verify` 210/210 (BUILD SUCCESS, 0 failures/errors/skipped) phủ VERIFY-01..05/11; Docker runtime re-verification từ volume rỗng với mail double: healthcheck-gated startup, Flyway `Empty Schema → V1 → V2 → V3`, Hibernate `ddl-auto=validate`, đúng 10 persistent tables + `users.email_verified_at` timestamptz + không OTP table; toàn bộ golden journeys qua containerized backend (auth journey gồm Redis OTP key/TTL/HMAC + verify + login/refresh/logout, project/organization/upload PDF/MP4/MD, download MD5 khớp, preview inline, MP4 206/416, search filters/sort/clamp/whitelist, invitation accept với MEMBER permissions, remove-member access loss với documents remain, document + OWNER-path project hard delete storage-first với bucket rỗng); persistence qua backend restart (Flyway skip), postgres/minio force-recreate giữ volume, Redis recreation (OTP loss acceptable, resend OK); VERIFY-07 static + runtime log scan 0 leak; VERIFY-09 runtime `/v3/api-docs` = 32 paths / 47 operations khớp contract test + SD-04, không forbidden endpoint; VERIFY-10 static architecture scans clean; consistency audit docs↔code/Flyway↔JPA/api-schema↔runtime/error-catalog↔handlers/Docker↔DEPLOYMENT pass với một documentation miscount được sửa (48→47 operations, correction note trong completed M13 plan); **không có code change trong M15**. Chi tiết đầy đủ: `docs/exec-plans/completed/KBase_Core_v1_M15_Full_Verification_Freeze.md` (Core v1 Freeze Report). AI/RAG chỉ được bắt đầu như một design phase riêng sau freeze.
 
 ---
 

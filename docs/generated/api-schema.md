@@ -1,22 +1,45 @@
 # API Schema
 
-> Trạng thái: **CHƯA ĐƯỢC SINH TỪ RUNTIME** (springdoc endpoint schema thuộc M13 OpenAPI).
-> Nguồn thiết kế: `docs/design-docs/KBase - Core v1 REST API Specification.md`.
-> Phần authentication (M6), user/project/membership (M7), invitation (M8) và folder/category/tag (M9) endpoints được đồng bộ thủ công
-> từ source code đã verify (`AuthController`, `UserController`, `AdminUserController`, `ProjectController`,
-> `AdminProjectController`, `ProjectMemberController`, `InvitationController`, `InvitationAcceptController`,
-> `FolderController`, `CategoryController`, `TagController`
-> và DTO/tests tương ứng).
-> Sau OpenAPI milestone, nguồn sự thật runtime là springdoc `/v3/api-docs` và source code/DTO đã được xác minh.
+> Trạng thái: **RUNTIME OPENAPI ĐÃ HOẠT ĐỘNG (M13)**. springdoc `/v3/api-docs` là contract máy đọc được.
+> Nguồn sự thật: `springdoc-openapi 3.1.1` sinh từ `AuthController`, `UserController`, `AdminUserController`,
+> `ProjectController`, `AdminProjectController`, `ProjectMemberController`, `InvitationController`,
+> `InvitationAcceptController`, `FolderController`, `CategoryController`, `TagController`, `DocumentController`
+> và DTO tương ứng. File này là snapshot Markdown đồng bộ từ runtime; `OpenApiContractIntegrationTest`
+> (21 test) xác minh security scheme, security requirement theo endpoint, multipart/binary/range schemas,
+> error codes và sự vắng mặt của field nhạy cảm trong spec runtime.
 
 ## Metadata
 
-* Ngày sinh hoặc cập nhật: `2026-09-18` (M9 — folder/category/tag endpoints đồng bộ từ source code đã verify)
-* Phiên bản API: `v1 theo design`
+* Ngày sinh hoặc cập nhật: `2026-09-18` (M13 — OpenAPI runtime bật qua springdoc; spec được verify bằng contract tests)
+* Phiên bản API: `v1` (khớp path `/api/v1`)
 * Base URL development: `http://localhost:8080/api/v1` (port theo `KBASE_SERVER_PORT`)
 * Base URL production: `Chưa cấu hình`
-* Nguồn sinh: `Chưa cấu hình runtime; shared error schema (M4) và M6–M9 endpoints được đồng bộ thủ công từ source code đã verify`
+* Nguồn sinh: `springdoc-openapi-starter-webmvc-ui 3.1.1 trên Spring Boot 4.1.1; spec máy đọc được tại GET /v3/api-docs (JSON) và /v3/api-docs.yaml; Swagger UI tại /swagger-ui.html`
 * Commit tương ứng: `N/A`
+
+## OpenAPI Runtime (M13)
+
+* Endpoint máy đọc được: `GET /v3/api-docs` (OpenAPI 3 JSON), `GET /v3/api-docs.yaml`; Swagger UI: `GET /swagger-ui.html`
+* Security scheme: `bearerAuth` — `type: http`, `scheme: bearer`, `bearerFormat: JWT`; chỉ đại diện cho access token
+* Security requirement: per-controller/per-operation, không áp global. Public (không Bearer): `register`, `verify-email`,
+  `resend-verification-otp`, `login`, `refresh`, `logout`. Mọi operation khác khai báo `bearerAuth`
+* Refresh token: HttpOnly cookie `kbase_refresh_token` (document qua parameter cookie ở `refresh`/`logout` và description);
+  không bao giờ là JSON field hay bearer scheme
+* OTP: chỉ là email verification OTP (Redis-backed, Gmail SMTP, 6 chữ số, TTL 5m, cooldown 60s, tối đa 5 attempts);
+  không document như OTP login/MFA/password reset; invitation dùng invitation token riêng
+* Tags (12, theo thứ tự canonical trong `config/OpenApiConfig`): `Authentication`, `Users`, `Admin - Users`, `Projects`,
+  `Admin - Projects`, `Project Members`, `Project Invitations`, `Invitations`, `Folders`, `Categories`, `Tags`, `Documents`
+* Role rules trong description: ADMIN endpoints ghi "Requires SystemRole.ADMIN"; project-scoped endpoints ghi
+  MEMBER/OWNER/ADMIN; document mutation ghi rule uploader MEMBER vs OWNER/ADMIN
+* Multipart upload: `POST .../documents` với part `file` (string/binary) + part `metadata` JSON tùy chọn
+  (`DocumentMetadataRequest`); batch dùng part `files` (array of binary) + `metadata` chung
+* Binary response: `download`/`preview` là `type: string, format: binary` (application/octet-stream), không phải DTO;
+  `preview` document `Range` header, `206 Partial Content` (header `Content-Range`) và `416` (header `Content-Range: bytes */total`)
+* Shared error: mọi error response tham chiếu schema `ApiErrorResponse`; protected operations nhận `401 AUTHENTICATION_REQUIRED`
+  qua `OperationCustomizer` dùng chung; OTP/Gmail/Redis/storage error codes document trên đúng endpoint
+* DTO là contract: JPA entity không xuất hiện; `passwordHash`, token hash, `storageKey`, credential không có trong schema
+* Exposure flags: `KBASE_OPENAPI_ENABLED` / `KBASE_SWAGGER_UI_ENABLED` (local/dev mặc định bật; prod mặc định tắt);
+  SecurityConfig chỉ permit các docs path khi `kbase.openapi.enabled=true`, không nới `/api/v1/**`
 
 ## Quy ước Chung
 
@@ -65,6 +88,7 @@ Không ghi secret, private key hoặc credential thật.
 | GET | `/api/v1/projects` | Danh sách project user đang tham gia (q/role + pagination) | Bearer JWT | Không body | 200 PageResponse&lt;ProjectResponse&gt; |
 | GET | `/api/v1/projects/{projectId}` | Xem project (MEMBER/OWNER/ADMIN) | Bearer JWT | Không body | 200 ProjectResponse |
 | PATCH | `/api/v1/projects/{projectId}` | Cập nhật project (OWNER/ADMIN) | Bearer JWT | UpdateProjectRequest | 200 ProjectResponse |
+| DELETE | `/api/v1/projects/{projectId}` | Hard delete storage-first (OWNER/ADMIN) | Bearer JWT | Không body | 204 No Content |
 | GET | `/api/v1/admin/projects` | Danh sách toàn bộ project (q/ownerId + pagination) | ADMIN | Không body | 200 PageResponse&lt;ProjectResponse&gt; |
 | GET | `/api/v1/projects/{projectId}/members` | Danh sách members (MEMBER/OWNER/ADMIN) | Bearer JWT | Không body | 200 PageResponse&lt;ProjectMemberResponse&gt; |
 | DELETE | `/api/v1/projects/{projectId}/members/{userId}` | Remove MEMBER (OWNER/ADMIN) | Bearer JWT | Không body | 204 No Content |
@@ -86,8 +110,16 @@ Không ghi secret, private key hoặc credential thật.
 | POST | `/api/v1/projects/{projectId}/tags` | Tạo shared tag | Bearer JWT (MEMBER/OWNER/ADMIN) | CreateTagRequest | 201 TagResponse |
 | PATCH | `/api/v1/projects/{projectId}/tags/{tagId}` | Rename shared tag | Bearer JWT (OWNER/ADMIN) | UpdateTagRequest | 200 TagResponse |
 | DELETE | `/api/v1/projects/{projectId}/tags/{tagId}` | Xóa tag và các DocumentTag relation | Bearer JWT (OWNER/ADMIN) | Không body | 204 No Content |
+| GET | `/api/v1/projects/{projectId}/documents` | Browse/search metadata document trong project | Bearer JWT (MEMBER/OWNER/ADMIN) | Query `q`, `folderId`, `categoryId`, `tagId`, `fileKind`, `uploadedBy`, `createdFrom`, `createdTo`, pagination/sort | 200 `PageResponse<DocumentSummaryResponse>` |
+| POST | `/api/v1/projects/{projectId}/documents` | Upload một file với metadata tùy chọn | Bearer JWT (MEMBER/OWNER/ADMIN) | multipart `file`, optional `metadata` JSON | 201 DocumentResponse |
+| POST | `/api/v1/projects/{projectId}/documents/batch` | Upload batch atomic-at-application-level khi khả thi | Bearer JWT (MEMBER/OWNER/ADMIN) | multipart `files`, optional common `metadata` JSON | 201 BatchDocumentUploadResponse |
+| GET | `/api/v1/documents/{documentId}` | Xem document metadata | Bearer JWT (project member/ADMIN) | Không body | 200 DocumentResponse |
+| PATCH | `/api/v1/documents/{documentId}` | Update metadata (MEMBER chỉ file của mình) | Bearer JWT | UpdateDocumentRequest | 200 DocumentResponse |
+| GET | `/api/v1/documents/{documentId}/download` | Stream attachment đã authorize | Bearer JWT (project member/ADMIN) | Không body | 200 binary stream |
+| GET | `/api/v1/documents/{documentId}/preview` | Stream inline preview; MP4 single Range | Bearer JWT (project member/ADMIN) | Optional `Range` | 200/206 binary stream |
+| DELETE | `/api/v1/documents/{documentId}` | Hard delete storage-first (MEMBER chỉ file của mình) | Bearer JWT | Không body | 204 No Content |
 
-Chưa triển khai: `DELETE /api/v1/projects/{projectId}` (M11 sau MinIO), document/search APIs (M11–M12) và OpenAPI runtime (M13).
+Đã triển khai: OpenAPI runtime (M13) — bảng trên khớp 32 paths / 47 operations trong `/v3/api-docs`, được xác minh bởi `OpenApiContractIntegrationTest`; con số 47 được đếm lại trực tiếp trên runtime spec trong M15 full verification (bản ghi M13 ghi "48" là miscount thủ công, runtime thực tế là 47 operations).
 
 ## Chi tiết Endpoint
 
@@ -693,6 +725,26 @@ Case-insensitive uniqueness is enforced by service pre-checks and the existing P
 
 Schema thực tế phải tuân theo `docs/API_CONVENTIONS.md` và `docs/design-docs/KBase - Core v1 Exception Handling Design.md`.
 Security-layer responses (401 entry point, 403 access denied, JWT/account-state rejections trong filter) dùng cùng schema qua `RestSecurityErrorWriter`.
+
+## Document Endpoints (M11–M12 — implemented and verified)
+
+All endpoints below require bearer authentication. `storageKey` is never a response field. `MEMBER` may read/download/preview every document in a current project membership, but may update/delete only a document uploaded by that user; `OWNER` and `ADMIN` may manage all project documents.
+
+| Method | Path | Request | Success | Principal errors |
+| --- | --- | --- | --- | --- |
+| GET | `/api/v1/projects/{projectId}/documents` | Query optional `q`, `folderId`, `categoryId`, `tagId`, `fileKind`, `uploadedBy`, `createdFrom`, `createdTo`, `page`, `size`, `sort` | `200 PageResponse<DocumentSummaryResponse>` | `403 PROJECT_ACCESS_FORBIDDEN`; unsupported sort → `400 VALIDATION_ERROR` |
+| POST | `/api/v1/projects/{projectId}/documents` | multipart `file`, optional JSON `metadata` (`displayName`, `description`, `folderId`, `categoryId`, `tagIds`) | `201 DocumentResponse` | `FILE_EMPTY` 400, `FILE_TOO_LARGE` 413, `UNSUPPORTED_FILE_TYPE`/`MIME_TYPE_MISMATCH` 415, same-project metadata errors, storage 500/503 |
+| POST | `/api/v1/projects/{projectId}/documents/batch` | multipart repeated `files`, common optional JSON metadata | `201 {documents: DocumentResponse[]}` | same as upload; no partial-success contract |
+| GET | `/api/v1/documents/{documentId}` | — | `200 DocumentResponse` | `DOCUMENT_NOT_FOUND` 404, `PROJECT_ACCESS_FORBIDDEN` 403 |
+| PATCH | `/api/v1/documents/{documentId}` | JSON partial metadata | `200 DocumentResponse` | `DOCUMENT_MODIFICATION_FORBIDDEN` 403; same-project metadata errors |
+| GET | `/api/v1/documents/{documentId}/download` | — | streamed attachment, validated MIME, filename from `displayName` | 403/404, storage 500/503 |
+| GET | `/api/v1/documents/{documentId}/preview` | optional single `Range` for MP4 | inline stream; MP4 range is `206` plus `Content-Range`; invalid range is `416` plus `Content-Range: bytes */total` | `PREVIEW_NOT_SUPPORTED` 415 for Office; 403/404, storage 500/503 |
+| DELETE | `/api/v1/documents/{documentId}` | — | `204` | `DOCUMENT_MODIFICATION_FORBIDDEN` 403; `DOCUMENT_DELETE_FAILED` 500; storage 503 |
+| DELETE | `/api/v1/projects/{projectId}` | — | `204` | OWNER/ADMIN only; `PROJECT_DELETE_FAILED` 500; storage 503 |
+
+`DocumentResponse` contains public metadata only: ID, project ID, uploader `{id, displayName}`, folder/category/tag projections, display/original names, kind, extension, MIME, byte size, description and timestamps. It does not contain object-storage credentials or keys. Project delete resolves storage keys through PostgreSQL, deletes all objects, then deletes the project for relational DB cascade.
+
+`DocumentSummaryResponse` is the fixed paginated-browser projection: `id`, `displayName`, `originalFilename`, `fileKind`, `extension`, `mimeType`, `sizeBytes`, `folderId`, `createdAt`, `updatedAt`. It never exposes `storageKey` or a persistence entity. `q` is metadata-only over display/original names, description, category name and tag name; it does not inspect file content. The query always includes the path `projectId`; tag matching uses an `EXISTS` subquery so tag rows cannot duplicate documents. Pagination defaults to `page=0`, `size=20`, clamps size to `100`; only `displayName`, `createdAt`, `updatedAt`, and `sizeBytes` are accepted as sort fields (ASC/DESC), with unsupported fields returning `VALIDATION_ERROR`.
 
 ## Enum và Kiểu Dùng Chung
 

@@ -28,6 +28,11 @@ services:
       - "${KBASE_STORAGE_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: ${KBASE_REDIS_IMAGE:-redis:7.4-alpine}
@@ -44,6 +49,51 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  backend:
+    build: .
+    image: kbase-backend:local
+    restart: unless-stopped
+    environment:
+      KBASE_SERVER_PORT: 8080
+      # Docker-internal service names and ports; the container never targets localhost.
+      KBASE_POSTGRES_HOST: postgres
+      KBASE_POSTGRES_PORT: 5432
+      KBASE_POSTGRES_DB: ${KBASE_POSTGRES_DB:?KBASE_POSTGRES_DB must be set}
+      KBASE_POSTGRES_USERNAME: ${KBASE_POSTGRES_USERNAME:?KBASE_POSTGRES_USERNAME must be set}
+      KBASE_POSTGRES_PASSWORD: ${KBASE_POSTGRES_PASSWORD:?KBASE_POSTGRES_PASSWORD must be set}
+      KBASE_REDIS_HOST: redis
+      KBASE_REDIS_PORT: 6379
+      KBASE_REDIS_PASSWORD: ${KBASE_REDIS_PASSWORD:-}
+      KBASE_REDIS_TIMEOUT: ${KBASE_REDIS_TIMEOUT:-2s}
+      KBASE_JWT_SECRET: ${KBASE_JWT_SECRET:?KBASE_JWT_SECRET must be set}
+      KBASE_OTP_HASH_SECRET: ${KBASE_OTP_HASH_SECRET:?KBASE_OTP_HASH_SECRET must be set}
+      KBASE_GMAIL_SMTP_HOST: ${KBASE_GMAIL_SMTP_HOST:-smtp.gmail.com}
+      KBASE_GMAIL_SMTP_PORT: ${KBASE_GMAIL_SMTP_PORT:-587}
+      KBASE_GMAIL_SMTP_USERNAME: ${KBASE_GMAIL_SMTP_USERNAME:?KBASE_GMAIL_SMTP_USERNAME must be set}
+      KBASE_GMAIL_SMTP_APP_PASSWORD: ${KBASE_GMAIL_SMTP_APP_PASSWORD:?KBASE_GMAIL_SMTP_APP_PASSWORD must be set}
+      KBASE_GMAIL_SMTP_AUTH: ${KBASE_GMAIL_SMTP_AUTH:-true}
+      KBASE_GMAIL_SMTP_STARTTLS: ${KBASE_GMAIL_SMTP_STARTTLS:-true}
+      KBASE_STORAGE_ENDPOINT: http://minio:9000
+      KBASE_STORAGE_ACCESS_KEY: ${KBASE_STORAGE_ACCESS_KEY:?KBASE_STORAGE_ACCESS_KEY must be set}
+      KBASE_STORAGE_SECRET_KEY: ${KBASE_STORAGE_SECRET_KEY:?KBASE_STORAGE_SECRET_KEY must be set}
+      KBASE_STORAGE_BUCKET: ${KBASE_STORAGE_BUCKET:-kbase-documents}
+      KBASE_STORAGE_REGION: ${KBASE_STORAGE_REGION:-us-east-1}
+      KBASE_ALLOWED_ORIGINS: ${KBASE_ALLOWED_ORIGINS:-http://localhost:3000}
+      KBASE_INVITATION_ACCEPT_URL: ${KBASE_INVITATION_ACCEPT_URL:-http://localhost:3000/invitations/accept}
+      # Local Docker runtime keeps the refresh cookie non-Secure so http://localhost flows work (prod sets true).
+      KBASE_REFRESH_COOKIE_SECURE: ${KBASE_REFRESH_COOKIE_SECURE:-false}
+      KBASE_OPENAPI_ENABLED: ${KBASE_OPENAPI_ENABLED:-true}
+      KBASE_SWAGGER_UI_ENABLED: ${KBASE_SWAGGER_UI_ENABLED:-true}
+    ports:
+      - "${KBASE_SERVER_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
 
 volumes:
   postgres_data:

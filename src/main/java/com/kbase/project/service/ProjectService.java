@@ -16,6 +16,11 @@ import com.kbase.project.repository.ProjectSpecification;
 import com.kbase.security.principal.CustomUserPrincipal;
 import com.kbase.shared.exception.BusinessException;
 import com.kbase.shared.exception.ErrorCode;
+import com.kbase.shared.exception.InfrastructureException;
+import com.kbase.storage.exception.StorageException;
+import com.kbase.storage.exception.StorageUnavailableException;
+import com.kbase.storage.service.StorageService;
+import com.kbase.document.repository.DocumentRepository;
 import com.kbase.shared.pagination.PageResponse;
 import com.kbase.user.entity.User;
 import com.kbase.user.repository.UserRepository;
@@ -24,12 +29,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Project lifecycle management. Project hard delete is intentionally absent:
- * it belongs to the MinIO-integrated hard-delete flow in a later milestone.
+ * Project lifecycle management, including the M11 storage-first hard delete.
  */
 @Service
 public class ProjectService {
@@ -38,18 +43,36 @@ public class ProjectService {
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectAuthorizationService authorizationService;
     private final UserRepository userRepository;
+    private final DocumentRepository documentRepository;
+    private final StorageService storageService;
 
+    @Autowired
     public ProjectService(
             ProjectRepository projectRepository,
             ProjectMemberRepository projectMemberRepository,
             ProjectAuthorizationService authorizationService,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            DocumentRepository documentRepository,
+            StorageService storageService) {
         this.projectRepository = Objects.requireNonNull(projectRepository, "projectRepository");
         this.projectMemberRepository =
                 Objects.requireNonNull(projectMemberRepository, "projectMemberRepository");
         this.authorizationService =
                 Objects.requireNonNull(authorizationService, "authorizationService");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
+        this.documentRepository = Objects.requireNonNull(documentRepository, "documentRepository");
+        this.storageService = Objects.requireNonNull(storageService, "storageService");
+    }
+
+    /** Compatibility constructor retained for existing focused unit tests that do not exercise M11 delete. */
+    public ProjectService(ProjectRepository projectRepository, ProjectMemberRepository projectMemberRepository,
+            ProjectAuthorizationService authorizationService, UserRepository userRepository) {
+        this.projectRepository = Objects.requireNonNull(projectRepository, "projectRepository");
+        this.projectMemberRepository = Objects.requireNonNull(projectMemberRepository, "projectMemberRepository");
+        this.authorizationService = Objects.requireNonNull(authorizationService, "authorizationService");
+        this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
+        this.documentRepository = null;
+        this.storageService = null;
     }
 
     /** Creates the project and the creator's OWNER membership atomically. */
@@ -135,6 +158,29 @@ public class ProjectService {
             project.setDescription(request.description());
         }
         return toResponse(project, access.role());
+    }
+
+    /**
+     * Uses PostgreSQL's storage-key projection as the deletion source. A failed
+     * or partially failed storage delete deliberately prevents the DB cascade.
+     */
+    @Transactional
+    public void deleteProject(UUID projectId, CustomUserPrincipal principal) {
+        authorizationService.requireOwner(projectId, principal);
+        try {
+            storageService.deleteAll(documentRepository.findStorageKeysByProjectId(projectId).stream()
+                    .map(projection -> projection.getStorageKey()).toList());
+        } catch (StorageException exception) {
+            throw new InfrastructureException(exception instanceof StorageUnavailableException
+                    ? ErrorCode.STORAGE_SERVICE_UNAVAILABLE : ErrorCode.PROJECT_DELETE_FAILED, exception);
+        }
+        try {
+            projectRepository.deleteProjectCascade(projectId);
+        } catch (RuntimeException exception) {
+            org.slf4j.LoggerFactory.getLogger(ProjectService.class).error(
+                    "Project DB delete failed after storage deletion projectId={}", projectId, exception);
+            throw new InfrastructureException(ErrorCode.PROJECT_DELETE_FAILED, exception);
+        }
     }
 
     /** Admin-only listing of every project; roles are not invented. */

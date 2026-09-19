@@ -120,3 +120,6 @@ springdoc:
   swagger-ui:
     enabled: ${kbase.openapi.swagger-ui-enabled}
     path: ${kbase.openapi.swagger-ui-path}
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true

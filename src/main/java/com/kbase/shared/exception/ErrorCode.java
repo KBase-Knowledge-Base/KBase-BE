@@ -16,6 +16,7 @@ public enum ErrorCode {
     INVALID_REQUEST_BODY(HttpStatus.BAD_REQUEST,
             "Request body is malformed or contains invalid values."),
     INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "One or more request parameters are invalid."),
+    INVALID_RANGE(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE, "The requested byte range is invalid."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "The requested resource was not found."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "The HTTP method is not supported for this resource."),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE,

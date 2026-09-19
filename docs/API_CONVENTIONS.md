@@ -29,7 +29,7 @@ Phân biệt:
 - Error response chuẩn gồm: `timestamp`, `status`, `code`, `message`, `path`, `requestId`, và `errors` khi validation cần field-level detail.
 - Binary preview/download phải được mô tả là binary response; MP4 preview hỗ trợ single byte-range theo design.
 - `storageKey`, password hash, token hash, OTP protected value và persistence-only field không được xuất hiện trong public DTO.
-- Trong giai đoạn trước khi OpenAPI runtime được sinh, `docs/design-docs/KBase - Core v1 REST API Specification.md` là contract thiết kế chi tiết; `docs/generated/api-schema.md` chỉ là placeholder và không được ưu tiên hơn REST spec.
+- Từ M13, OpenAPI runtime được sinh bởi springdoc tại `GET /v3/api-docs` và là contract máy đọc được; `docs/generated/api-schema.md` là snapshot Markdown đồng bộ từ runtime. Khi OpenAPI runtime và REST design spec mâu thuẫn, ưu tiên runtime đã được verify bởi contract tests và source code.
 
 ## Thiết kế endpoint
 

@@ -1,5 +1,7 @@
 package com.kbase.auth.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -15,5 +17,7 @@ public record VerifyEmailRequest(
 
         @NotBlank(message = "Verification code is required")
         @Pattern(regexp = "\\d{6}", message = "Verification code must contain 6 digits")
+        @Schema(description = "6-digit email verification OTP delivered through Gmail SMTP; used only for "
+                + "registration email verification, never returned by the API")
         String otp) {
 }
