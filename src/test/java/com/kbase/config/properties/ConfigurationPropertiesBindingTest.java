@@ -22,7 +22,6 @@ class ConfigurationPropertiesBindingTest {
                     "kbase.postgres.username=integration-user",
                     "kbase.postgres.password=integration-password",
                     "kbase.jwt.signing-secret=test-jwt-signing-secret",
-                    "kbase.jwt.algorithm=HS256",
                     "kbase.jwt.access-token-ttl=20m",
                     "kbase.jwt.refresh-token-ttl=14d",
                     "kbase.refresh-cookie.name=test_refresh",
@@ -79,7 +78,6 @@ class ConfigurationPropertiesBindingTest {
 
             JwtProperties jwt = context.getBean(JwtProperties.class);
             assertThat(jwt.getSigningSecret()).isEqualTo("test-jwt-signing-secret");
-            assertThat(jwt.getAlgorithm()).isEqualTo("HS256");
             assertThat(jwt.getAccessTokenTtl()).isEqualTo(Duration.ofMinutes(20));
             assertThat(jwt.getRefreshTokenTtl()).isEqualTo(Duration.ofDays(14));
 

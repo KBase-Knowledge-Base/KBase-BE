@@ -82,6 +82,12 @@ public class FolderService {
             CustomUserPrincipal principal) {
         Objects.requireNonNull(request, "request");
         authorizationService.requireOwner(projectId, principal);
+        if (request.parentIdProvided() && request.parentId() != null) {
+            // Both rows are locked (deterministic order) before any cycle
+            // check reads parent state, so two opposite concurrent moves
+            // serialize instead of interleaving into a cycle.
+            lockForMove(projectId, folderId, request.parentId());
+        }
         Folder folder = folderRepository.findByIdAndProjectId(folderId, projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FOLDER_NOT_FOUND));
 
@@ -108,6 +114,25 @@ public class FolderService {
             }
         }
         return folderMapper.toResponse(folder);
+    }
+
+    /**
+     * Locks the moved folder and its target parent in ascending-UUID order so
+     * the two opposite moves take the locks in the same sequence and can never
+     * deadlock; the loser then re-reads the committed graph and fails the
+     * cycle walk.
+     */
+    private void lockForMove(UUID projectId, UUID folderId, UUID newParentId) {
+        List<UUID> orderedIds = java.util.stream.Stream.of(folderId, newParentId)
+                .distinct()
+                .sorted()
+                .toList();
+        for (UUID lockedId : orderedIds) {
+            folderRepository.findByIdForUpdate(lockedId, projectId)
+                    .orElseThrow(() -> new BusinessException(lockedId.equals(folderId)
+                            ? ErrorCode.FOLDER_NOT_FOUND
+                            : ErrorCode.PARENT_FOLDER_NOT_FOUND));
+        }
     }
 
     @Transactional

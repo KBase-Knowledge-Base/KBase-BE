@@ -22,6 +22,7 @@ import com.kbase.storage.exception.StorageUnavailableException;
 import com.kbase.storage.service.StorageService;
 import com.kbase.document.repository.DocumentRepository;
 import com.kbase.shared.pagination.PageResponse;
+import com.kbase.shared.util.LikePatterns;
 import com.kbase.user.entity.User;
 import com.kbase.user.repository.UserRepository;
 
@@ -104,8 +105,11 @@ public class ProjectService {
     public PageResponse<ProjectResponse> listMyProjects(
             UUID currentUserId, ProjectRole role, String q, Pageable pageable) {
         // Empty sentinel instead of null: PostgreSQL cannot infer the type of
-        // a null string parameter in the OR-filtered JPQL predicate.
-        String query = q == null || q.isBlank() ? "" : q.trim().toLowerCase(java.util.Locale.ROOT);
+        // a null string parameter in the OR-filtered JPQL predicate. The query
+        // text is escaped so client wildcards match literally.
+        String query = q == null || q.isBlank()
+                ? ""
+                : LikePatterns.escape(q.trim().toLowerCase(java.util.Locale.ROOT));
         Page<ProjectMembershipProjection> page = projectMemberRepository.findMembershipPageForUser(
                 currentUserId, role, query, remapProjectSort(pageable));
         return PageResponse.from(page, membership -> toResponse(

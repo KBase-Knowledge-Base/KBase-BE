@@ -87,6 +87,7 @@ Các command product đã tồn tại và đã chạy:
 ```text
 BUILD_COMMAND=mvn -B -ntp clean verify
 UNIT_TEST_COMMAND=mvn -B -ntp test
+HOST_RUN_COMMAND=mvn spring-boot:run (profile `local` tự đọc `.env` ở repo root qua `spring.config.import: optional:file:.env[.properties]` trong `application-local.yml`; yêu cầu deps đã chạy: `docker compose up -d postgres minio redis`; backend host dùng đúng `KBASE_POSTGRES_PORT` trong `.env` — hiện `5433` vì 5432 bị PostgreSQL native trên máy chiếm)
 DEPENDENCY_TREE_COMMAND=mvn -B -ntp dependency:tree "-DoutputFile=target/dependency-tree.txt" "-DoutputType=text"
 COMPOSE_CONFIG_COMMAND=docker compose -f docker-compose.yml config --quiet
 M5_REDIS_TEST_COMMAND=mvn -B -ntp "-Dtest=RedisOtpStoreIntegrationTest" test
@@ -118,6 +119,11 @@ Yêu cầu môi trường cho M6 verification: Docker daemon phải chạy vì a
 ## Chạy dự án
 
 M1 đã tạo Compose skeleton cho dependency local; M14 đã hoàn tất backend Dockerfile và Compose wiring. Các lệnh dưới đây phản ánh command thật đã chạy:
+
+Hai đường chạy backend local đã được xác minh (2026-09-19):
+
+1. **Container (chuẩn)**: `docker compose up -d --build` — full topology, backend phục vụ tại 8080.
+2. **Host Maven**: `mvn spring-boot:run` — profile `local` tự nạp `.env` (git-ignored) qua `spring.config.import`; không cần export biến thủ công. Yêu cầu deps Compose đang chạy; lưu ý Compose `postgres` map host port theo `KBASE_POSTGRES_PORT` trong `.env` (`5433` trên máy hiện tại vì PostgreSQL native chiếm `5432`), và muốn chạy host `mvn` thì phải `docker compose stop backend` trước để nhả 8080.
 
 ```text
 BUILD_BACKEND_IMAGE=docker compose build backend

@@ -152,6 +152,39 @@ class DocumentServiceTest {
     }
 
     @Test
+    void batchUploadCompensatesEachUploadedKeyExactlyOnce() {
+        MockMultipartFile first = new MockMultipartFile("files", "one.pdf", "application/pdf", "%PDF".getBytes());
+        MockMultipartFile second = new MockMultipartFile("files", "two.pdf", "application/pdf", "%PDF".getBytes());
+        when(projectAuthorization.requireProjectAccess(project.getId(), principal))
+                .thenReturn(new ProjectAccess(project, ProjectRole.MEMBER, false));
+        when(validation.validate(first)).thenReturn(new ValidatedFile("one.pdf", "pdf", "application/pdf",
+                FileKind.DOCUMENT, first.getSize()));
+        when(validation.validate(second)).thenReturn(new ValidatedFile("two.pdf", "pdf", "application/pdf",
+                FileKind.DOCUMENT, second.getSize()));
+        when(metadataResolver.resolve(org.mockito.ArgumentMatchers.eq(project.getId()),
+                any(), any(), any()))
+                .thenReturn(new ResolvedDocumentMetadata(null, null, List.of()));
+        when(users.findById(user.getId())).thenReturn(Optional.of(user));
+        when(documents.saveAndFlush(any(Document.class)))
+                .thenAnswer(invocation -> {
+                    Document saved = invocation.getArgument(0);
+                    saved.setId(UUID.randomUUID());
+                    return saved;
+                })
+                .thenThrow(new RuntimeException("db failure"));
+
+        assertThatThrownBy(() -> service.batchUpload(project.getId(), List.of(first, second),
+                new DocumentMetadataRequest(null, null, null, null, List.of()), principal))
+                .isInstanceOf(KBaseException.class)
+                .extracting(error -> ((KBaseException) error).getErrorCode().code())
+                .isEqualTo("FILE_UPLOAD_FAILED");
+
+        org.mockito.ArgumentCaptor<String> keys = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(storage, org.mockito.Mockito.times(2)).delete(keys.capture());
+        org.assertj.core.api.Assertions.assertThat(keys.getAllValues()).hasSize(2).doesNotHaveDuplicates();
+    }
+
+    @Test
     void mp4PreviewUsesSingleRangeAndRejectsInvalidRangesWithoutWholeFileRead() {
         Document video = new Document(project, user, "clip.mp4", "clip.mp4", FileKind.VIDEO,
                 "mp4", "video/mp4", 10, "projects/a/documents/clip.mp4");

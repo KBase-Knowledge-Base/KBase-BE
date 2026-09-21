@@ -9,6 +9,7 @@ import com.kbase.project.service.ProjectAuthorizationService;
 import com.kbase.security.principal.CustomUserPrincipal;
 import com.kbase.shared.exception.BusinessException;
 import com.kbase.shared.exception.ErrorCode;
+import com.kbase.shared.util.LikePatterns;
 import com.kbase.tag.dto.request.CreateTagRequest;
 import com.kbase.tag.dto.request.UpdateTagRequest;
 import com.kbase.tag.dto.response.TagResponse;
@@ -45,8 +46,8 @@ public class TagService {
         String normalizedQuery = query == null ? "" : query.trim();
         List<Tag> tags = normalizedQuery.isBlank()
                 ? tagRepository.findAllByProjectIdOrderByNameAsc(projectId)
-                : tagRepository.findAllByProjectIdAndNameContainingIgnoreCaseOrderByNameAsc(
-                        projectId, normalizedQuery);
+                : tagRepository.findAllByProjectIdAndNameLikeIgnoreCaseOrderByNameAsc(
+                        projectId, LikePatterns.escape(normalizedQuery));
         return tags.stream().map(tagMapper::toResponse).toList();
     }
 

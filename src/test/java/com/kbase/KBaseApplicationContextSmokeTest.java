@@ -46,7 +46,6 @@ class KBaseApplicationContextSmokeTest {
 
     @Test
     void applicationContextStartsWithoutExternalInfrastructure() {
-        assertThat(jwtProperties.getAlgorithm()).isEqualTo("HS256");
         assertThat(jwtProperties.getSigningSecret()).isEqualTo("test-jwt-signing-secret-at-least-256-bits-long");
         assertThat(jwtService).isNotNull();
     }

@@ -6,25 +6,25 @@
 ## Cập nhật Lần cuối
 
 * Ngày cập nhật: `2026-09-19`
-* Người hoặc agent cập nhật: `Codex - M15 Full Verification / Core v1 Freeze`
+* Người hoặc agent cập nhật: `ZCode - M16 Post-Audit Fixes`
 * Nhánh hiện tại: `dev`
-* Commit gần nhất đã kiểm chứng: `41fbed0` (M14) + commit M15 của phiên này
+* Commit gần nhất đã kiểm chứng: `4cc8f5d` (M15) + các thay đổi M16 của phiên này (chưa commit)
 
 ## Trạng thái Tổng quan
 
 | Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
 | ---------------- | ------------- | ----------------------- |
-| Build            | Ổn định      | `mvn -B -ntp clean verify` M15 final: BUILD SUCCESS, 210 tests, 0 failures/errors/skips; Docker image build thành công |
+| Build            | Ổn định      | `mvn -B -ntp clean verify` M16 final: BUILD SUCCESS, 213 tests, 0 failures/errors/skips (210 baseline + 3 regression mới cho M-01/L-01/L-05/L-06) |
 | Frontend         | Không áp dụng | Optional theo đề bài; hoãn khỏi phase implementation hiện tại |
-| Backend          | Ổn định | M0–M15 tất cả PASS; **Core v1 FROZEN ngày 2026-09-19**; runtime Docker verified hai lần liên tiếp (M14, M15) |
-| Database         | Ổn định      | M15 re-verify từ volume rỗng trong container: Flyway V1–V3 + Hibernate validate; đúng 10 persistent tables, `users.email_verified_at` timestamptz nullable, không OTP table; Flyway history persist qua restart; `postgres_data` giữ data qua force-recreate |
-| API contract     | Ổn định | M15 re-verify runtime `/v3/api-docs`: 32 paths / **47 operations** (đếm trực tiếp; sửa miscount "48" từ bản ghi M13), khớp contract test EXPECTED_PATHS và 47 endpoint definitions của SD-04; không forbidden endpoint |
-| Integration      | Ổn định | M15 chạy lại toàn bộ golden journeys trong Docker runtime (auth + OTP Redis lifecycle + invitation + organization + document + search + hard delete storage-first); persistence `postgres_data`/`minio_data` + Redis ephemeral verified lại |
-| Unit test        | Ổn định | Full suite 210/210 (`mvn -B -ntp clean verify`) |
-| Integration test | Ổn định | PostgreSQL/Redis/MinIO/fake SMTP suites + OpenAPI contract suites + Docker runtime smoke đều pass trong M15 |
-| End-to-end test  | Ổn định | Golden journeys `docs/RELIABILITY.md` chạy lại qua containerized backend trong M15 (không frontend — vẫn deferred) |
-| Security checks  | Ổn định | M15 static + runtime log leak scan 0 hits; tampered/garbage JWT → 401; admin endpoint 403; anonymous 401; auth/authorization matrix verified lại qua container |
-| Deployment       | Ổn định | Dockerfile + Compose 4 services healthcheck-gated re-verified M15; rollback local = rebuild backend image giữ volumes |
+| Backend          | Ổn định | M0–M15 tất cả PASS; **Core v1 FROZEN ngày 2026-09-19**; M16 là maintenance slice post-audit được owner duyệt (fix 1 MEDIUM + 7 LOW từ full codebase audit; không đổi API contract/schema) |
+| Database         | Ổn định      | Không đổi schema trong M16; baseline M15 vẫn đứng: Flyway V1–V3 + Hibernate validate; đúng 10 persistent tables, không OTP table; lifecycle invitation EXPIRED giờ persist đúng CHECK constraint có sẵn (`ck_project_invitations_accepted_at`) |
+| API contract     | Ổn định | Không đổi endpoint/method/status/DTO trong M16; chỉ sửa 1 annotation description của search 400 cho khớp code (VALIDATION_ERROR cho unknown sort) — `api-schema.md` đã đúng từ trước, không cần tái sinh |
+| Integration      | Ổn định | M16 rerun targeted integration suites (Invitation 5/5, Search 3/3, Organization 7/7 gồm concurrency folder move mới, JPA mapping 11/11) trên PostgreSQL/Redis Testcontainers |
+| Unit test        | Ổn định | Full suite 213/213 (`mvn -B -ntp clean verify` M16) |
+| Integration test | Ổn định | PostgreSQL/Redis/MinIO/fake SMTP suites + OpenAPI contract suites pass trong M16 full gate |
+| End-to-end test  | Ổn định | Golden journeys `docs/RELIABILITY.md` đã chạy qua containerized backend trong M14/M15 (M16 không đổi runtime flow nào của journeys) |
+| Security checks  | Ổn định | M16 thêm sanitized SMTP failure log (chỉ exception type, không payload/credential) với negative test; `q` giờ literal-matching (LIKE wildcard escaped) ở documents/projects/tags/admin-users; không đổi auth/authz flow |
+| Deployment       | Ổn định | Không đổi Dockerfile/Compose trong M16; baseline M14/M15 vẫn đứng |
 
 Trạng thái nên dùng:
 
@@ -39,15 +39,15 @@ Trạng thái nên dùng:
 
 ### Ưu tiên Hiện tại
 
-* Mục tiêu: `Core v1 đã FROZEN (M0–M15 PASS). Không có active slice; mọi công việc mới (AI/RAG, frontend, infra) cần phase/plan mới được duyệt.`
+* Mục tiêu: `Core v1 FROZEN (M0–M15 PASS) + M16 Post-Audit Fixes PASS. Full Codebase Audit 2026-09-19: 0 BLOCKER / 0 HIGH / 1 MEDIUM / 8 LOW / 12 INFO; M16 đã fix 1 MEDIUM + 7 LOW fixable; L-02 và các INFO item được phản hồi chờ quyết định/phase mới.`
 * Execution plan: `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md` (master roadmap — tất cả milestone DONE)
-* Active slice: `Không có. M15 Full Verification / Core v1 Freeze đã PASS và được lưu tại docs/exec-plans/completed/.`
+* Active slice: `M16 – Post-Audit Fixes đã PASS và được lưu tại docs/exec-plans/completed/KBase_Core_v1_M16_Post_Audit_Fixes.md.`
 * Product spec liên quan: `docs/product-specs/KBase - Core v1 Specification.md`
 * Design document liên quan: `docs/design-docs/index.md`
 
 ### Bước Đang Thực hiện
 
-* `Không có. Core v1 frozen; dừng ở đây theo scope. AI/RAG chỉ bắt đầu như design phase riêng khi được duyệt.`
+* `Không có. M16 đã đóng; các finding chưa fix (L-02 PATCH null semantics, INFO items) chờ product decision/phase mới được duyệt.`
 
 ## Đã Hoàn thành và Kiểm chứng
 
@@ -123,6 +123,10 @@ Trạng thái nên dùng:
 
   * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M15_Full_Verification_Freeze.md` (Core v1 Freeze Report), `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md` §31, `docs/generated/api-schema.md`
 
+* M16 – Post-Audit Fixes đã pass ngày `2026-09-19` (maintenance slice được owner duyệt sau Full Codebase Audit): fix MEDIUM M-01 (invitation accept-expired giờ persist `EXPIRED` qua `InvitationExpiredException` + `@Transactional(noRollbackFor=...)` khớp design §40; regression test assert DB status + khả năng tạo invitation thay thế) và 7 LOW: L-01 batch upload compensation xóa mỗi key đúng 1 lần (unit test verify count), L-03 runtime OpenAPI description search 400 khớp code, L-04 xóa `JwtProperties.algorithm` unused knob + javadoc `findAllByStatusAndExpiresAtBefore`, L-05 LIKE wildcard escape cho `q` ở documents/my-projects/tags/admin-users (search literal; regression test `%`/`_` qua HTTP), L-06 folder move lock pessimistic cả moved folder + target parent theo UUID order + concurrency test 2 thread ngược chiều (1 thắng, 1 `FOLDER_CYCLE_DETECTED`, không tạo cycle), L-07 SMTP failure log sanitized (chỉ exception type) + negative test, L-08 hygiene (xóa file rỗng `Trạng`, cập nhật `index.md` root, bỏ `KBASE_MAIL_TEST_ENABLED` khỏi `.env.example`). Full gate `mvn -B -ntp clean verify` 213/213. KHÔNG fix: L-02 (PATCH document null semantics — cần product decision) và các INFO item (known limitations/phase mới) — đã phản hồi owner và ghi tech-debt tracker.
+
+  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M16_Post_Audit_Fixes.md`, full gate log 213/213 trong phiên, `docs/exec-plans/tech-debt-tracker.md`
+
 ## Đã Hoàn thành nhưng Chưa Kiểm chứng
 
 * `Gmail SMTP delivery thật (manual smoke với App Password thật) chưa chạy — automated verification dùng mail double; thuộc optional production smoke.`
@@ -158,6 +162,8 @@ Blocker cũ "Archive không có Git metadata" đã được xử lý: repository
 * `M13 đã bật OpenAPI runtime qua springdoc 3.1.1: OpenApiConfig (metadata, bearerAuth, 12 tags canonical, 401 customizer), 12 controllers / 47 operations annotated với security requirements và permission rules, multipart/binary/Range documentation, Swagger UI flags per environment; không đổi runtime API contract.`
 * `M14 đã Dockerize runtime: Dockerfile multi-stage, Compose backend service với healthcheck gating, env-driven secrets (`.env` git-ignored); fix bug M11 OWNER-path project hard delete bằng bulk cascade delete + regression test; loại generated-password log.`
 * `M15 đã freeze Core v1: full verification matrix (210/210 + Docker runtime re-verification) pass; sửa một documentation miscount 48→47 operations trong bản ghi M13; không có code change; không mở AI/RAG/frontend.`
+* `M16 post-audit fixes: invitation EXPIRED giờ persist khi accept hết hạn (resend trên invitation EXPIRED trả 409 INVITATION_NOT_PENDING; recovery = tạo invitation mới vì partial unique index được giải phóng); search `q` trở thành literal matching (%, _, \ được escape) ở documents/projects/tags/admin-users; folder move dùng pessimistic lock 2 rows theo UUID order chống race cycle; batch upload cleanup idempotent-per-key; SMTP failure log chỉ exception type.`
+* `Enable host-run path (owner yêu cầu, 2026-09-19): `application-local.yml` thêm `spring.config.import: optional:file:.env[.properties]` để `mvn spring-boot:run` tự đọc `.env` (container/prod/test không bị ảnh hưởng — no-op khi không có file, prod/test không load import này); `.env` thêm `KBASE_POSTGRES_PORT=5433` vì PostgreSQL native trên máy chiếm 5432 (Compose map `${KBASE_POSTGRES_PORT:-5432}:5432` — không đổi docker-compose.yml). Cả hai đường chạy đã verify: container `docker compose up -d --build` phục vụ 8080, host `mvn spring-boot:run` Started + api-docs 200 (đã ghi vào DEVELOPMENT.md).`
 
 Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhiệm lưu thay đổi code chi tiết.
 
@@ -165,6 +171,8 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 
 | Lệnh hoặc kiểm tra | Kết quả       | Thời điểm | Ghi chú |
 | ------------------ | ------------- | --------- | ------- |
+| `mvn -B -ntp clean verify` (M16 final) | Đạt | 2026-09-19 | BUILD SUCCESS; 213 tests, 0 failures/errors/skips (210 baseline + 3 regression: batch cleanup, wildcard-literal search, folder-move concurrency) |
+| Targeted M16 suites | Đạt | 2026-09-19 | Unit 48/48 (Invitation/Document/SmtpMail/ConfigBinding/Folder/Tag/Project/JwtService/User/ContextSmoke); Integration 26/26 (InvitationLifecycle 5/5 gồm assert DB EXPIRED + tạo invitation thay thế, DocumentSearch 3/3 gồm literal wildcard, Organization 7/7 gồm concurrentOppositeFolderMovesCreateNoCycle, JpaMapping 11/11) |
 | `mvn -B -ntp clean verify` (M15 final) | Đạt | 2026-09-19 | BUILD SUCCESS; 210 tests, 0 failures/errors/skips; M15 release gate VERIFY-01/02/03/04/05/11 |
 | Docker runtime verification (M15) | Đạt | 2026-09-19 | Clean startup từ volume rỗng (compose config base+mail-test OK; healthcheck-gated); Flyway V1–V3 + Hibernate validate trong container; 10 tables + `email_verified_at` + không OTP table; auth journey (Redis OTP key/TTL/HMAC + mail double + verify + login/refresh/logout + refresh-sau-logout 401); core flows (project OWNER, folder/category/tag, upload PDF/MP4/MD 201 không expose storageKey, download MD5 khớp, preview inline 200, MP4 206/416, search q/filter/combined/sort/whitelist 400/clamp 100); invitation accept MEMBER; MEMBER matrix + admin 403 + anonymous 401; remove-member access loss + documents remain; document + OWNER-path project hard delete storage-first, bucket rỗng, cascade đủ |
 | Persistence (M15) | Đạt | 2026-09-19 | backend restart: Flyway "Schema is up to date", download checksum khớp; postgres/minio force-recreate giữ volume: data + Flyway history + object download MD5 khớp; Redis recreate: OTP state mất, stale verify 400 OTP_EXPIRED, resend 204, verify + login 200 |
@@ -219,9 +227,10 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 
 ## Bước Tiếp theo
 
-1. `Core v1 đã frozen — không có bước tiếp theo thuộc Core v1.`
-2. `AI/RAG chỉ bắt đầu như một design phase riêng và cần plan mới được duyệt; frontend vẫn deferred; K8s/Terraform ngoài scope.`
-3. `Giữ repository ở trạng thái restartable: docker compose up -d với .env local; reset chuẩn theo docs/DEVELOPMENT.md.`
+1. `Core v1 frozen; M16 post-audit fixes đã đóng. Không có bước tiếp theo thuộc Core v1 trừ khi owner duyệt phase mới.`
+2. `Các finding chờ quyết định: L-02 (PATCH document null semantics — cần product decision), CI pipeline, Gmail production smoke, Redis failure log đối xứng với SMTP (tech-debt tracker).`
+3. `AI/RAG chỉ bắt đầu như một design phase riêng và cần plan mới được duyệt; frontend vẫn deferred; K8s/Terraform ngoài scope.`
+4. `Giữ repository ở trạng thái restartable: docker compose up -d với .env local; reset chuẩn theo docs/DEVELOPMENT.md.`
 
 ## Quy tắc Cập nhật
 

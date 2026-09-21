@@ -2,6 +2,11 @@ spring:
   config:
     activate:
       on-profile: local
+    # Local host runs (mvn spring-boot:run) read the git-ignored .env at the
+    # repo root. Compose injects the same variables as container environment
+    # and ships no .env inside the image, so this import is a no-op there;
+    # the prod/test profiles never load it.
+    import: optional:file:.env[.properties]
 
 kbase:
   storage:

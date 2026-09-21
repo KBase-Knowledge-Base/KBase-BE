@@ -6,9 +6,9 @@ Bộ khung này đã được đồng bộ cho KBase Core v1 và được dùng 
 
 1. Đặt toàn bộ harness này tại root của repository KBase thực tế.
 2. Agent bắt đầu từ `AGENTS.md`.
-3. Đọc `docs/CURRENT_STATE.md` để xác nhận M1 foundation đã bootstrap, active M2 slice đang READY và frontend đang deferred.
-4. Đọc master plan `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md` và active slice trong `docs/exec-plans/active/`; chỉ thực thi task có dependency/gate đã pass.
-5. M0 Preflight và M1 Bootstrap đã hoàn tất; task tiếp theo là M2/DB-01 ở trạng thái READY nhưng chưa bắt đầu.
+3. Đọc `docs/CURRENT_STATE.md` để xác nhận trạng thái hiện tại: M0–M15 đã PASS và **Core v1 đã FROZEN ngày 2026-09-19** (full suite 210/210; Docker runtime re-verified); frontend vẫn deferred.
+4. Đọc master plan `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md` và slice trong `docs/exec-plans/active/` (nếu có); mọi thay đổi sau freeze cần phase/plan mới được duyệt.
+5. Các milestone M0–M15 đã hoàn tất và lưu tại `docs/exec-plans/completed/`; không mở AI/RAG, frontend, K8s/Terraform nếu chưa có chỉ thị mới.
 6. Chỉ cập nhật command trong `docs/DEVELOPMENT.md` sau khi command thật đã tồn tại và được kiểm chứng.
 
 ## Bộ Khung Này Tối ưu hóa Cho

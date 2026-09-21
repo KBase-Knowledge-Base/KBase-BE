@@ -91,7 +91,8 @@ public class DocumentController {
                     + "sizeBytes (default createdAt,desc).")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Paged document metadata summaries"),
-            @ApiResponse(responseCode = "400", description = "INVALID_PARAMETER — an unknown sort field or malformed filter",
+            @ApiResponse(responseCode = "400", description = "VALIDATION_ERROR — an unknown sort field, or "
+                    + "INVALID_PARAMETER — a malformed filter or pagination value",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "403", description = "PROJECT_ACCESS_FORBIDDEN — the caller is not a member of the project",

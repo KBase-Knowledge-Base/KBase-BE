@@ -123,6 +123,8 @@ class FolderServiceTest {
     void selfParentAndDescendantMovesAreRejectedByAncestorWalk() {
         UUID folderId = UUID.randomUUID();
         Folder folder = folder(folderId, null, "Root");
+        when(folderRepository.findByIdForUpdate(folderId, project.getId()))
+                .thenReturn(Optional.of(folder));
         when(folderRepository.findByIdAndProjectId(folderId, project.getId()))
                 .thenReturn(Optional.of(folder));
 
@@ -137,6 +139,8 @@ class FolderServiceTest {
 
         UUID childId = UUID.randomUUID();
         Folder child = folder(childId, folderId, "Child");
+        when(folderRepository.findByIdForUpdate(childId, project.getId()))
+                .thenReturn(Optional.of(child));
         when(folderRepository.findByIdAndProjectId(childId, project.getId()))
                 .thenReturn(Optional.of(child));
         UpdateFolderRequest descendantRequest = new UpdateFolderRequest();
