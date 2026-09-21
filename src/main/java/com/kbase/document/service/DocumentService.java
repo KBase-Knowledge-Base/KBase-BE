@@ -141,6 +141,9 @@ public class DocumentService {
             persistTags(document, resolved.tags());
             return documentMapper.toResponse(document, documentTagRepository.findAllByIdDocumentId(documentId));
         } catch (RuntimeException exception) {
+            // This key is compensated here, so drop it from the batch list to
+            // keep the outer batch cleanup from deleting it a second time.
+            uploadedKeys.remove(storageKey);
             cleanupUploaded(projectId, documentId, List.of(storageKey), exception);
             if (exception instanceof BusinessException) { throw exception; }
             throw new InfrastructureException(ErrorCode.FILE_UPLOAD_FAILED, exception);

@@ -175,9 +175,13 @@ public class InvitationService {
 
     /**
      * Accepts an invitation with a pessimistic write lock on the invitation
-     * row, so exactly one of two concurrent accepts can succeed.
+     * row, so exactly one of two concurrent accepts can succeed. When the
+     * invitation has expired, the {@code EXPIRED} status write is committed
+     * (noRollbackFor) before the error is returned, so the stored lifecycle
+     * matches the status model and the pending-invitation uniqueness slot is
+     * released for a replacement invitation.
      */
-    @Transactional
+    @Transactional(noRollbackFor = InvitationExpiredException.class)
     public AcceptInvitationResponse accept(String rawToken, CustomUserPrincipal principal) {
         Objects.requireNonNull(principal, "principal");
         String tokenHash = invitationTokens.hash(
@@ -189,7 +193,7 @@ public class InvitationService {
         }
         if (!invitation.getExpiresAt().isAfter(clock.instant())) {
             invitation.setStatus(InvitationStatus.EXPIRED);
-            throw new BusinessException(ErrorCode.INVITATION_EXPIRED);
+            throw new InvitationExpiredException();
         }
 
         User acceptor = userRepository.findById(principal.getUserId())

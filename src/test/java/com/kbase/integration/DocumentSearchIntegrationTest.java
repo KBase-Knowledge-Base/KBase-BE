@@ -142,6 +142,41 @@ class DocumentSearchIntegrationTest {
     }
 
     @Test
+    void queryTreatsLikeWildcardsAsLiteralText() throws Exception {
+        User owner = user(SystemRole.USER, "wildcard-owner");
+        Project project = project("wildcard", owner);
+        Document percent = document(project, owner, "100% plan", "100% plan.pdf",
+                FileKind.DOCUMENT, "a_b description", Instant.parse("2026-04-01T00:00:00Z"), null, null);
+        document(project, owner, "plain plan", "plain.pdf",
+                FileKind.DOCUMENT, "ab description", Instant.parse("2026-04-01T00:00:00Z"), null, null);
+        tags.saveAndFlush(new Tag(project, "hot_tag"));
+
+        // "%" and "_" must match literally, not act as SQL wildcards: the
+        // percent document is the only one containing either character.
+        assertThat(ids(search(project, owner, "q", "%"))).containsExactly(percent.getId());
+        assertThat(ids(search(project, owner, "q", "a_b"))).containsExactly(percent.getId());
+        assertThat(ids(search(project, owner, "q", "_"))).containsExactly(percent.getId());
+        // Without escaping, "p_a%n" would match "plain plan" as a wildcard pattern.
+        assertThat(ids(search(project, owner, "q", "p_a%n"))).isEmpty();
+
+        assertThat(json(search(project, owner, "q", "a_b")).get("totalElements").asLong()).isEqualTo(1);
+        mockMvc.perform(get("/api/v1/projects").param("q", "%")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+        // "hot_tag" contains a literal underscore, so q="_" matches exactly it;
+        // q="%" matches nothing because no tag name contains a literal percent.
+        mockMvc.perform(get("/api/v1/projects/{projectId}/tags", project.getId()).param("q", "_")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("hot_tag"));
+        mockMvc.perform(get("/api/v1/projects/{projectId}/tags", project.getId()).param("q", "%")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").doesNotExist());
+    }
+
+    @Test
     void enforcesPaginationSortWhitelistAndMembershipWithAdminOverride() throws Exception {
         User owner = user(SystemRole.USER, "page-owner");
         User member = user(SystemRole.USER, "page-member");

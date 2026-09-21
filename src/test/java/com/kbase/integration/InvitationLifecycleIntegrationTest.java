@@ -448,6 +448,14 @@ class InvitationLifecycleIntegrationTest {
                                 """.formatted(expiredToken)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INVITATION_EXPIRED"));
+        // The EXPIRED transition must survive the rollback boundary so the
+        // stored lifecycle matches the status model and the pending-invitation
+        // uniqueness slot is freed for a replacement invitation.
+        assertThat(invitationRepository.findById(expiredId))
+                .hasValueSatisfying(invitation ->
+                        assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.EXPIRED));
+        String replacementToken = createInvitationAndCaptureToken(owner.token(), projectId, pendingEmailLate);
+        assertThat(replacementToken).isNotEqualTo(expiredToken);
 
         // Email mismatch → 403; wrong token → 404.
         VerifiedUser outsider = newVerifiedUser();

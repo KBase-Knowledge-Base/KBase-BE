@@ -154,7 +154,13 @@ class SmtpMailServiceTest {
                 "recipient@example.invalid", rawOtp, EXPIRES_AT))
                 .isInstanceOf(MailServiceUnavailableException.class);
 
+        // The failure is diagnosable by exception type only; the provider
+        // message (which carries payloads/credentials in this test) and the
+        // exception cause must never reach the logs.
+        assertThat(output).contains("Email delivery failed via SMTP provider type=");
+        assertThat(output).contains("MailSendException");
         assertThat(output).doesNotContain(rawOtp, invitationToken, credential);
+        assertThat(output).doesNotContain("provider=");
     }
 
     private static MailProperties fakeMailProperties(int port) {

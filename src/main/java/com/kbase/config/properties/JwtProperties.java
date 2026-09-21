@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class JwtProperties {
 
     private String signingSecret;
-    private String algorithm = "HS256";
     private Duration accessTokenTtl = Duration.ofMinutes(15);
     private Duration refreshTokenTtl = Duration.ofDays(7);
 
@@ -18,14 +17,6 @@ public class JwtProperties {
 
     public void setSigningSecret(String signingSecret) {
         this.signingSecret = signingSecret;
-    }
-
-    public String getAlgorithm() {
-        return algorithm;
-    }
-
-    public void setAlgorithm(String algorithm) {
-        this.algorithm = algorithm;
     }
 
     public Duration getAccessTokenTtl() {

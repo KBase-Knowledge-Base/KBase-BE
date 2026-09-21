@@ -8,6 +8,7 @@ import java.util.UUID;
 import com.kbase.document.entity.Document;
 import com.kbase.document.entity.DocumentTag;
 import com.kbase.document.enums.FileKind;
+import com.kbase.shared.util.LikePatterns;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -43,12 +44,12 @@ public final class DocumentSpecification {
         return forProject(projectId);
     }
 
-    /** Case-insensitive substring match over the approved metadata fields. */
+    /** Case-insensitive literal substring match over the approved metadata fields. */
     public static Specification<Document> withQuery(String queryText) {
         if (queryText == null || queryText.isBlank()) {
             return alwaysTrue();
         }
-        String pattern = "%" + queryText.trim().toLowerCase(Locale.ROOT) + "%";
+        String pattern = "%" + LikePatterns.escape(queryText.trim().toLowerCase(Locale.ROOT)) + "%";
         return (root, query, criteriaBuilder) -> {
             Join<Object, Object> category = root.join("category", JoinType.LEFT);
             Predicate displayName = contains(criteriaBuilder, root.get("displayName"), pattern);
@@ -169,7 +170,8 @@ public final class DocumentSpecification {
             CriteriaBuilder criteriaBuilder,
             jakarta.persistence.criteria.Expression<String> expression,
             String pattern) {
-        return criteriaBuilder.like(criteriaBuilder.lower(expression), pattern);
+        return criteriaBuilder.like(
+                criteriaBuilder.lower(expression), pattern, LikePatterns.ESCAPE);
     }
 
     private static Specification<Document> alwaysTrue() {

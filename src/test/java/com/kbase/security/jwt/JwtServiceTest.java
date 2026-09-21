@@ -43,7 +43,6 @@ class JwtServiceTest {
     private static JwtProperties jwtProperties(Duration accessTtl) {
         JwtProperties jwtProperties = new JwtProperties();
         jwtProperties.setSigningSecret(SECRET);
-        jwtProperties.setAlgorithm("HS256");
         jwtProperties.setAccessTokenTtl(accessTtl);
         jwtProperties.setRefreshTokenTtl(Duration.ofDays(7));
         return jwtProperties;

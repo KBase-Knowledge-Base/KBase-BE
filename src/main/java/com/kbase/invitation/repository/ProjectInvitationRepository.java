@@ -40,6 +40,12 @@ public interface ProjectInvitationRepository extends JpaRepository<ProjectInvita
             """)
     Optional<ProjectInvitation> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
 
+    /**
+     * Reserved for a future background invitation-expiry job; no production
+     * caller exists in Core v1. Expired invitations currently transition when
+     * an expired accept is attempted (InvitationService.accept). Kept as part
+     * of the M3-verified repository surface.
+     */
     List<ProjectInvitation> findAllByStatusAndExpiresAtBefore(
             InvitationStatus status, Instant now);
 

@@ -22,6 +22,8 @@ import com.kbase.document.repository.DocumentRepository;
 import com.kbase.document.repository.DocumentTagRepository;
 import com.kbase.folder.entity.Folder;
 import com.kbase.folder.repository.FolderRepository;
+import com.kbase.folder.service.FolderService;
+import com.kbase.folder.dto.request.UpdateFolderRequest;
 import com.kbase.mail.service.MailService;
 import com.kbase.project.entity.Project;
 import com.kbase.project.entity.ProjectMember;
@@ -29,6 +31,7 @@ import com.kbase.project.enums.ProjectRole;
 import com.kbase.project.repository.ProjectMemberRepository;
 import com.kbase.project.repository.ProjectRepository;
 import com.kbase.security.principal.CustomUserPrincipal;
+import com.kbase.shared.exception.ErrorCode;
 import com.kbase.tag.entity.Tag;
 import com.kbase.tag.repository.TagRepository;
 import com.kbase.user.entity.User;
@@ -37,6 +40,15 @@ import com.kbase.user.enums.UserStatus;
 import com.kbase.user.repository.UserRepository;
 
 import jakarta.servlet.http.Cookie;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -125,6 +137,9 @@ class OrganizationIntegrationTest {
 
     @Autowired
     private FolderRepository folderRepository;
+
+    @Autowired
+    private FolderService folderService;
 
     @Autowired
     private CategoryRepository categoryRepository;
@@ -375,6 +390,79 @@ class OrganizationIntegrationTest {
                         .content("{\"parentId\":\"%s\"}".formatted(childId)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("FOLDER_CYCLE_DETECTED"));
+    }
+
+    @Test
+    void concurrentOppositeFolderMovesCreateNoCycle() throws Exception {
+        VerifiedUser owner = newVerifiedUser();
+        UUID projectId = createProject(owner.token());
+        UUID firstId = UUID.fromString(json(
+                createFolder(owner.token(), projectId, "First", null)).get("id").asString());
+        UUID secondId = UUID.fromString(json(
+                createFolder(owner.token(), projectId, "Second", null)).get("id").asString());
+        CustomUserPrincipal ownerPrincipal = new CustomUserPrincipal(
+                owner.user().getId(), owner.user().getEmail(),
+                SystemRole.USER, UserStatus.ACTIVE, true);
+
+        // Two opposite moves race on the deterministic two-row lock; exactly
+        // one may win and the loser must re-read the committed graph.
+        int threads = 2;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        try {
+            CountDownLatch start = new CountDownLatch(1);
+            List<Future<Optional<ErrorCode>>> outcomes = new ArrayList<>();
+            outcomes.add(executor.submit(() -> {
+                start.await();
+                try {
+                    folderService.updateFolder(projectId, firstId,
+                            moveRequest(secondId), ownerPrincipal);
+                    return Optional.<ErrorCode>empty();
+                } catch (com.kbase.shared.exception.BusinessException exception) {
+                    return Optional.of(exception.getErrorCode());
+                }
+            }));
+            outcomes.add(executor.submit(() -> {
+                start.await();
+                try {
+                    folderService.updateFolder(projectId, secondId,
+                            moveRequest(firstId), ownerPrincipal);
+                    return Optional.<ErrorCode>empty();
+                } catch (com.kbase.shared.exception.BusinessException exception) {
+                    return Optional.of(exception.getErrorCode());
+                }
+            }));
+            start.countDown();
+
+            int successes = 0;
+            var errors = new ArrayList<ErrorCode>();
+            for (Future<Optional<ErrorCode>> outcome : outcomes) {
+                var result = outcome.get(30, TimeUnit.SECONDS);
+                if (result.isEmpty()) {
+                    successes++;
+                } else {
+                    errors.add(result.get());
+                }
+            }
+            assertThat(successes).isEqualTo(1);
+            assertThat(errors).containsExactly(ErrorCode.FOLDER_CYCLE_DETECTED);
+
+            // The persisted parent graph must remain acyclic either way.
+            Folder first = folder(projectId, firstId);
+            Folder second = folder(projectId, secondId);
+            boolean twoNodeCycle = first.getParentId() != null
+                    && first.getParentId().equals(secondId)
+                    && second.getParentId() != null
+                    && second.getParentId().equals(firstId);
+            assertThat(twoNodeCycle).isFalse();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private UpdateFolderRequest moveRequest(UUID parentId) {
+        UpdateFolderRequest request = new UpdateFolderRequest();
+        request.setParentId(parentId);
+        return request;
     }
 
     @Test

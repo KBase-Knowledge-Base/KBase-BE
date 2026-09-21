@@ -18,9 +18,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.util.HtmlUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /** Gmail SMTP adapter behind the application-level {@link MailService} port. */
 @Service
 public class SmtpMailService implements MailService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SmtpMailService.class);
 
     private static final String VERIFICATION_TEMPLATE = "templates/mail/email-verification-otp.html";
     private static final String INVITATION_TEMPLATE = "templates/mail/project-invitation.html";
@@ -85,6 +90,10 @@ public class SmtpMailService implements MailService {
         } catch (MessagingException | RuntimeException exception) {
             // Deliberately discard the provider exception as a cause: provider
             // diagnostics may contain message payloads or credential details.
+            // The exception TYPE alone is safe to log and is the minimum
+            // server-side diagnostic for SMTP failures (audit L-07).
+            LOGGER.error("Email delivery failed via SMTP provider type={}",
+                    exception.getClass().getName());
             throw new MailServiceUnavailableException();
         }
     }

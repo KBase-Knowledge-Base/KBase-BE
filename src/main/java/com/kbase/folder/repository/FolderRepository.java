@@ -6,7 +6,10 @@ import java.util.UUID;
 
 import com.kbase.folder.entity.Folder;
 
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +17,22 @@ import org.springframework.data.repository.query.Param;
 public interface FolderRepository extends JpaRepository<Folder, UUID> {
 
     Optional<Folder> findByIdAndProjectId(UUID folderId, UUID projectId);
+
+    /**
+     * Locks a folder row with {@code SELECT ... FOR UPDATE}. Folder moves
+     * lock both the moved folder and its target parent (in a deterministic
+     * order) before the cycle walk so two opposite concurrent moves cannot
+     * interleave into a cycle.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select f
+            from Folder f
+            where f.id = :folderId
+              and f.project.id = :projectId
+            """)
+    Optional<Folder> findByIdForUpdate(
+            @Param("folderId") UUID folderId, @Param("projectId") UUID projectId);
 
     List<Folder> findAllByProjectId(UUID projectId);
 

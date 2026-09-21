@@ -49,8 +49,8 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, UU
             where pm.user.id = :userId
               and (:role is null or pm.role = :role)
               and (:q = ''
-                   or lower(pm.project.name) like lower(concat('%', :q, '%'))
-                   or lower(pm.project.description) like lower(concat('%', :q, '%')))
+                   or lower(pm.project.name) like lower(concat('%', :q, '%')) escape '\\'
+                   or lower(pm.project.description) like lower(concat('%', :q, '%')) escape '\\')
             """)
     Page<ProjectMembershipProjection> findMembershipPageForUser(
             @Param("userId") UUID userId,

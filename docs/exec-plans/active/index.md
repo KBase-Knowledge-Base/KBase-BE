@@ -1,6 +1,6 @@
 # Active Plans
 
-- Không có active slice. M15 đã PASS ngày 2026-09-19 và **Core v1 đã FROZEN** (M0–M15 tất cả PASS; full suite 210/210; Docker runtime re-verified). Không mở phase AI/RAG hay frontend nếu chưa có chỉ thị mới.
+- Không có active slice. M15 đã PASS ngày 2026-09-19 và **Core v1 đã FROZEN** (M0–M15 tất cả PASS). Slice maintenance `M16 – Post-Audit Fixes` (owner-approved sau Full Codebase Audit) đã PASS cùng ngày và được lưu tại `../completed/KBase_Core_v1_M16_Post_Audit_Fixes.md`. Không mở phase AI/RAG hay frontend nếu chưa có chỉ thị mới.
 
 ## Quy tắc
 

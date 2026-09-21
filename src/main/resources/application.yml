@@ -57,7 +57,6 @@ kbase:
     password: ${KBASE_POSTGRES_PASSWORD}
   jwt:
     signing-secret: ${KBASE_JWT_SECRET}
-    algorithm: HS256
     access-token-ttl: ${KBASE_ACCESS_TOKEN_TTL:15m}
     refresh-token-ttl: ${KBASE_REFRESH_TOKEN_TTL:7d}
   refresh-cookie:
