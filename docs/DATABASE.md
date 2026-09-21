@@ -82,3 +82,26 @@ Nguồn thiết kế chi tiết:
 - Chạy integration test liên quan.
 - Kiểm tra rollback hoặc recovery plan nếu cần.
 - Sinh lại `docs/generated/db-schema.md`.
+
+
+## AI v1 – Planned Persistence Target
+
+AI v1 mở rộng PostgreSQL hiện tại bằng pgvector và các bảng AI, nhưng **chưa tồn tại ở snapshot documentation-only này**.
+
+Source design:
+
+- `docs/design-docs/KBase - AI Chatbot Persistence and Vector Search Design.md`
+
+Target M2:
+
+- `CREATE EXTENSION IF NOT EXISTS vector`.
+- `document_ai_indexes` + `document_ai_chunks` với `vector(768)`.
+- private `ai_conversations`, `ai_messages`, `ai_message_sources`.
+- PostgreSQL-durable `ai_jobs`.
+- separate `ai_guide_sources` + `ai_guide_chunks`.
+- HNSW cosine index và relational project/document/job indexes.
+- composite document/project FK và delete/SET NULL lifecycle theo SD-16.
+
+Security invariant: project document vector retrieval phải có `project_id` trong SQL. Vector table không được framework auto-create làm production source of truth.
+
+Current `docs/generated/db-schema.md` vẫn là Core schema cho tới khi M2 migration thực tế apply/verify; không sửa snapshot generated chỉ từ design.

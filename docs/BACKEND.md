@@ -19,16 +19,16 @@ Tài liệu này quy định cách tổ chức, phát triển và kiểm chứng
 
 ## Baseline KBase Hiện tại
 
-- Phase hiện tại chỉ triển khai backend Core v1; frontend optional được hoãn.
+- Core v1 backend đã frozen; phase active hiện tại triển khai backend AI v1 trên baseline đó. Frontend và streaming vẫn deferred.
 - Kiến trúc: feature-first modular monolith với root package dự kiến `com.kbase` nếu repository thực tế không quy định package khác.
 - Luồng chính: `Controller -> Service/Application -> Repository`.
 - Project/document authorization phải được gom vào authorization service/component, không phân tán trong controller.
 - External infrastructure đi qua port/adapter: `StorageService -> MinioStorageService`, `MailService -> SmtpMailService`, `OtpStore -> RedisOtpStore`.
 - PostgreSQL lưu persistent metadata/session/invitation state; Redis chỉ lưu email-verification OTP state ngắn hạn; MinIO lưu binary file.
 - Flyway là schema source of truth; JPA mapping phải validate với schema.
-- AI/RAG, OAuth, MFA, password reset, public share link và frontend không được tự thêm vào Core v1.
+- OAuth, MFA, password reset, public share link và frontend không được tự thêm. AI/RAG chỉ được triển khai theo SD-14..SD-19; Project Chat/OCR/multimodal/XLSX RAG/streaming không thuộc AI v1.
 
-Tài liệu chi tiết nằm trong `docs/design-docs/index.md` và execution order nằm trong `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md`.
+Tài liệu Core nằm trong `docs/design-docs/index.md`; execution lịch sử Core ở `KBase_Core_v1_Implementation_Plan.md`. AI v1 dùng `KBase_AI_Chatbot_v1_Implementation_Plan.md` + active slice trong `docs/exec-plans/active/`.
 
 ## Phân chia trách nhiệm
 
@@ -110,3 +110,16 @@ Tùy phạm vi thay đổi, phải chạy:
 - Performance test cho đường dẫn quan trọng.
 
 Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.
+
+
+## Baseline AI v1 Active
+
+- AI là feature/domain riêng dưới `com.kbase.ai`; không nhét orchestration vào `DocumentService`.
+- Provider đi qua KBase-owned `AiChatModel` / `AiEmbeddingModel`; Spring AI/Gemini nằm sau adapter.
+- Core document binary chỉ đọc qua `StorageService`; AI không import MinIO SDK.
+- Project Assistant dùng `ProjectAuthorizationService` hiện tại và private conversation authorization riêng.
+- Vector query/repository bắt buộc project-scoped ở SQL.
+- Background indexing/retention là PostgreSQL-durable job; `@Async`/in-memory timer không đủ.
+- Network provider call không giữ DB transaction mở nếu có thể tránh; persist state trước/sau qua transaction ngắn.
+- No-evidence là domain outcome; provider error là infrastructure/error outcome.
+- AI request phải re-check project access trước khi completed answer được trả/persist.

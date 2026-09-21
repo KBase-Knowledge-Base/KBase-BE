@@ -5,26 +5,26 @@
 
 ## Cập nhật Lần cuối
 
-* Ngày cập nhật: `2026-09-19`
-* Người hoặc agent cập nhật: `ZCode - M16 Post-Audit Fixes`
-* Nhánh hiện tại: `dev`
-* Commit gần nhất đã kiểm chứng: `4cc8f5d` (M15) + các thay đổi M16 của phiên này (chưa commit)
+* Ngày cập nhật: `2026-09-21`
+* Người hoặc agent cập nhật: `ChatGPT - AI v1 Documentation Baseline`
+* Nhánh hiện tại: `feat-AI` (được tạo trực tiếp từ `dev`)
+* Source commit đã xác nhận trước phase AI docs: `071aeaed1f7e81835c27ea9379ba57cc23675b5d`; AI v1 hiện mới mở documentation/M0 execution baseline, chưa có AI code runtime
 
 ## Trạng thái Tổng quan
 
 | Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
 | ---------------- | ------------- | ----------------------- |
-| Build            | Ổn định      | `mvn -B -ntp clean verify` M16 final: BUILD SUCCESS, 213 tests, 0 failures/errors/skips (210 baseline + 3 regression mới cho M-01/L-01/L-05/L-06) |
-| Frontend         | Không áp dụng | Optional theo đề bài; hoãn khỏi phase implementation hiện tại |
-| Backend          | Ổn định | M0–M15 tất cả PASS; **Core v1 FROZEN ngày 2026-09-19**; M16 là maintenance slice post-audit được owner duyệt (fix 1 MEDIUM + 7 LOW từ full codebase audit; không đổi API contract/schema) |
-| Database         | Ổn định      | Không đổi schema trong M16; baseline M15 vẫn đứng: Flyway V1–V3 + Hibernate validate; đúng 10 persistent tables, không OTP table; lifecycle invitation EXPIRED giờ persist đúng CHECK constraint có sẵn (`ck_project_invitations_accepted_at`) |
-| API contract     | Ổn định | Không đổi endpoint/method/status/DTO trong M16; chỉ sửa 1 annotation description của search 400 cho khớp code (VALIDATION_ERROR cho unknown sort) — `api-schema.md` đã đúng từ trước, không cần tái sinh |
-| Integration      | Ổn định | M16 rerun targeted integration suites (Invitation 5/5, Search 3/3, Organization 7/7 gồm concurrency folder move mới, JPA mapping 11/11) trên PostgreSQL/Redis Testcontainers |
-| Unit test        | Ổn định | Full suite 213/213 (`mvn -B -ntp clean verify` M16) |
-| Integration test | Ổn định | PostgreSQL/Redis/MinIO/fake SMTP suites + OpenAPI contract suites pass trong M16 full gate |
-| End-to-end test  | Ổn định | Golden journeys `docs/RELIABILITY.md` đã chạy qua containerized backend trong M14/M15 (M16 không đổi runtime flow nào của journeys) |
-| Security checks  | Ổn định | M16 thêm sanitized SMTP failure log (chỉ exception type, không payload/credential) với negative test; `q` giờ literal-matching (LIKE wildcard escaped) ở documents/projects/tags/admin-users; không đổi auth/authz flow |
-| Deployment       | Ổn định | Không đổi Dockerfile/Compose trong M16; baseline M14/M15 vẫn đứng |
+| Build            | Ổn định Core / AI chưa verify | Latest executable Core evidence vẫn là M16: `mvn -B -ntp clean verify` 213 tests pass. Documentation-prep phiên AI này không tự nhận đã chạy lại build; M0-01 phải re-run baseline trước code. |
+| Frontend         | Không áp dụng | Frontend và streaming tiếp tục deferred khỏi AI v1 backend. |
+| Backend          | Core ổn định / AI đang chuẩn bị | **Core v1 FROZEN** + M16 maintenance complete. AI v1 product/design/master plan đã mở; chưa có `com.kbase.ai` runtime implementation ở source baseline. |
+| Database         | Core ổn định / AI chưa implement | Current runtime vẫn Flyway V1–V3 + 10 Core tables, chưa pgvector/AI tables. AI persistence target nằm ở SD-16 và chỉ được triển khai tại M2. |
+| API contract     | Core ổn định / AI chưa implement | Current runtime OpenAPI vẫn Core 32 paths/47 operations; chưa có AI endpoint. SD-17 là target contract, generated API chỉ cập nhật sau implementation/OpenAPI verification. |
+| Integration      | Core ổn định / AI chưa implement | PostgreSQL/Redis/MinIO/Gmail Core đã verify. Gemini, pgvector vector queries và durable AI jobs mới là target của M0+; chưa có runtime evidence. |
+| Unit test        | Core ổn định / AI chưa có test | Latest Core suite 213/213. AI test strategy SD-18 đã được định nghĩa nhưng chưa thực thi. |
+| Integration test | Core ổn định / AI chưa có test | Existing PostgreSQL/Redis/MinIO/fake SMTP suites pass theo M16; pgvector/fake-AI/worker tests chưa tồn tại. |
+| End-to-end test  | Core ổn định / AI chưa verify | Core golden journeys đã verify M14/M15; AI target journeys được thêm vào RELIABILITY nhưng chỉ được coi pass tại M11. |
+| Security checks  | Core ổn định / AI design-only | AI v1 đã khóa project-filter SQL, private conversation ownership, prompt-injection boundary và in-flight auth recheck; chưa có executable AI security evidence. |
+| Deployment       | Core ổn định / AI target pending | Current Docker topology chưa pgvector/Gemini config. M0/M1 phải lock pgvector-enabled PostgreSQL 17 + provider dependencies trước runtime change. |
 
 Trạng thái nên dùng:
 
@@ -39,15 +39,15 @@ Trạng thái nên dùng:
 
 ### Ưu tiên Hiện tại
 
-* Mục tiêu: `Core v1 FROZEN (M0–M15 PASS) + M16 Post-Audit Fixes PASS. Full Codebase Audit 2026-09-19: 0 BLOCKER / 0 HIGH / 1 MEDIUM / 8 LOW / 12 INFO; M16 đã fix 1 MEDIUM + 7 LOW fixable; L-02 và các INFO item được phản hồi chờ quyết định/phase mới.`
-* Execution plan: `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md` (master roadmap — tất cả milestone DONE)
-* Active slice: `M16 – Post-Audit Fixes đã PASS và được lưu tại docs/exec-plans/completed/KBase_Core_v1_M16_Post_Audit_Fixes.md.`
-* Product spec liên quan: `docs/product-specs/KBase - Core v1 Specification.md`
-* Design document liên quan: `docs/design-docs/index.md`
+* Mục tiêu: `Triển khai KBase AI Chatbot v1 backend trên Core v1 đã frozen: Project Assistant private/project-scoped + KBase Guide grounded, không frontend/streaming/Project Chat.`
+* Execution plan: `docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md` (AI master roadmap M0–M11)
+* Active slice: `docs/exec-plans/active/KBase_AI_Chatbot_v1_M0_Preflight_and_Technical_Compatibility.md`
+* Product spec active: `docs/product-specs/KBase - AI Chatbot v1 Specification.md`; Core spec vẫn là source of truth cho frozen Core behavior
+* Design sources active: `KBase - AI Chatbot RAG Architecture.md`, `KBase - AI Chatbot Persistence and Vector Search Design.md`, `KBase - AI Chatbot REST API Specification.md`, `KBase - AI Chatbot Testing Strategy.md`
 
 ### Bước Đang Thực hiện
 
-* `Không có. M16 đã đóng; các finding chưa fix (L-02 PATCH null semantics, INFO items) chờ product decision/phase mới được duyệt.`
+* `M0-01 READY: re-run current Core baseline trên feat-AI và khóa technical compatibility trước khi thêm AI dependency/schema. AI feature code chưa được phép bắt đầu trước M0 Gate.`
 
 ## Đã Hoàn thành và Kiểm chứng
 
@@ -227,10 +227,12 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 
 ## Bước Tiếp theo
 
-1. `Core v1 frozen; M16 post-audit fixes đã đóng. Không có bước tiếp theo thuộc Core v1 trừ khi owner duyệt phase mới.`
-2. `Các finding chờ quyết định: L-02 (PATCH document null semantics — cần product decision), CI pipeline, Gmail production smoke, Redis failure log đối xứng với SMTP (tech-debt tracker).`
-3. `AI/RAG chỉ bắt đầu như một design phase riêng và cần plan mới được duyệt; frontend vẫn deferred; K8s/Terraform ngoài scope.`
-4. `Giữ repository ở trạng thái restartable: docker compose up -d với .env local; reset chuẩn theo docs/DEVELOPMENT.md.`
+1. `M0-01: chạy mvn -B -ntp clean verify + docker compose config trên feat-AI, ghi actual baseline.`
+2. `M0-02..M0-05: khóa exact Spring AI/Gemini, pgvector PostgreSQL 17/JDBC, extraction dependencies, typed AI config và deterministic test doubles.`
+3. `M0-06: revalidate SD-14..SD-19 registry/precedence; nếu pass thì đóng M0 và mở M1 runtime foundation.`
+4. `Không sửa generated DB/API snapshots trước khi migration/controllers AI thực sự tồn tại và được verify.`
+5. `Core tech-debt cũ (PATCH null semantics, CI, Gmail production smoke, Redis observability) vẫn theo tracker; không kéo vào AI scope nếu active plan không yêu cầu.`
+
 
 ## Quy tắc Cập nhật
 

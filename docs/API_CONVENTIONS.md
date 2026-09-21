@@ -103,3 +103,21 @@ Không trả:
 - Nếu `docs/generated/api-schema.md` mâu thuẫn với contract máy đọc được hoặc source code đã được xác minh, file generated được xem là lỗi thời.
 - Breaking change phải được ghi trong execution plan và trong phần breaking changes của `docs/generated/api-schema.md`.
 - Endpoint hoặc field deprecated phải có hướng thay thế và thời gian loại bỏ nếu có.
+
+
+## AI v1 – Planned Contract Conventions
+
+AI v1 target contract nằm tại `docs/design-docs/KBase - AI Chatbot REST API Specification.md`.
+
+Quy tắc bổ sung:
+
+- Initial AI v1 là JSON request/response, không SSE/streaming.
+- Project Assistant routes nằm dưới `/api/v1/projects/{projectId}/ai/**`.
+- KBase Guide route không có projectId nhưng vẫn authenticated trong v1.
+- Private conversation authorization enforce phía server; ADMIN override không cho đọc chat người khác.
+- Assistant outcome phân biệt `GROUNDED` và `NO_EVIDENCE`; `NO_EVIDENCE` là successful domain response, không giả thành 5xx.
+- Citation là structured backend source mapping; không parse/trust arbitrary citation do LLM invent.
+- AI errors tiếp tục dùng `ApiErrorResponse` + stable `ErrorCode`.
+- Không public vector, source hash, storage key, AI job payload/lease hoặc raw provider response.
+
+`docs/generated/api-schema.md` vẫn phản ánh runtime Core hiện tại cho tới khi AI controllers tồn tại và M10 OpenAPI contract tests pass.

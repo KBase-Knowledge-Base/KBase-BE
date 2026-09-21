@@ -1,10 +1,13 @@
 # Active Plans
 
-- Không có active slice. M15 đã PASS ngày 2026-09-19 và **Core v1 đã FROZEN** (M0–M15 tất cả PASS). Slice maintenance `M16 – Post-Audit Fixes` (owner-approved sau Full Codebase Audit) đã PASS cùng ngày và được lưu tại `../completed/KBase_Core_v1_M16_Post_Audit_Fixes.md`. Không mở phase AI/RAG hay frontend nếu chưa có chỉ thị mới.
+- **AI v1 active:** `KBase_AI_Chatbot_v1_M0_Preflight_and_Technical_Compatibility.md` — M0 bắt đầu từ baseline verification và khóa Spring AI/Gemini/pgvector/extraction compatibility trước mọi feature implementation.
+- Parent roadmap: `../KBase_AI_Chatbot_v1_Implementation_Plan.md`.
+- Core v1 M0–M15 + M16 maintenance đã hoàn thành/frozen; không mở lại Core scope ngoài dependency cần thiết cho AI v1 nếu source docs/active plan không yêu cầu.
 
 ## Quy tắc
 
 - Chỉ một active slice KBase được ưu tiên tại một thời điểm trừ khi master plan xác nhận task có thể chạy song song an toàn.
-- Khi active slice hoàn tất, di chuyển nó sang `../completed/` và tạo slice kế tiếp từ master plan.
+- Khi active slice hoàn tất, di chuyển nó sang `../completed/` và tạo slice kế tiếp từ AI master plan.
 - Nếu thiếu context hoặc có conflict giữa docs/code, đánh dấu task `BLOCKED`, đọc lại source-of-truth và không suy đoán.
-- Core v1 đã frozen: mọi thay đổi tiếp theo cần phase/plan mới được duyệt; không tự mở AI/RAG, frontend, K8s/Terraform hay scope guard items.
+- Core v1 là frozen baseline; AI v1 chỉ được thay Core boundary khi SD-14..SD-18 và active plan yêu cầu rõ.
+- Frontend, streaming, Project Chat, OCR/multimodal, spreadsheet RAG, broker và các scope guard khác không được tự mở.

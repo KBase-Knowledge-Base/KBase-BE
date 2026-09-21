@@ -31,8 +31,8 @@ Trước khi thay đổi mã:
 
 - `ARCHITECTURE.md`: bản đồ domain, mô hình lớp và quy tắc phụ thuộc
 - `docs/CURRENT_STATE.md`: trạng thái hiện tại của repository, công việc ưu tiên, blocker, verification gần nhất và bước tiếp theo
-- `docs/design-docs/index.md`: các quyết định thiết kế và nguyên tắc cốt lõi
-- `docs/product-specs/index.md`: các hành vi sản phẩm hiện tại và acceptance criteria
+- `docs/design-docs/index.md`: các quyết định thiết kế và nguyên tắc cốt lõi; AI v1 phải đọc RAG Architecture, Persistence/Vector, REST API và Testing Strategy tương ứng
+- `docs/product-specs/index.md`: các hành vi sản phẩm hiện tại và acceptance criteria; AI v1 source of truth nằm tại `KBase - AI Chatbot v1 Specification.md`
 - `docs/PLANS.md`: vòng đời và quy tắc quản lý execution plan
 - `docs/QUALITY_SCORE.md`: sức khỏe domain, lớp kiến trúc và năng lực kỹ thuật
 - `docs/RELIABILITY.md`: tín hiệu runtime, journey quan trọng và khả năng khởi động lại
@@ -50,7 +50,7 @@ Trước khi thay đổi mã:
 
 ## Hợp đồng Làm việc
 
-- Phase hiện tại chỉ triển khai backend Core v1. Frontend là optional và được hoãn; chỉ đọc hoặc thay đổi `docs/FRONTEND.md` khi một kế hoạch sau này mở lại phạm vi frontend.
+- Core v1 đã frozen và là baseline không được reinterpret. Phase active hiện tại triển khai backend `KBase AI v1` theo SD-14..SD-19; frontend vẫn optional/deferred và chỉ được mở khi một kế hoạch sau này phê duyệt.
 - Làm việc từ một kế hoạch có ranh giới hoặc slice tính năng tại một thời điểm.
 - Nếu thiếu hoặc không nhớ chắc một rule KBase, coi đó là thiếu context: đọc lại product spec, design document và execution plan liên quan trước khi tiếp tục; không suy đoán để lấp khoảng trống.
 - Không đánh dấu công việc xong chỉ từ kiểm tra mã; cần bằng chứng có thể chạy được.

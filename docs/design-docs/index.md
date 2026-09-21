@@ -16,10 +16,14 @@ Sử dụng chỉ mục này như bản đồ có thể khám phá của lịch 
 - `KBase - Core v1 Spring Boot Application Architecture.md`: feature-first modular monolith và package boundaries
 - `KBase - Core v1 Spring Security JWT Design.md`: JWT, refresh session, OTP email verification và authorization model
 - `KBase - Core v1 Testing Strategy.md`: unit/integration/security/Testcontainers verification strategy
+- `KBase - AI Chatbot RAG Architecture.md`: AI domain boundary, provider ports, indexing/retrieval/Guide architecture
+- `KBase - AI Chatbot Persistence and Vector Search Design.md`: pgvector schema, chunks, conversations, durable jobs và retention persistence
+- `KBase - AI Chatbot REST API Specification.md`: Project Assistant / indexing / Guide REST contract target
+- `KBase - AI Chatbot Testing Strategy.md`: AI-specific security, pgvector, worker, grounding và release verification
 
 ## Đề xuất
 
-- `Chưa có tài liệu đề xuất chưa được duyệt.`
+- `Chưa có tài liệu đề xuất chưa được duyệt; bộ AI v1 phía trên đã được chấp nhận làm baseline implementation.`
 
 ## Không còn Dùng
 

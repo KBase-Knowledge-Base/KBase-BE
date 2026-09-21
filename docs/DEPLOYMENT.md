@@ -126,3 +126,35 @@ AI agent không được tự:
 - Rollback production.
 
 Các hành động trên chỉ được thực hiện khi có yêu cầu và phê duyệt rõ ràng.
+
+
+## AI v1 Deployment Target (Planned, Chưa Implement)
+
+AI v1 không thêm microservice/broker trong initial phase.
+
+Target topology vẫn một backend nhưng PostgreSQL runtime phải có pgvector extension capability:
+
+```text
+backend
+pgvector-enabled PostgreSQL 17
+redis
+minio
+Gmail SMTP external
+Gemini external
+```
+
+M0/M1 phải khóa exact PostgreSQL+pgvector image và Spring AI/Gemini dependencies trước thay Docker runtime.
+
+New secret/config family dự kiến:
+
+- `KBASE_AI_GEMINI_API_KEY`;
+- chat/embedding model names;
+- embedding dimensions;
+- provider timeouts;
+- worker/retrieval/rate tuning.
+
+Không commit secret.
+
+Guide accepted product specs phải được package reproducibly vào backend artifact từ canonical `docs/product-specs` files; runtime không phụ thuộc GitHub network.
+
+AI rollback phải ưu tiên disable AI/provider path và giữ Core healthy. Additive AI Flyway schema không được destructive-drop tự động khi rollback application.

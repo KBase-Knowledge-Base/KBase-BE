@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "registry": "kbase-source-documents",
-  "updatedOn": "2026-09-17",
+  "updatedOn": "2026-09-21",
   "pathBase": ".",
   "encoding": "UTF-8",
-  "sourceDocumentCount": 13,
+  "sourceDocumentCount": 19,
   "documents": [
     {
       "alias": "SD-01",
@@ -83,68 +83,135 @@
       "canonicalTitle": "KBase - Core v1 Implementation Plan",
       "path": "docs/exec-plans/KBase_Core_v1_Implementation_Plan.md",
       "authority": "implementation order only"
+    },
+    {
+      "alias": "SD-14",
+      "canonicalTitle": "KBase - AI Chatbot v1 Specification",
+      "path": "docs/product-specs/KBase - AI Chatbot v1 Specification.md",
+      "authority": "accepted AI v1 product behavior and acceptance criteria"
+    },
+    {
+      "alias": "SD-15",
+      "canonicalTitle": "KBase - AI Chatbot RAG Architecture and Application Design",
+      "path": "docs/design-docs/KBase - AI Chatbot RAG Architecture.md",
+      "authority": "AI application, provider, indexing, retrieval and Guide architecture"
+    },
+    {
+      "alias": "SD-16",
+      "canonicalTitle": "KBase - AI Chatbot Persistence and Vector Search Design",
+      "path": "docs/design-docs/KBase - AI Chatbot Persistence and Vector Search Design.md",
+      "authority": "AI schema, pgvector, durable jobs, retention and vector query invariants"
+    },
+    {
+      "alias": "SD-17",
+      "canonicalTitle": "KBase - AI Chatbot REST API Specification",
+      "path": "docs/design-docs/KBase - AI Chatbot REST API Specification.md",
+      "authority": "AI v1 public REST contract target"
+    },
+    {
+      "alias": "SD-18",
+      "canonicalTitle": "KBase - AI Chatbot Testing Strategy",
+      "path": "docs/design-docs/KBase - AI Chatbot Testing Strategy.md",
+      "authority": "required AI v1 verification and release gates"
+    },
+    {
+      "alias": "SD-19",
+      "canonicalTitle": "KBase - AI Chatbot v1 Implementation Plan",
+      "path": "docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md",
+      "authority": "AI v1 implementation order only"
     }
   ],
   "precedence": [
     {
       "rank": 1,
-      "aliases": ["SD-01"],
-      "rule": "Explicit accepted business decisions in SD-01 and later approved decisions reflected consistently across SD-02..SD-12."
+      "aliases": [
+        "SD-01",
+        "SD-14"
+      ],
+      "rule": "SD-01 owns frozen Core v1 product behavior; SD-14 owns accepted AI v1 product behavior. SD-14 opens AI as a separate phase and does not silently rewrite Core rules."
     },
     {
       "rank": 2,
-      "aliases": ["SD-02", "SD-03"],
-      "rule": "Domain and data structure."
+      "aliases": [
+        "SD-02",
+        "SD-03",
+        "SD-15",
+        "SD-16"
+      ],
+      "rule": "Domain/data/architecture within each document's approved scope. AI persistence rules in SD-16 must preserve Core relational invariants from SD-02/SD-03."
     },
     {
       "rank": 3,
-      "aliases": ["SD-04"],
-      "rule": "Public REST contract."
+      "aliases": [
+        "SD-04",
+        "SD-17"
+      ],
+      "rule": "Public REST contract: SD-04 for Core v1, SD-17 for AI v1 target endpoints."
     },
     {
       "rank": 4,
-      "aliases": ["SD-05"],
-      "rule": "Application and package architecture."
+      "aliases": [
+        "SD-05"
+      ],
+      "rule": "Core application/package architecture; SD-15 extends it for the AI domain without replacing frozen boundaries."
     },
     {
       "rank": 5,
-      "aliases": ["SD-06"],
-      "rule": "Persistence implementation."
+      "aliases": [
+        "SD-06"
+      ],
+      "rule": "Core persistence implementation; AI persistence implementation follows SD-16."
     },
     {
       "rank": 6,
-      "aliases": ["SD-07"],
-      "rule": "Security and authentication."
+      "aliases": [
+        "SD-07"
+      ],
+      "rule": "Security and authentication baseline; AI authorization/privacy rules additionally come from SD-14/SD-15."
     },
     {
       "rank": 7,
-      "aliases": ["SD-08"],
-      "rule": "Service orchestration."
+      "aliases": [
+        "SD-08"
+      ],
+      "rule": "Core service orchestration; AI orchestration additionally follows SD-15."
     },
     {
       "rank": 8,
-      "aliases": ["SD-09"],
-      "rule": "Storage integration."
+      "aliases": [
+        "SD-09"
+      ],
+      "rule": "Storage integration; AI indexing must continue to use the StorageService boundary."
     },
     {
       "rank": 9,
-      "aliases": ["SD-10"],
-      "rule": "Error and API failure contract."
+      "aliases": [
+        "SD-10"
+      ],
+      "rule": "Error and API failure contract; AI codes extend this contract through SD-17."
     },
     {
       "rank": 10,
-      "aliases": ["SD-11"],
-      "rule": "OpenAPI documentation."
+      "aliases": [
+        "SD-11"
+      ],
+      "rule": "OpenAPI documentation baseline; AI endpoints must be added only when implemented and verified."
     },
     {
       "rank": 11,
-      "aliases": ["SD-12"],
-      "rule": "Required verification."
+      "aliases": [
+        "SD-12",
+        "SD-18"
+      ],
+      "rule": "Required verification: SD-12 remains Core baseline and SD-18 adds AI-specific verification."
     },
     {
       "rank": 12,
-      "aliases": ["SD-13"],
-      "rule": "Implementation order only; SD-13 cannot override product or design decisions."
+      "aliases": [
+        "SD-13",
+        "SD-19"
+      ],
+      "rule": "Implementation order only; neither execution plan may override product/design decisions."
     }
   ],
   "resolutionPolicy": {
@@ -156,17 +223,22 @@
   },
   "scopeGuard": {
     "product": "KBase",
-    "release": "Core v1",
+    "baseRelease": "Core v1 (frozen)",
+    "activeRelease": "AI v1",
     "implementationMode": "backend-only",
-    "frontend": "optional/deferred; do not create or modify frontend during the current backend phase",
-    "excludedFromCoreV1": [
-      "AI/RAG",
-      "vector search and embeddings",
-      "document versioning",
-      "public sharing",
-      "comments",
-      "favorites",
-      "ownership transfer"
+    "frontend": "optional/deferred; do not create or modify frontend during the current AI backend phase",
+    "coreV1Frozen": true,
+    "excludedFromAiV1": [
+      "frontend implementation",
+      "streaming/SSE",
+      "human-to-human Project Chat",
+      "shared AI conversations",
+      "OCR",
+      "image/video multimodal RAG",
+      "XLS/XLSX RAG",
+      "hybrid search/reranker",
+      "Kafka/RabbitMQ",
+      "persistent KBase Guide conversation history"
     ],
     "activePlanControlsTaskScope": true
   }

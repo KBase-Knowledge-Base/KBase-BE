@@ -47,3 +47,19 @@ Tệp này định nghĩa các quy tắc bảo mật và an toàn mà agent khô
 - Security filter chỉ xử lý authentication/system role; project/document domain authorization ở service/authorization component.
 - Không log password, password hash, JWT, raw refresh token, raw invitation token, raw OTP, OTP protected value, Gmail App Password hoặc MinIO secret.
 - Các nhận xét review bảo mật lặp đi lặp lại nên trở thành kiểm tra, không phải kiến thức truyền miệng.
+
+
+## AI v1 Security Rules
+
+- Project Assistant authorize bằng **current** `ProjectAuthorizationService` trước retrieval; vector SQL đồng thời bắt buộc `WHERE project_id = ?`.
+- Conversation privacy là independent boundary: chỉ `created_by_user_id` được đọc/rename/delete/send qua normal API. OWNER/ADMIN project privilege không tự cấp quyền đọc chat của người khác.
+- Request dài phải re-check project access trước persist/return completed answer; revoke giữa provider call không được trả generated content.
+- Retrieved document/Guide text là untrusted data. Prompt instruction trong chunk không thể sửa system policy, route tới project khác hoặc cấp quyền.
+- LLM/provider không bao giờ là authorization boundary.
+- Conversation history không phải evidence và không được resurrect nội dung từ document đã xóa/không còn authorized.
+- Gemini API key là secret mới; lấy từ environment/secret mechanism, không log.
+- Không log mặc định full prompt, raw chunk/document content, full assistant answer, vector hoặc raw provider response.
+- Project chunks gửi tới Gemini là external data transfer; chỉ gửi current authorized bounded evidence.
+- KBase Guide dùng separate approved corpus; không được truy cập project chunks/private conversations.
+- Citation chỉ là snapshot/navigation metadata; mở source vẫn cần current `DocumentAuthorizationService`.
+- AI rate-limit state nếu dùng Redis là ephemeral guard, không phải durable permission/business state.

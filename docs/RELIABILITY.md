@@ -32,6 +32,16 @@ Tài liệu này định nghĩa các yêu cầu về độ tin cậy và bằng 
 - `OWNER remove MEMBER → document của user vẫn tồn tại → former MEMBER mất toàn bộ project/document access`
 - `OWNER hard-delete project → MinIO objects được xử lý theo design → PostgreSQL project-related data bị xóa theo rule`
 
+AI v1 target journeys (chưa được coi là verified cho tới M11):
+
+- `Upload supported document → Core upload thành công → durable indexing → READY → Project Assistant grounded answer + citation`
+- `Question không có current evidence → deterministic NO_EVIDENCE, không general model fallback`
+- `Gemini unavailable → AI fails/retries safely → Core upload/download/metadata search vẫn healthy`
+- `MEMBER bị remove → AI access deny ngay → rejoin trong 7 ngày restore hoặc quá hạn hard-purge private conversations`
+- `Delete source document → new retrieval không dùng source → historical citation chuyển unavailable`
+- `Backend restart với pending/stale AI job → durable worker resume/recover`
+- `KBase Guide → chỉ approved product-spec corpus → grounded answer/refusal; không project data`
+
 - Mỗi journey vàng nên có đường dẫn xác minh có thể lặp lại và tín hiệu thất bại rõ ràng.
 - Việc kiểm thử journey vàng phải tuân theo `docs/TESTING.md`.
 - Journey liên quan nhiều hệ thống phải tuân theo `docs/INTEGRATION.md`.
@@ -81,3 +91,14 @@ Tài liệu này định nghĩa các yêu cầu về độ tin cậy và bằng 
 - Health/readiness: postgres `pg_isready`, redis `redis-cli ping`, MinIO `minio/health/live` gated backend startup qua `depends_on: service_healthy`; không sleep.
 - Log runtime sạch (59 dòng/whole-smoke container): không password/JWT/token/OTP/credential; generated-password log của Boot đã loại.
 - Fix runtime từ M11: OWNER-path project hard delete fail trên Hibernate 7.4 (`TransientPropertyValueException`); sửa bằng bulk cascade delete + regression test OWNER-path; full suite 210/210.
+
+
+## AI v1 Reliability Invariants
+
+- Durable job state ở PostgreSQL; restart JVM không được làm mất index/purge intent.
+- `PROCESSING` job phải có lease/stale recovery, không stuck vĩnh viễn.
+- Duplicate job/worker delivery phải idempotent; không giả định exactly-once.
+- Last active successful document index không bị xóa trước replacement activation.
+- Deleted document/project không được resurrect bởi late worker.
+- Provider timeout/retry bounded; Core runtime không phụ thuộc Gemini availability.
+- AI observability dùng safe metadata (job state/latency/error category), không raw knowledge/prompt.

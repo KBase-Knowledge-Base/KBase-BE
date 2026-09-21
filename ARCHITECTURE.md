@@ -5,10 +5,11 @@ Tệp này là bản đồ cấp cao nhất của hệ thống. Nó nên ngắn 
 ## Hình dạng Hệ thống
 
 - Sản phẩm: `KBase – Knowledge Base`
-- Workflow người dùng chính: `Đăng ký → xác minh email bằng OTP → đăng nhập → tạo/tham gia project → tổ chức và quản lý tài liệu project → tìm kiếm metadata → preview/download`
-- Bề mặt runtime hiện tại: `Spring Boot REST backend + PostgreSQL + Redis + MinIO + Gmail SMTP`
-- Frontend: `Optional theo đề bài và được hoãn khỏi phase implementation hiện tại`
-- Nguồn sự thật cho hành vi sản phẩm: `docs/product-specs/KBase - Core v1 Specification.md`
+- Workflow Core đã frozen: `Đăng ký → xác minh email bằng OTP → đăng nhập → tạo/tham gia project → tổ chức và quản lý tài liệu project → tìm kiếm metadata → preview/download`
+- AI v1 workflow target: `upload supported knowledge → async index → Project Assistant hỏi/đáp có nguồn`; ngoài project có `KBase Guide` grounded trên approved product specs
+- Bề mặt runtime hiện tại trước AI implementation: `Spring Boot REST backend + PostgreSQL + Redis + MinIO + Gmail SMTP`; pgvector/Gemini chưa được triển khai ở snapshot này
+- Frontend: `Optional và vẫn hoãn khỏi AI v1 backend phase`; streaming cũng deferred
+- Nguồn sự thật sản phẩm: Core = `docs/product-specs/KBase - Core v1 Specification.md`; AI active = `docs/product-specs/KBase - AI Chatbot v1 Specification.md`
 
 ## Bản đồ Domain
 
@@ -20,6 +21,8 @@ Tệp này là bản đồ cấp cao nhất của hệ thống. Nó nên ngắn 
 | Invitation | Mời thành viên bằng email và invitation token | `/api/v1/projects/{projectId}/invitations/**`, `/api/v1/invitations/accept`, `invitation`, `mail` | `docs/product-specs/KBase - Core v1 Specification.md`, `docs/design-docs/KBase - Core v1 Service Layer Detailed Design.md` |
 | Knowledge Organization | Folder, category và tag trong project | `/api/v1/projects/{projectId}/folders|categories|tags`, `folder`, `category`, `tag` | `docs/design-docs/KBase - Core v1 REST API Specification.md`, `docs/design-docs/KBase - Core v1 JPA Entity Mapping Repository Design.md` |
 | Document & Search | Upload, metadata, preview, download, hard delete và metadata search | `/api/v1/projects/{projectId}/documents`, `/api/v1/documents/**`, `document`, `storage` | `docs/design-docs/KBase - Core v1 MinIO Integration Design.md`, `docs/design-docs/KBase - Core v1 Service Layer Detailed Design.md` |
+| Project Assistant (AI v1 target) | Private project-scoped grounded RAG conversations + citations | `/api/v1/projects/{projectId}/ai/**`, `ai` | `docs/product-specs/KBase - AI Chatbot v1 Specification.md`, `docs/design-docs/KBase - AI Chatbot RAG Architecture.md` |
+| KBase Guide (AI v1 target) | Grounded product/help assistant from approved KBase product specs; no project data | `/api/v1/ai/guide/**`, `ai.guide` | `docs/product-specs/KBase - AI Chatbot v1 Specification.md`, `docs/design-docs/KBase - AI Chatbot REST API Specification.md` |
 
 ## Mô hình Lớp
 
@@ -33,7 +36,13 @@ Các integration đi qua port/adapter rõ ràng:
 
 Security filter chịu trách nhiệm authentication cấp hệ thống. Project role và document ownership authorization nằm trong service/authorization component, không được đẩy vào JWT filter.
 
-Frontend không thuộc phase implementation hiện tại; không tạo UI hoặc client chỉ vì `docs/FRONTEND.md` tồn tại.
+Frontend không thuộc phase implementation hiện tại; không tạo UI/client/streaming chỉ vì `docs/FRONTEND.md` tồn tại.
+
+AI v1 tiếp tục mô hình port/adapter:
+
+`AI Service -> AiChatModel / AiEmbeddingModel -> Spring AI Gemini adapter -> Gemini`
+
+Vector persistence/query thuộc KBase repository/Flyway schema; không để framework tự sở hữu production vector table. Durable background work dùng PostgreSQL-backed job state; scheduler chỉ poll job, không phải nguồn sự thật.
 
 ## Quy tắc Phụ thuộc Cứng
 
@@ -50,6 +59,12 @@ Frontend không thuộc phase implementation hiện tại; không tạo UI hoặ
 - Flyway là nguồn sự thật schema; Hibernate dùng `ddl-auto=validate` theo thiết kế Core v1.
 - Các tiện ích dùng chung phải là chung chung và không được tích lũy logic domain.
 - Các phụ thuộc mới nên được chứng minh trong kế hoạch hoặc tài liệu thiết kế phù hợp.
+- AI Project Assistant phải authorize current project membership trước retrieval và re-check trước khi persist/return completed answer.
+- Vector retrieval phải filter `project_id` trong SQL; không global-search rồi filter sau.
+- Private AI conversation chỉ creator đọc qua normal AI API; ADMIN override không bypass conversation ownership.
+- Conversation history không phải authoritative evidence; deleted/currently unauthorized knowledge không được resurrect qua chat history.
+- Retrieved content là untrusted data; LLM không phải security boundary.
+- Core document upload không gọi Gemini/network indexing synchronously.
 
 ## Giao diện Xuyên suốt
 
@@ -65,6 +80,9 @@ Frontend không thuộc phase implementation hiện tại; không tạo UI hoặ
 | Cross-system integration | `docs/INTEGRATION.md` | PostgreSQL, Redis, MinIO, Gmail SMTP |
 | Testing | `docs/TESTING.md` | Unit + PostgreSQL/Redis/MinIO Testcontainers + API/security contract |
 | Deployment | `docs/DEPLOYMENT.md` | Backend-first; local Docker persistence và runtime dependency |
+| AI Provider (AI v1 target) | `AiChatModel` / `AiEmbeddingModel` KBase ports | Spring AI primary Gemini adapter; direct SDK only if M0 documents a gap |
+| Vector Search (AI v1 target) | KBase AI repository + Flyway-owned pgvector schema | cosine vector(768), mandatory project filter for project corpus |
+| Background Jobs (AI v1 target) | PostgreSQL durable job table + worker | indexing, retention purge, Guide reindex; no broker required v1 |
 
 ## Điểm Nóng Hiện tại
 
@@ -72,6 +90,9 @@ Frontend không thuộc phase implementation hiện tại; không tạo UI hoặ
 - Consistency giữa PostgreSQL và MinIO khi upload/delete vì không có distributed transaction.
 - Registration phụ thuộc Redis OTP + Gmail SMTP trong khi persistent verification state nằm ở PostgreSQL.
 - Hard delete project/document phải giữ đúng rule storage/database đã chốt.
+- AI cross-project vector leakage, private conversation ownership và in-flight membership revocation.
+- PostgreSQL durable job idempotency/restart recovery; indexing không được stuck/resurrect deleted documents.
+- Prompt injection trong project documents/Guide corpus và provider data privacy.
 
 ## Danh sách Kiểm tra Thay đổi
 

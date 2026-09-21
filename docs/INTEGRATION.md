@@ -6,7 +6,7 @@ Tài liệu này quy định cách frontend, backend, database và dịch vụ b
 
 ## Phạm vi Hiện tại
 
-Phase hiện tại chỉ triển khai backend Core v1. Frontend là optional và được hoãn; các integration cần triển khai/xác minh trước gồm:
+Core v1 integrations dưới đây đã được triển khai/xác minh. AI v1 backend hiện là active implementation phase; frontend/streaming vẫn deferred. Bảng đầu tiên mô tả Core runtime hiện tại:
 
 | Nguồn | Đích | Mục đích | Persistence | Boundary |
 |---|---|---|---|---|
@@ -132,15 +132,18 @@ M5 implementation details:
 
 ## Event, queue hoặc background job
 
-Core v1 hiện không yêu cầu message queue hoặc background job.
+Core v1 không yêu cầu message queue/background job. AI v1 **có** durable background jobs nhưng không cần broker; dùng PostgreSQL-backed `ai_jobs` + scheduled worker.
 
-Nếu dự án bổ sung sau này:
+AI v1 job types baseline: `DOCUMENT_INDEX`, `DOCUMENT_REINDEX`, `CONVERSATION_PURGE`, `GUIDE_REINDEX`.
 
-- Message phải có schema rõ ràng.
-- Consumer phải xử lý duplicate delivery.
-- Retry và dead-letter behavior phải được định nghĩa.
+Required:
+
+- Job payload/schema phải rõ ràng và không chứa raw document/prompt/secret.
+- Worker phải xử lý duplicate/reclaim/idempotency.
+- Retry bounded + run-at/lease/stale recovery phải được định nghĩa.
 - Job phải có trạng thái và khả năng chẩn đoán.
-- Không giả định xử lý đúng một lần nếu nền tảng không bảo đảm.
+- Claim baseline dùng PostgreSQL locking/`SKIP LOCKED`; không giả định exactly-once.
+- Scheduler/JVM memory không phải durable source of truth.
 
 ## Verification
 
@@ -178,3 +181,36 @@ M6 verification đã chạy:
 - Backend image không chứa secret; mọi credential/endpoint đến từ environment (`${VAR:?required}` trong compose, giá trị thật trong `.env` git-ignored).
 - Gmail SMTP vẫn external. `docker-compose.mail-test.yml` là optional override (mailpit) chỉ dùng cho verification tự động để bắt OTP/invitation email; production giữ Gmail thật qua `KBASE_GMAIL_SMTP_*` và không dùng override này.
 - Persistence đã verify trong runtime: `postgres_data`/`minio_data` giữ data qua backend restart và container force-recreate; Redis recreation làm mất pending OTP và resend vẫn hoạt động.
+
+
+## AI v1 Target Integrations (Chưa Implement ở Documentation Baseline)
+
+| Nguồn | Đích | Mục đích | Persistence | Boundary |
+|---|---|---|---|---|
+| AI application | Gemini | grounded chat generation | External provider, không durable | `AiChatModel -> SpringAiGeminiChatAdapter` baseline |
+| AI indexing/retrieval | Gemini embedding | document/query embeddings | External provider | `AiEmbeddingModel -> SpringAiGeminiEmbeddingAdapter` baseline |
+| AI repositories | PostgreSQL + pgvector | chunks/vectors/conversations/jobs/Guide corpus | Durable qua existing PostgreSQL volume | KBase repository + Flyway schema |
+| AI worker | MinIO | đọc binary source để extract | Binary vẫn durable trong MinIO | existing `StorageService` only |
+| AI usage guard (target) | Redis | ephemeral per-user AI rate/cost guard | Ephemeral; không business source of truth | dedicated AI rate adapter/namespace if M0/M10 approves |
+
+Gemini integration requirements:
+
+- API key/model/timeouts qua typed config + environment; không hard-code.
+- Project text/chunks gửi sang provider là external data boundary; không log raw payload.
+- Provider timeout/rate/error translate tại adapter; Core endpoint không phụ thuộc provider health.
+- Không retry mù quáng chat generation. Embedding/index job retry chỉ cho transient categories và phải idempotent/bounded.
+- Spring AI là primary integration path; direct Google SDK chỉ khi M0 ghi rõ gap và vẫn nằm sau KBase port.
+
+pgvector requirements:
+
+- Flyway owns extension/schema.
+- embedding baseline `gemini-embedding-2`, dimension 768.
+- vector retrieval project-scoped trong SQL.
+- real pgvector-enabled PostgreSQL Testcontainer verification.
+
+Guide source integration:
+
+- runtime không gọi GitHub để đọc docs;
+- Maven/Docker build package exact allowlisted accepted product specs;
+- content hash drives durable `GUIDE_REINDEX`;
+- không package/index toàn bộ internal docs.

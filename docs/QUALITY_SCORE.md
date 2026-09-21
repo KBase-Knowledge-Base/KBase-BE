@@ -18,6 +18,7 @@ Tài liệu này theo dõi liệu kho lưu trữ có đang trở nên mạnh hơ
 | Project / Membership / Invitation | A | M7/M8 integration + M11 API + M14 runtime invitation flow và membership matrix qua container | Cao - spec/service/security docs rõ | OWNER/ADMIN delete, storage failure stop-DB và OWNER-path hard delete (regression M14) được cover | Invitation email Gmail thật manual smoke chưa chạy | 2026-09-18 |
 | Folder / Category / Tag | A | M9 suites vẫn pass; M11 API test chứng minh folder/category/tag cross-project bị reject lúc upload; M13 contract test verify role docs | Cao - product/design/service/API rules rõ | Authorization, hierarchy, uniqueness, delete dependency và cross-project integrity đã được test | Chi tiết field-level trong api-schema.md vẫn sync thủ công | 2026-09-18 |
 | Document / MinIO / Search | A | M12 search suites; M14 runtime upload/download checksum khớp, preview 206/416, hard delete storage-first qua MinIO container | Cao | Storage/lifecycle/search authorization boundary, project isolation và persistence qua `minio_data` được verify | Chi tiết field-level trong api-schema.md vẫn sync thủ công | 2026-09-18 |
+| AI Chatbot / RAG | - | AI v1 SD-14..SD-19 đã được thiết kế/đăng ký; chưa có runtime code/schema/test evidence | Cao ở mức source docs; implementation chưa tồn tại | Chưa chấm test stability | M0 compatibility + toàn bộ implementation M1–M11 chưa chạy | 2026-09-21 |
 
 ## Lớp Kiến trúc
 
@@ -33,7 +34,8 @@ Tài liệu này theo dõi liệu kho lưu trữ có đang trở nên mạnh hơ
 
 | Năng lực | Điểm | Bằng chứng | Khoảng trống chính | Cập nhật lần cuối |
 |---|---|---|---|---|
-| Backend | A | M0–M15: full implementation + OpenAPI runtime + Docker runtime verification (M14) + full verification/freeze (M15, 210/210 + runtime re-verification); Core v1 frozen 2026-09-19 | Không còn gap Core v1; thay đổi mới cần phase được duyệt | 2026-09-19 |
+| Backend | A | M0–M15 Core implementation + M16 maintenance verified; Core v1 frozen | Core ổn định; AI v1 là phase active riêng, không hạ điểm Core chỉ vì AI chưa implement | 2026-09-21 |
+| AI / RAG | - | Product spec + RAG/persistence/API/testing designs + M0–M11 master plan đã có | Chưa có Spring AI/Gemini/pgvector/jobs/conversation/Guide runtime; M0 chưa verify | 2026-09-21 |
 | Frontend | - | `docs/FRONTEND.md` | Optional và hoãn khỏi phase hiện tại | 2026-09-17 |
 | Database và migration | A | Flyway V1–V3 apply trong Docker runtime từ DB rỗng + Hibernate validate; integrity 12/12 và mapping 11/11 trên Testcontainer; Flyway history persist qua restart; `docs/generated/db-schema.md` đã đối chiếu | Chưa có generator schema tự động | 2026-09-18 |
 | API contract | A | Runtime OpenAPI `/v3/api-docs` serve trong container runtime; 21 contract tests; `docs/generated/api-schema.md` đồng bộ theo runtime | Markdown snapshot sync thủ công; chưa có snapshot/breaking-change CI diff (optional theo SD-11) | 2026-09-18 |
@@ -74,6 +76,7 @@ Tài liệu này theo dõi liệu kho lưu trữ có đang trở nên mạnh hơ
 | 2026-09-18 | `KBase backend harness - M14 Gate` | M14 Full Docker Runtime Verification | N/A | M14 Gate pass; clean Docker startup với Flyway V1–V3 + Hibernate validate trong container; golden journeys qua containerized backend; postgres_data/minio_data persistence + Redis ephemeral verified; fix 1 bug M11 (OWNER-path project delete) với regression test; full suite 210/210 |
 | 2026-09-19 | `KBase backend harness - M15 Gate (Core v1 Freeze)` | M15 Full Verification / Core v1 Freeze | N/A | M15 Gate pass; **Core v1 FROZEN**. Full release gate 210/210; Docker runtime re-verification từ volume rỗng (Flyway/Hibernate trong container, 10 tables, không OTP table; toàn bộ golden journeys; persistence restart/recreate; Redis ephemeral + resend); static architecture/leakage scans clean; runtime spec 32 paths/47 operations khớp contract test + SD-04 (sửa miscount "48" từ bản ghi M13); consistency audit docs↔code pass; không có code change trong M15 |
 | 2026-09-19 | `KBase backend harness - M16 Gate (Post-Audit Fixes)` | M16 Post-Audit Fixes (maintenance sau freeze, owner-approved) | N/A | M16 Gate pass. Full Codebase Audit cùng ngày: 0 BLOCKER / 0 HIGH / 1 MEDIUM / 8 LOW / 12 INFO. Fix 1 MEDIUM + 7 LOW (invitation EXPIRED persistence, batch cleanup idempotent, swagger annotation, JwtProperties.algorithm, LIKE wildcard literal `q`, folder-move pessimistic lock + concurrency test, SMTP sanitized failure log, repo hygiene); không fix: L-02 (cần product decision) + INFO items (phase mới). Full gate 213/210+3 regression pass; không đổi API contract/Flyway schema |
+| 2026-09-21 | `KBase AI v1 documentation baseline` | 0% AI implementation | N/A | Product/design/master plan/harness source set được mở trên `feat-AI`; AI capability giữ điểm `-` cho tới khi M0+ tạo executable evidence. Core freeze vẫn đứng. |
 
 ## Nhật ký Đơn giản hóa
 
