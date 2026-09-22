@@ -183,12 +183,12 @@ M6 verification đã chạy:
 - Persistence đã verify trong runtime: `postgres_data`/`minio_data` giữ data qua backend restart và container force-recreate; Redis recreation làm mất pending OTP và resend vẫn hoạt động.
 
 
-## AI v1 Integrations (M2 Persistence đã triển khai; behavior còn deferred)
+## AI v1 Integrations (M4 Provider Boundary đã triển khai; indexing/RAG behavior còn deferred)
 
 | Nguồn | Đích | Mục đích | Persistence | Boundary |
 |---|---|---|---|---|
-| AI application | Gemini | grounded chat generation | External provider, không durable | `AiChatModel -> SpringAiGeminiChatAdapter` baseline |
-| AI indexing/retrieval | Gemini embedding | document/query embeddings | External provider | `AiEmbeddingModel -> SpringAiGeminiEmbeddingAdapter` baseline |
+| AI application | Gemini | grounded chat generation | External provider, không durable | `AiChatModel -> SpringAiGeminiChatAdapter` explicit M4 adapter |
+| AI indexing/retrieval | Gemini embedding | document/query embeddings | External provider | `AiEmbeddingModel -> SpringAiGeminiEmbeddingAdapter` explicit M4 adapter |
 | AI repositories | PostgreSQL + pgvector | chunks/vectors/conversations/jobs/Guide corpus | Durable qua existing PostgreSQL volume | KBase repository + Flyway V4 schema; verified M2 |
 | AI worker | MinIO | đọc binary source để extract | Binary vẫn durable trong MinIO | existing `StorageService` only |
 | AI usage guard (target) | Redis | ephemeral per-user AI rate/cost guard | Ephemeral; không business source of truth | dedicated AI rate adapter/namespace if M0/M10 approves |
@@ -200,6 +200,10 @@ Gemini integration requirements:
 - Provider timeout/rate/error translate tại adapter; Core endpoint không phụ thuộc provider health.
 - Không retry mù quáng chat generation. Embedding/index job retry chỉ cho transient categories và phải idempotent/bounded.
 - Spring AI là primary integration path; direct Google SDK chỉ khi M0 ghi rõ gap và vẫn nằm sau KBase port.
+- M4 explicit configuration chỉ tạo vendor clients/adapters khi `kbase.ai.enabled=true`; disabled Core startup không yêu cầu API key và không gọi provider.
+- Chat mapping giữ system/conversation/evidence/question boundary; evidence được gửi như untrusted user data, không làm system instruction.
+- Embedding preparation tập trung tại adapter: `QUERY` dùng `task: question answering | query: ...`, `DOCUMENT` dùng `title: ... | text: ...`; output bắt buộc `768`.
+- `kbase.ai.provider.request-timeout` đi qua Google GenAI `HttpOptions`; Google GenAI `1.65.0` không có independent connect-timeout surface trên selected client path, nên typed connect-timeout chưa được claim là active.
 
 pgvector requirements:
 
@@ -215,7 +219,7 @@ M2 verification đã chạy:
 - live catalog xác nhận extension, `vector(768)`, HNSW cosine indexes, relational indexes và FK/delete rules;
 - `AiVectorRepository` giữ project filter và active-version predicate trong SQL; không global-search rồi filter bằng Java.
 
-Provider adapter/call, worker, extraction, retrieval orchestration, public AI API và rate guard vẫn là các milestone sau.
+M4 đã triển khai provider adapter/configuration/error/privacy boundary nhưng chưa thực hiện worker provider call, extraction, retrieval orchestration, public AI API hoặc rate guard. M5 là active handoff tiếp theo.
 
 ## AI v1 M3 Durable Job và Core Lifecycle Hooks
 
@@ -227,6 +231,18 @@ M3 đã triển khai durable async boundary nhưng chưa triển khai provider e
 - `ProjectMemberService` và `InvitationService` dùng `AiConversationRetentionService` để enqueue/cancel `CONVERSATION_PURGE` với dedup key `conversation-purge:{projectId}:{userId}` tại `membershipLostAt + P7D`. Project/document delete dựa trên V4 FK cascade và lease-conditional transitions để chặn resurrection.
 
 Verification: `AiJobEngineIntegrationTest` 9/9, `AiJobSchedulerTest` 5/5, `DocumentAiIntentIntegrationTest` 6/6, `DocumentAiRollbackIntegrationTest` 2/2, `AiConversationRetentionIntegrationTest` 4/4 và `AiRetentionTransactionIntegrationTest` 1/1 trên PostgreSQL Testcontainers; full suite 268/268 pass. Không có Gemini provider call, extraction, public AI API hoặc destructive purge.
+
+## AI v1 M4 Provider Boundary
+
+M4 đã thêm explicit Spring AI/Google GenAI wiring và hai adapter sau KBase-owned ports:
+
+- `AiGeminiProviderConfiguration` guarded by `kbase.ai.enabled=true`, validates the key only when enabled, and keeps vendor auto-configuration excluded from the disabled path;
+- `SpringAiGeminiChatAdapter` maps system, ordered conversation, separate evidence data and final question without authorization, retrieval or persistence policy;
+- `SpringAiGeminiEmbeddingAdapter` owns deterministic query/document preparation and rejects any vector whose dimension is not exactly 768;
+- `AiProviderException`/`AiProviderErrorCategory` remove provider-specific exception and payload details before errors leave the boundary;
+- raw prompts, evidence, document content, vectors, provider bodies and keys are not logged or retained by the provider exception.
+
+M4 verification: targeted adapter/configuration/error/privacy suite 22/22 and full `mvn -B -ntp clean verify` 290/290 pass. Tests use deterministic doubles and synthetic key values only; real Gemini credential/public network are intentionally not required. Request timeout is active through Google `HttpOptions`; connect-timeout remains a typed future transport setting because Google GenAI 1.65.0 exposes no independent setting on this path.
 
 Guide source integration:
 

@@ -102,6 +102,8 @@ AI v1 target journeys (chưa được coi là verified cho tới M11):
 - Deleted document/project không được resurrect bởi late worker.
 - Provider timeout/retry bounded; Core runtime không phụ thuộc Gemini availability.
 - AI observability dùng safe metadata (job state/latency/error category), không raw knowledge/prompt.
+- M4 provider boundary maps timeout/rate-limit/unavailable/configuration/invalid-response to stable KBase categories; timeout request is wired through Google `HttpOptions`, while the selected SDK's missing independent connect-timeout surface is explicitly tracked rather than simulated.
+- AI-disabled startup does not instantiate provider clients/adapters; provider availability is therefore not a Core startup dependency.
 
 ### M3 evidence đã xác minh
 

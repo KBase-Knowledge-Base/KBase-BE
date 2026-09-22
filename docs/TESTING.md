@@ -138,3 +138,13 @@ AI-specific source: `docs/design-docs/KBase - AI Chatbot Testing Strategy.md`.
 - `DocumentAiIntentIntegrationTest` 6/6 + `DocumentAiRollbackIntegrationTest` 2/2: supported/unsupported intent, one active job, deterministic metadata, duplicate idempotency, single/batch rollback, pending/claimed delete race và no resurrection.
 - `AiConversationRetentionIntegrationTest` 4/4 + `AiRetentionTransactionIntegrationTest` 1/1: remove/leave `+P7D`, same-transaction persistence, rejoin cancel/no-op, loss-after-rejoin scheduling và project cascade cleanup.
 - `mvn -B -ntp test` và `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 268 tests, 0 failures, 0 errors, 0 skipped. Các job/lease tests không dùng H2 hoặc `Thread.sleep`; clock được inject/điều khiển.
+
+### AI v1 M4 provider verification đã chạy
+
+- `AiGeminiProviderConfigurationTest`, `AiProviderErrorTranslatorTest`, `AiProviderPrivacyTest`, `SpringAiGeminiChatAdapterTest` và `SpringAiGeminiEmbeddingAdapterTest`: 22/22 pass với deterministic Spring AI doubles; không cần credential thật hoặc public Gemini network.
+- Configuration tests chứng minh `kbase.ai.enabled=false` khởi động không có key/provider bean; enabled synthetic key chỉ tạo explicit models, không gọi network; blank key map safe configuration error.
+- Chat contract tests chứng minh system riêng, conversation ordered, evidence labelled/separate user data, current question cuối, model fallback và invalid response category.
+- Embedding contract tests chứng minh query/document preparation tập trung, options `gemini-embedding-2`/`768`, 767/769 reject, 768 accept và non-finite reject.
+- Error/privacy tests chứng minh timeout/rate-limit/configuration/unavailable mapping và không lộ raw provider message, prompt, evidence, document, vector, response body hoặc key sentinel.
+- `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 290 tests, 0 failures, 0 errors, 0 skipped; Compose config và `git diff --check` pass.
+- Static audit chứng minh vendor imports chỉ ở `com.kbase.ai.provider.springai`, không có M5+ extraction/indexing/RAG/API leakage. Real-provider connectivity chưa được test theo M4 gate.

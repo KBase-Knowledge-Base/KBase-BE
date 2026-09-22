@@ -132,7 +132,7 @@ AI agent không được tự:
 Các hành động trên chỉ được thực hiện khi có yêu cầu và phê duyệt rõ ràng.
 
 
-## AI v1 Deployment Target (Planned, Chưa Implement)
+## AI v1 Deployment Target (M4 Provider Boundary; indexing/RAG còn planned)
 
 AI v1 không thêm microservice/broker trong initial phase.
 
@@ -149,7 +149,7 @@ Gemini external
 
 M0/M1 phải khóa exact PostgreSQL+pgvector image và Spring AI/Gemini dependencies trước thay Docker runtime.
 
-New secret/config family dự kiến:
+New secret/config family:
 
 - `KBASE_AI_GEMINI_API_KEY`;
 - chat/embedding model names;
@@ -159,6 +159,14 @@ New secret/config family dự kiến:
 
 Không commit secret.
 
+M4 deployment/configuration rules:
+
+- `kbase.ai.enabled` mặc định `false`; Core startup không cần `KBASE_AI_GEMINI_API_KEY` và không tạo Gemini provider bean.
+- Khi bật AI, API key/model/dimensions/timeouts đi qua typed `kbase.ai` configuration; key blank/missing fail safe as provider configuration error.
+- `kbase.ai.provider.request-timeout` được áp dụng tại Google GenAI `HttpOptions`; Google GenAI 1.65.0 không có independent connect-timeout API trên selected client path, nên `connect-timeout` chưa được claim là active và được theo dõi cho future transport customization.
+- M4 automated verification dùng synthetic key/test doubles; không có real Gemini connectivity smoke và không yêu cầu public provider network.
+- M4 không đổi Compose topology, Flyway schema, generated DB/API docs hoặc public API. Provider availability không được làm Core startup fail khi AI disabled.
+
 Guide accepted product specs phải được package reproducibly vào backend artifact từ canonical `docs/product-specs` files; runtime không phụ thuộc GitHub network.
 
-AI rollback phải ưu tiên disable AI/provider path và giữ Core healthy. Additive AI Flyway schema không được destructive-drop tự động khi rollback application.
+AI rollback phải ưu tiên disable AI/provider path và giữ Core healthy. Additive AI Flyway schema không được destructive-drop tự động khi rollback application. M4 chưa thêm migration hay runtime indexing/retrieval behavior.

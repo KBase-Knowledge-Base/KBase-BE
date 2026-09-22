@@ -10,7 +10,9 @@ Backend foundation của KBase đã được bootstrap trong M1. M1 Gate đã pa
 
 AI v1 M2 – pgvector / AI Persistence Schema đã hoàn tất ngày `2026-09-22`: Flyway V4 tạo 8 AI tables trên nền PostgreSQL 17 + pgvector, với vector `768`, HNSW cosine indexes, JPA mappings, KBase-owned vector JDBC boundary, FK/delete/status guards, quota lock và active-generation guard; targeted M2 suite 36/36 và full gate 241/241 pass.
 
-AI v1 M3 – Durable Job Engine & Core Lifecycle Hooks đã hoàn tất ngày `2026-09-22`: PostgreSQL claim/lease/retry/stale recovery, bounded scheduler boundary, document AI intent, delete-race safety và membership retention hooks đã được verify; targeted M3 suites pass và full gate 268/268. M3 không gọi Gemini, không extraction/embedding execution, không public AI API và không destructive purge; active handoff là M4 Provider Adapters.
+AI v1 M3 – Durable Job Engine & Core Lifecycle Hooks đã hoàn tất ngày `2026-09-22`: PostgreSQL claim/lease/retry/stale recovery, bounded scheduler boundary, document AI intent, delete-race safety và membership retention hooks đã được verify; targeted M3 suites pass và full gate 268/268. M3 không gọi Gemini, không extraction/embedding execution, không public AI API và không destructive purge.
+
+AI v1 M4 – Gemini Provider Adapters đã hoàn tất ngày `2026-09-22`: explicit disabled-by-default Spring AI/Google GenAI configuration, KBase-owned chat/embedding adapters, deterministic query/document preparation, strict vector `768`, safe provider error categories, request-timeout wiring và privacy/logging guards; targeted M4 suite 22/22 và full gate 290/290 pass. Real Gemini credential/public network không cần và không được gọi; active handoff là M5 Content Extraction / Chunking / Document Indexing.
 
 M2 – PostgreSQL / Flyway Schema đã hoàn tất ngày `2026-09-17`: 3 Flyway migrations tạo 10 persistent tables với đầy đủ constraint, partial/expression unique index và query index theo Physical Database Design; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; Hibernate `ddl-auto=validate` pass.
 
@@ -429,6 +431,20 @@ Các kiểm tra sau đã chạy ngày `2026-09-22` trên nhánh `feat-AI` với 
 | Static scope review | Pass | V4 và generated DB/API docs không đổi; AI không import MinIO/provider/network/extraction SDK; không có public AI controller hoặc destructive purge handler; job state chỉ metadata/category-safe |
 
 M3 không thay đổi migration hoặc API contract, vì vậy không sinh lại `docs/generated/db-schema.md` hay `docs/generated/api-schema.md`. Hikari/Testcontainers có warning kết nối trong giai đoạn shutdown sau khi fork đã exit thành công; Surefire vẫn báo `BUILD SUCCESS` với 268/268.
+
+### AI v1 M4 verification record (Gemini Provider Adapters)
+
+Các kiểm tra sau đã chạy ngày `2026-09-22` trên nhánh `feat-AI`. Automated M4 không cần Gemini credential và không gọi public Gemini network:
+
+| Lệnh hoặc kiểm tra | Kết quả | Ghi chú |
+|---|---|---|
+| `mvn -B -ntp "-Dtest=AiGeminiProviderConfigurationTest,AiProviderErrorTranslatorTest,AiProviderPrivacyTest,SpringAiGeminiChatAdapterTest,SpringAiGeminiEmbeddingAdapterTest" test` | Pass — 22/22, 0 failures, 0 errors, 0 skipped | Disabled/enabled configuration, safe key validation, no-network synthetic key context, chat order/evidence isolation, query/document preparation, exact 768/non-finite validation, provider categories và privacy negative tests |
+| `mvn -B -ntp clean verify` | Pass — `BUILD SUCCESS`; 290 tests, 0 failures, 0 errors, 0 skipped | Full Core + AI regression, compile/package/repackage pass |
+| `docker compose -f docker-compose.yml config --quiet` | Pass | Compose topology/config hợp lệ; M4 không đổi service, volume, migration hoặc API |
+| `git diff --check` | Pass | Không có whitespace error |
+| Static boundary/scope audit | Pass | Spring AI/Google GenAI imports chỉ trong `com.kbase.ai.provider.springai`; không có storage/controller/RAG/extraction leakage; không đổi generated DB/API docs |
+
+M4 wires `kbase.ai.provider.request-timeout` through Google GenAI `HttpOptions`. Google GenAI `1.65.0` không có independent connect-timeout API trên selected client path; `kbase.ai.provider.connect-timeout` được giữ typed nhưng không claim là active. Hikari/Testcontainers shutdown warnings xuất hiện sau suite đã pass và không làm fail `BUILD SUCCESS`.
 
 ## Tài liệu Generated
 

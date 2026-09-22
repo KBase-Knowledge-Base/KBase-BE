@@ -116,6 +116,10 @@ Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.
 
 - AI là feature/domain riêng dưới `com.kbase.ai`; không nhét orchestration vào `DocumentService`.
 - Provider đi qua KBase-owned `AiChatModel` / `AiEmbeddingModel`; Spring AI/Gemini nằm sau adapter.
+- M4 provider implementation nằm trong `com.kbase.ai.provider.springai`: `AiGeminiProviderConfiguration`, `SpringAiGeminiChatAdapter`, `SpringAiGeminiEmbeddingAdapter`, deterministic embedding preparation và error translator; service/domain/application code không import vendor types.
+- Gemini configuration được tạo explicit chỉ khi `kbase.ai.enabled=true`; disabled path không yêu cầu key và không tạo provider bean. `kbase.ai.provider.request-timeout` được áp dụng tại Google `HttpOptions`; connect-timeout chỉ là typed future transport setting vì selected SDK không có independent surface.
+- Chat adapter chỉ map KBase request/result: system riêng, conversation giữ thứ tự, evidence là untrusted user data riêng và current question ở cuối; adapter không authorize, retrieve, persist hoặc parse citations.
+- Embedding adapter sở hữu query/document preparation và từ chối output khác chính xác `768`; không pad, truncate hoặc re-embed.
 - Core document binary chỉ đọc qua `StorageService`; AI không import MinIO SDK.
 - Project Assistant dùng `ProjectAuthorizationService` hiện tại và private conversation authorization riêng.
 - Vector query/repository bắt buộc project-scoped ở SQL.

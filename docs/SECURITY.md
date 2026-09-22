@@ -59,6 +59,8 @@ Tệp này định nghĩa các quy tắc bảo mật và an toàn mà agent khô
 - Conversation history không phải evidence và không được resurrect nội dung từ document đã xóa/không còn authorized.
 - Gemini API key là secret mới; lấy từ environment/secret mechanism, không log.
 - Không log mặc định full prompt, raw chunk/document content, full assistant answer, vector hoặc raw provider response.
+- M4 chỉ validate Gemini key khi `kbase.ai.enabled=true`; disabled path phải healthy không cần key và không tạo provider bean. `AiProviderException` không giữ raw cause/message/provider body/prompt/evidence/vector/credential.
+- M4 negative tests kiểm tra raw chat prompt/evidence, document content, provider body và synthetic key sentinel không xuất hiện trong stdout/stderr; real Gemini credential/network không được dùng trong automated gate.
 - Project chunks gửi tới Gemini là external data transfer; chỉ gửi current authorized bounded evidence.
 - KBase Guide dùng separate approved corpus; không được truy cập project chunks/private conversations.
 - Citation chỉ là snapshot/navigation metadata; mở source vẫn cần current `DocumentAuthorizationService`.
