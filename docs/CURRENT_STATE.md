@@ -5,26 +5,26 @@
 
 ## Cập nhật Lần cuối
 
-* Ngày cập nhật: `2026-09-21`
-* Người hoặc agent cập nhật: `ChatGPT - AI v1 Documentation Baseline`
+* Ngày cập nhật: `2026-09-22`
+* Người hoặc agent cập nhật: `ChatGPT - M0 AI Preflight & Technical Compatibility`
 * Nhánh hiện tại: `feat-AI` (được tạo trực tiếp từ `dev`)
-* Source commit đã xác nhận trước phase AI docs: `071aeaed1f7e81835c27ea9379ba57cc23675b5d`; AI v1 hiện mới mở documentation/M0 execution baseline, chưa có AI code runtime
+* M0 bắt đầu trên working tree sạch; Core baseline và AI compatibility evidence đã được xác nhận trên `feat-AI`. Chưa có AI code runtime, migration, schema hoặc endpoint.
 
 ## Trạng thái Tổng quan
 
 | Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
 | ---------------- | ------------- | ----------------------- |
-| Build            | Ổn định Core / AI chưa verify | Latest executable Core evidence vẫn là M16: `mvn -B -ntp clean verify` 213 tests pass. Documentation-prep phiên AI này không tự nhận đã chạy lại build; M0-01 phải re-run baseline trước code. |
+| Build            | Ổn định Core / M1 sẵn sàng | M0 re-run `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 213 tests, 0 failures/errors/skips; Compose config cũng PASS. |
 | Frontend         | Không áp dụng | Frontend và streaming tiếp tục deferred khỏi AI v1 backend. |
 | Backend          | Core ổn định / AI đang chuẩn bị | **Core v1 FROZEN** + M16 maintenance complete. AI v1 product/design/master plan đã mở; chưa có `com.kbase.ai` runtime implementation ở source baseline. |
 | Database         | Core ổn định / AI chưa implement | Current runtime vẫn Flyway V1–V3 + 10 Core tables, chưa pgvector/AI tables. AI persistence target nằm ở SD-16 và chỉ được triển khai tại M2. |
 | API contract     | Core ổn định / AI chưa implement | Current runtime OpenAPI vẫn Core 32 paths/47 operations; chưa có AI endpoint. SD-17 là target contract, generated API chỉ cập nhật sau implementation/OpenAPI verification. |
-| Integration      | Core ổn định / AI chưa implement | PostgreSQL/Redis/MinIO/Gmail Core đã verify. Gemini, pgvector vector queries và durable AI jobs mới là target của M0+; chưa có runtime evidence. |
-| Unit test        | Core ổn định / AI chưa có test | Latest Core suite 213/213. AI test strategy SD-18 đã được định nghĩa nhưng chưa thực thi. |
-| Integration test | Core ổn định / AI chưa có test | Existing PostgreSQL/Redis/MinIO/fake SMTP suites pass theo M16; pgvector/fake-AI/worker tests chưa tồn tại. |
+| Integration      | Core ổn định / compatibility đã khóa | Spring AI 2.0.1/Gemini options probe, pgvector PostgreSQL 17 Docker probe và Tika dependency probe PASS; chưa gọi Gemini thật và chưa có AI runtime. |
+| Unit test        | Core ổn định / AI runtime chưa có | Latest Core suite 213/213. Deterministic fake contracts đã được khóa cho M1 nhưng chưa implement. |
+| Integration test | Core ổn định / AI runtime chưa có | Existing PostgreSQL/Redis/MinIO/fake SMTP suites pass theo M16; pgvector probe PASS, còn AI/worker integration sẽ bắt đầu ở M1+. |
 | End-to-end test  | Core ổn định / AI chưa verify | Core golden journeys đã verify M14/M15; AI target journeys được thêm vào RELIABILITY nhưng chỉ được coi pass tại M11. |
 | Security checks  | Core ổn định / AI design-only | AI v1 đã khóa project-filter SQL, private conversation ownership, prompt-injection boundary và in-flight auth recheck; chưa có executable AI security evidence. |
-| Deployment       | Core ổn định / AI target pending | Current Docker topology chưa pgvector/Gemini config. M0/M1 phải lock pgvector-enabled PostgreSQL 17 + provider dependencies trước runtime change. |
+| Deployment       | Core ổn định / M1 pending | Current Docker topology vẫn dùng Core `postgres:17-alpine`; M0 đã khóa `pgvector/pgvector:0.8.6-pg17-bookworm` và Spring AI/Gemini choices cho M1 wiring. |
 
 Trạng thái nên dùng:
 
@@ -41,13 +41,13 @@ Trạng thái nên dùng:
 
 * Mục tiêu: `Triển khai KBase AI Chatbot v1 backend trên Core v1 đã frozen: Project Assistant private/project-scoped + KBase Guide grounded, không frontend/streaming/Project Chat.`
 * Execution plan: `docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md` (AI master roadmap M0–M11)
-* Active slice: `docs/exec-plans/active/KBase_AI_Chatbot_v1_M0_Preflight_and_Technical_Compatibility.md`
+* Active slice: `docs/exec-plans/active/KBase_AI_Chatbot_v1_M1_Runtime_Foundation_and_Provider_Ports.md`
 * Product spec active: `docs/product-specs/KBase - AI Chatbot v1 Specification.md`; Core spec vẫn là source of truth cho frozen Core behavior
 * Design sources active: `KBase - AI Chatbot RAG Architecture.md`, `KBase - AI Chatbot Persistence and Vector Search Design.md`, `KBase - AI Chatbot REST API Specification.md`, `KBase - AI Chatbot Testing Strategy.md`
 
 ### Bước Đang Thực hiện
 
-* `M0-01 READY: re-run current Core baseline trên feat-AI và khóa technical compatibility trước khi thêm AI dependency/schema. AI feature code chưa được phép bắt đầu trước M0 Gate.`
+* `M1 READY: add M0-approved dependencies, typed AI configuration, KBase provider ports, deterministic fakes và pgvector-capable local/test wiring. Không triển khai RAG behavior, AI schema hoặc endpoint trong slice này.`
 
 ## Đã Hoàn thành và Kiểm chứng
 
@@ -127,10 +127,15 @@ Trạng thái nên dùng:
 
   * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M16_Post_Audit_Fixes.md`, full gate log 213/213 trong phiên, `docs/exec-plans/tech-debt-tracker.md`
 
+* `M0 – AI Preflight & Technical Compatibility đã PASS ngày 2026-09-22`: Core baseline re-run pass 213/213 và Compose config pass; Spring AI BOM 2.0.1 + Google GenAI starters, `gemini-2.5-flash`, `gemini-embedding-2`/768, pgvector PostgreSQL 17 image/JDBC strategy và Tika 3.3.2 parser scope đã được khóa; deterministic fake contracts và AI config provisional baseline đã ghi; harness SD-14..SD-19 revalidated. Không có AI runtime/schema/API change.
+
+  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M0_Preflight_and_Technical_Compatibility.md`, Spring AI options probe, pgvector Docker probe (`PGVECTOR_PROBE_PASS`), Tika dependency probe, `.harness/source-doc-registry.json`
+
 ## Đã Hoàn thành nhưng Chưa Kiểm chứng
 
 * `Gmail SMTP delivery thật (manual smoke với App Password thật) chưa chạy — automated verification dùng mail double; thuộc optional production smoke.`
 * `Frontend vẫn deferred; không có hạng mục M14 còn thiếu xác minh trong backend.`
+* `Real Gemini API credential/network smoke chưa chạy — đây là chủ ý và không thuộc M0 release gate; M1+ automated tests phải dùng deterministic fakes.`
 
 ## Blocker Hiện tại
 
@@ -163,6 +168,7 @@ Blocker cũ "Archive không có Git metadata" đã được xử lý: repository
 * `M14 đã Dockerize runtime: Dockerfile multi-stage, Compose backend service với healthcheck gating, env-driven secrets (`.env` git-ignored); fix bug M11 OWNER-path project hard delete bằng bulk cascade delete + regression test; loại generated-password log.`
 * `M15 đã freeze Core v1: full verification matrix (210/210 + Docker runtime re-verification) pass; sửa một documentation miscount 48→47 operations trong bản ghi M13; không có code change; không mở AI/RAG/frontend.`
 * `M16 post-audit fixes: invitation EXPIRED giờ persist khi accept hết hạn (resend trên invitation EXPIRED trả 409 INVITATION_NOT_PENDING; recovery = tạo invitation mới vì partial unique index được giải phóng); search `q` trở thành literal matching (%, _, \ được escape) ở documents/projects/tags/admin-users; folder move dùng pessimistic lock 2 rows theo UUID order chống race cycle; batch upload cleanup idempotent-per-key; SMTP failure log chỉ exception type.`
+* `M0 AI Preflight (2026-09-22) đã khóa Spring AI 2.0.1 + Google GenAI starters, chat `gemini-2.5-flash`, embedding `gemini-embedding-2`/768 với task-prefix do adapter sở hữu, pgvector `0.8.6-pg17-bookworm` + `com.pgvector:pgvector:0.1.6`, Tika parser modules 3.3.2, config provisional và deterministic fake contracts; M1 là active slice.`
 * `Enable host-run path (owner yêu cầu, 2026-09-19): `application-local.yml` thêm `spring.config.import: optional:file:.env[.properties]` để `mvn spring-boot:run` tự đọc `.env` (container/prod/test không bị ảnh hưởng — no-op khi không có file, prod/test không load import này); `.env` thêm `KBASE_POSTGRES_PORT=5433` vì PostgreSQL native trên máy chiếm 5432 (Compose map `${KBASE_POSTGRES_PORT:-5432}:5432` — không đổi docker-compose.yml). Cả hai đường chạy đã verify: container `docker compose up -d --build` phục vụ 8080, host `mvn spring-boot:run` Started + api-docs 200 (đã ghi vào DEVELOPMENT.md).`
 
 Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhiệm lưu thay đổi code chi tiết.
@@ -171,6 +177,12 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 
 | Lệnh hoặc kiểm tra | Kết quả       | Thời điểm | Ghi chú |
 | ------------------ | ------------- | --------- | ------- |
+| `mvn -B -ntp clean verify` (AI M0 baseline) | Đạt | 2026-09-22 | `BUILD SUCCESS`; 213 tests, 0 failures/errors/skips trên `feat-AI` |
+| `docker compose -f docker-compose.yml config --quiet` (AI M0 baseline) | Đạt | 2026-09-22 | Compose hiện tại hợp lệ; không thay đổi topology trong M0 |
+| Spring AI/Gemini options probe | Đạt | 2026-09-22 | Spring AI 2.0.1 compile/probe giữ `gemini-embedding-2` và `dimensions=768`; không gọi API thật |
+| pgvector Docker compatibility probe | Đạt | 2026-09-22 | `pgvector/pgvector:0.8.6-pg17-bookworm`; extension, `vector(768)`, cosine ordering và HNSW `vector_cosine_ops` pass; temporary container đã xóa |
+| Tika dependency-resolution probe | Đạt | 2026-09-22 | Tika 3.3.2 core + PDF/Microsoft/text parser modules resolve; chưa có extraction implementation |
+| Harness/source registry revalidation | Đạt | 2026-09-22 | 19 docs, SD-14..SD-19/path/precedence/scope guard pass; không stale current blocker |
 | `mvn -B -ntp clean verify` (M16 final) | Đạt | 2026-09-19 | BUILD SUCCESS; 213 tests, 0 failures/errors/skips (210 baseline + 3 regression: batch cleanup, wildcard-literal search, folder-move concurrency) |
 | Targeted M16 suites | Đạt | 2026-09-19 | Unit 48/48 (Invitation/Document/SmtpMail/ConfigBinding/Folder/Tag/Project/JwtService/User/ContextSmoke); Integration 26/26 (InvitationLifecycle 5/5 gồm assert DB EXPIRED + tạo invitation thay thế, DocumentSearch 3/3 gồm literal wildcard, Organization 7/7 gồm concurrentOppositeFolderMovesCreateNoCycle, JpaMapping 11/11) |
 | `mvn -B -ntp clean verify` (M15 final) | Đạt | 2026-09-19 | BUILD SUCCESS; 210 tests, 0 failures/errors/skips; M15 release gate VERIFY-01/02/03/04/05/11 |
@@ -216,7 +228,7 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 * Technical debt tracker: `docs/exec-plans/tech-debt-tracker.md`
 * Rủi ro hiện tại:
 
-* `Agent chạy trước M0 có thể tự đoán version hoặc command; phải tuân thủ source registry và active slice.`
+* `M0 đã đóng; agent tiếp theo phải dùng completed M0 decision log và active M1 slice, không tự đoán lại dependency/model/image.`
   * `Generated API schema hiện chưa được sinh từ runtime; phần auth (M6), user/project/membership (M7), invitation (M8) và folder/category/tag (M9) đã đồng bộ thủ công từ source code đã verify và không được dùng thay design source-of-truth; generated DB schema đã đồng bộ với migration đã verify nhưng chưa có generator tự động.`
   * `M3 mapping dùng scalar FK + read-only association view để tương thích Hibernate 7; Flyway composite FK vẫn là lớp integrity authoritative và đã được negative-test.`
   * `Full backend runtime với Flyway trên Compose local đã được verify trong M14 và re-verify trong M15; không coi migration/auth/authz Testcontainer verification là full application runtime smoke.`
@@ -227,10 +239,10 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 
 ## Bước Tiếp theo
 
-1. `M0-01: chạy mvn -B -ntp clean verify + docker compose config trên feat-AI, ghi actual baseline.`
-2. `M0-02..M0-05: khóa exact Spring AI/Gemini, pgvector PostgreSQL 17/JDBC, extraction dependencies, typed AI config và deterministic test doubles.`
-3. `M0-06: revalidate SD-14..SD-19 registry/precedence; nếu pass thì đóng M0 và mở M1 runtime foundation.`
-4. `Không sửa generated DB/API snapshots trước khi migration/controllers AI thực sự tồn tại và được verify.`
+1. `M1 AI-FOUND-01..06: add M0-approved dependencies, typed configuration, KBase provider ports, deterministic fakes và pgvector-capable local/test foundation.`
+2. `Giữ KBASE_AI_ENABLED=false trong Core regression; không tạo migration, entity, controller, extraction, retrieval hoặc real Gemini call trong M1 foundation slice.`
+3. `M2 chỉ bắt đầu sau M1 Gate để triển khai Flyway AI schema/pgvector persistence và sinh lại docs/generated/db-schema.md sau live verification.`
+4. `Không sửa generated API snapshot trước khi AI controllers/OpenAPI thực sự tồn tại và được verify.`
 5. `Core tech-debt cũ (PATCH null semantics, CI, Gmail production smoke, Redis observability) vẫn theo tracker; không kéo vào AI scope nếu active plan không yêu cầu.`
 
 
