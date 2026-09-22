@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class FlywayMigrationIntegrityTest {
 
     @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine")
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(com.kbase.integration.support.PostgresTestSupport.IMAGE)
             .withDatabaseName("kbase")
             .withUsername("kbase")
             .withPassword("kbase");

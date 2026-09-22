@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ConstraintViolationTranslationIntegrationTest {
 
     @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine")
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(com.kbase.integration.support.PostgresTestSupport.IMAGE)
             .withDatabaseName("kbase")
             .withUsername("kbase")
             .withPassword("kbase");

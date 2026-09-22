@@ -84,7 +84,7 @@ class InvitationLifecycleIntegrationTest {
     private static final String PASSWORD = "ExamplePassword123";
 
     @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(com.kbase.integration.support.PostgresTestSupport.IMAGE);
 
     @Container
     static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7.4-alpine")

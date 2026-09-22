@@ -57,7 +57,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "kbase.storage.initialize-on-startup=false"
 })
 class DocumentLifecycleStorageIntegrationTest {
-    @Container static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    @Container static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(com.kbase.integration.support.PostgresTestSupport.IMAGE);
     @Container static final GenericContainer<?> MINIO = new GenericContainer<>("quay.io/minio/minio:latest")
             .withExposedPorts(9000).withEnv("MINIO_ROOT_USER", "minioadmin")
             .withEnv("MINIO_ROOT_PASSWORD", "minioadmin").withCommand("server", "/data");

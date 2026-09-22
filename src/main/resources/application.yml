@@ -3,6 +3,25 @@ spring:
     name: kbase-backend
   profiles:
     default: local
+  ai:
+    # M1 adds the Spring AI dependencies but intentionally does not wire a
+    # provider adapter. Keep both model auto-configurations disabled until the
+    # future provider-adapter milestone supplies an explicit enabled path.
+    model:
+      chat: none
+      embedding:
+        text: none
+  autoconfigure:
+    # The Google GenAI starter also has connection-detail auto-configuration
+    # without a model-property guard. M1 has no adapter yet, so exclude the
+    # vendor auto-configurations until the provider-adapter milestone can
+    # re-enable them behind kbase.ai.enabled and the KBase ports.
+    exclude:
+      - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiEmbeddingConnectionAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiTextEmbeddingAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.image.GoogleGenAiImageConnectionAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.image.GoogleGenAiImageAutoConfiguration
   datasource:
     url: jdbc:postgresql://${kbase.postgres.host}:${kbase.postgres.port}/${kbase.postgres.database}
     username: ${kbase.postgres.username}
@@ -55,6 +74,29 @@ kbase:
     database: ${KBASE_POSTGRES_DB:kbase}
     username: ${KBASE_POSTGRES_USERNAME}
     password: ${KBASE_POSTGRES_PASSWORD}
+  ai:
+    enabled: ${KBASE_AI_ENABLED:false}
+    gemini:
+      api-key: ${KBASE_AI_GEMINI_API_KEY:}
+      chat-model: ${KBASE_AI_GEMINI_CHAT_MODEL:gemini-2.5-flash}
+      embedding-model: ${KBASE_AI_GEMINI_EMBEDDING_MODEL:gemini-embedding-2}
+      embedding-dimensions: ${KBASE_AI_GEMINI_EMBEDDING_DIMENSIONS:768}
+    provider:
+      connect-timeout: ${KBASE_AI_PROVIDER_CONNECT_TIMEOUT:10s}
+      request-timeout: ${KBASE_AI_PROVIDER_REQUEST_TIMEOUT:60s}
+    max-message-chars: ${KBASE_AI_MAX_MESSAGE_CHARS:8000}
+    chunk-target-tokens: ${KBASE_AI_CHUNK_TARGET_TOKENS:700}
+    chunk-overlap-percent: ${KBASE_AI_CHUNK_OVERLAP_PERCENT:12}
+    retrieval-candidate-limit: ${KBASE_AI_RETRIEVAL_CANDIDATE_LIMIT:10}
+    retrieval-final-context-limit: ${KBASE_AI_RETRIEVAL_FINAL_CONTEXT_LIMIT:6}
+    retrieval-similarity-threshold: ${KBASE_AI_RETRIEVAL_SIMILARITY_THRESHOLD:}
+    worker:
+      poll-interval: ${KBASE_AI_WORKER_POLL_INTERVAL:5s}
+      batch-size: ${KBASE_AI_WORKER_BATCH_SIZE:10}
+      lease-timeout: ${KBASE_AI_WORKER_LEASE_TIMEOUT:2m}
+      max-attempts: ${KBASE_AI_WORKER_MAX_ATTEMPTS:3}
+    retention: ${KBASE_AI_RETENTION:7d}
+    usage-rate-namespace: ${KBASE_AI_USAGE_RATE_NAMESPACE:kbase:ai:rate}
   jwt:
     signing-secret: ${KBASE_JWT_SECRET}
     access-token-ttl: ${KBASE_ACCESS_TOKEN_TTL:15m}

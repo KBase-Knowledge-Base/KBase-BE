@@ -1,11 +1,15 @@
 package com.kbase;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.context.ApplicationContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 import com.kbase.config.properties.JwtProperties;
+import com.kbase.ai.config.AiProperties;
 import com.kbase.security.jwt.JwtService;
 
 import org.springframework.boot.test.context.SpringBootTest;
@@ -44,9 +48,19 @@ class KBaseApplicationContextSmokeTest {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private AiProperties aiProperties;
+
+    @Autowired
+    private ApplicationContext applicationContext;
+
     @Test
     void applicationContextStartsWithoutExternalInfrastructure() {
         assertThat(jwtProperties.getSigningSecret()).isEqualTo("test-jwt-signing-secret-at-least-256-bits-long");
         assertThat(jwtService).isNotNull();
+        assertThat(aiProperties.isEnabled()).isFalse();
+        assertThat(aiProperties.getGemini().getApiKey()).isNull();
+        assertThat(applicationContext.getBeansOfType(ChatModel.class)).isEmpty();
+        assertThat(applicationContext.getBeansOfType(EmbeddingModel.class)).isEmpty();
     }
 }

@@ -87,7 +87,7 @@ class AuthenticationSecurityIntegrationTest {
     private static final String REFRESH_COOKIE = "kbase_refresh_token";
 
     @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(com.kbase.integration.support.PostgresTestSupport.IMAGE);
 
     @Container
     static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7.4-alpine")
