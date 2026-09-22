@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+import com.kbase.ai.service.DocumentAiIntentService;
 import com.kbase.document.dto.request.DocumentMetadataRequest;
 import com.kbase.document.dto.request.UpdateDocumentRequest;
 import com.kbase.document.dto.response.BatchDocumentUploadResponse;
@@ -33,6 +34,7 @@ import com.kbase.user.repository.UserRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -54,13 +56,16 @@ public class DocumentService {
     private final StorageKeyFactory storageKeyFactory;
     private final DocumentMapper documentMapper;
     private final UserRepository userRepository;
+    private final DocumentAiIntentService documentAiIntentService;
 
+    @Autowired
     public DocumentService(DocumentRepository documentRepository, DocumentTagRepository documentTagRepository,
             ProjectAuthorizationService projectAuthorizationService,
             DocumentAuthorizationService documentAuthorizationService,
             DocumentMetadataResolver metadataResolver, FileValidationService fileValidationService,
             StorageService storageService, StorageKeyFactory storageKeyFactory,
-            DocumentMapper documentMapper, UserRepository userRepository) {
+            DocumentMapper documentMapper, UserRepository userRepository,
+            DocumentAiIntentService documentAiIntentService) {
         this.documentRepository = documentRepository;
         this.documentTagRepository = documentTagRepository;
         this.projectAuthorizationService = projectAuthorizationService;
@@ -71,6 +76,19 @@ public class DocumentService {
         this.storageKeyFactory = storageKeyFactory;
         this.documentMapper = documentMapper;
         this.userRepository = userRepository;
+        this.documentAiIntentService = documentAiIntentService;
+    }
+
+    /** Compatibility constructor for focused Core unit tests that predate M3 AI intent. */
+    public DocumentService(DocumentRepository documentRepository, DocumentTagRepository documentTagRepository,
+            ProjectAuthorizationService projectAuthorizationService,
+            DocumentAuthorizationService documentAuthorizationService,
+            DocumentMetadataResolver metadataResolver, FileValidationService fileValidationService,
+            StorageService storageService, StorageKeyFactory storageKeyFactory,
+            DocumentMapper documentMapper, UserRepository userRepository) {
+        this(documentRepository, documentTagRepository, projectAuthorizationService,
+                documentAuthorizationService, metadataResolver, fileValidationService,
+                storageService, storageKeyFactory, documentMapper, userRepository, null);
     }
 
     @Transactional
@@ -139,6 +157,9 @@ public class DocumentService {
             // response and transaction.
             document = documentRepository.saveAndFlush(document);
             persistTags(document, resolved.tags());
+            if (documentAiIntentService != null) {
+                documentAiIntentService.recordUploadIntent(document);
+            }
             return documentMapper.toResponse(document, documentTagRepository.findAllByIdDocumentId(documentId));
         } catch (RuntimeException exception) {
             // This key is compensated here, so drop it from the batch list to

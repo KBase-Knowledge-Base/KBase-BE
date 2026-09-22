@@ -217,6 +217,17 @@ M2 verification đã chạy:
 
 Provider adapter/call, worker, extraction, retrieval orchestration, public AI API và rate guard vẫn là các milestone sau.
 
+## AI v1 M3 Durable Job và Core Lifecycle Hooks
+
+M3 đã triển khai durable async boundary nhưng chưa triển khai provider execution:
+
+- `AiJobClaimRepository` dùng PostgreSQL `FOR UPDATE SKIP LOCKED` trong transaction ngắn; `AiJobStore` quản lý lease/retry/stale recovery, bounded attempts, advisory-lock active dedup và transition conditional theo lease token.
+- `AiJobScheduler` poll theo `kbase.ai.worker.*`, chỉ claim các type có trong handler registry và không tiêu thụ job chưa có production handler. Handler chạy ngoài claim transaction; AI disabled-by-default không tạo scheduler bean.
+- `DocumentService` giữ StorageService/compensation authority và gọi `DocumentAiIntentService` sau document + tags. Supported files tạo `PENDING` index và một `DOCUMENT_INDEX`; unsupported Core files tạo `UNSUPPORTED` không có worker job. AI hook không đọc binary và không gọi network.
+- `ProjectMemberService` và `InvitationService` dùng `AiConversationRetentionService` để enqueue/cancel `CONVERSATION_PURGE` với dedup key `conversation-purge:{projectId}:{userId}` tại `membershipLostAt + P7D`. Project/document delete dựa trên V4 FK cascade và lease-conditional transitions để chặn resurrection.
+
+Verification: `AiJobEngineIntegrationTest` 9/9, `AiJobSchedulerTest` 5/5, `DocumentAiIntentIntegrationTest` 6/6, `DocumentAiRollbackIntegrationTest` 2/2, `AiConversationRetentionIntegrationTest` 4/4 và `AiRetentionTransactionIntegrationTest` 1/1 trên PostgreSQL Testcontainers; full suite 268/268 pass. Không có Gemini provider call, extraction, public AI API hoặc destructive purge.
+
 Guide source integration:
 
 - runtime không gọi GitHub để đọc docs;

@@ -94,6 +94,7 @@ kbase:
       poll-interval: ${KBASE_AI_WORKER_POLL_INTERVAL:5s}
       batch-size: ${KBASE_AI_WORKER_BATCH_SIZE:10}
       lease-timeout: ${KBASE_AI_WORKER_LEASE_TIMEOUT:2m}
+      retry-backoff: ${KBASE_AI_WORKER_RETRY_BACKOFF:30s}
       max-attempts: ${KBASE_AI_WORKER_MAX_ATTEMPTS:3}
     retention: ${KBASE_AI_RETENTION:7d}
     usage-rate-namespace: ${KBASE_AI_USAGE_RATE_NAMESPACE:kbase:ai:rate}

@@ -265,6 +265,9 @@ public class AiProperties {
         @NotNull
         private Duration leaseTimeout = Duration.ofMinutes(2);
 
+        @NotNull
+        private Duration retryBackoff = Duration.ofSeconds(30);
+
         @Positive
         private int maxAttempts = 3;
 
@@ -292,6 +295,14 @@ public class AiProperties {
             this.leaseTimeout = leaseTimeout;
         }
 
+        public Duration getRetryBackoff() {
+            return retryBackoff;
+        }
+
+        public void setRetryBackoff(Duration retryBackoff) {
+            this.retryBackoff = retryBackoff;
+        }
+
         public int getMaxAttempts() {
             return maxAttempts;
         }
@@ -302,7 +313,8 @@ public class AiProperties {
 
         @AssertTrue(message = "AI worker durations must be positive")
         public boolean isPositive() {
-            return isPositive(pollInterval) && isPositive(leaseTimeout);
+            return isPositive(pollInterval) && isPositive(leaseTimeout)
+                    && isPositive(retryBackoff);
         }
 
         private static boolean isPositive(Duration value) {

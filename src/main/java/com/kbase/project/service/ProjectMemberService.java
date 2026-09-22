@@ -3,6 +3,7 @@ package com.kbase.project.service;
 import java.util.Objects;
 import java.util.UUID;
 
+import com.kbase.ai.service.AiConversationRetentionService;
 import com.kbase.project.dto.response.ProjectMemberResponse;
 import com.kbase.project.entity.ProjectMember;
 import com.kbase.project.enums.ProjectRole;
@@ -14,6 +15,7 @@ import com.kbase.shared.pagination.PageResponse;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,14 +28,25 @@ public class ProjectMemberService {
 
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectAuthorizationService authorizationService;
+    private final AiConversationRetentionService retentionService;
 
+    @Autowired
     public ProjectMemberService(
             ProjectMemberRepository projectMemberRepository,
-            ProjectAuthorizationService authorizationService) {
+            ProjectAuthorizationService authorizationService,
+            AiConversationRetentionService retentionService) {
         this.projectMemberRepository =
                 Objects.requireNonNull(projectMemberRepository, "projectMemberRepository");
         this.authorizationService =
                 Objects.requireNonNull(authorizationService, "authorizationService");
+        this.retentionService = retentionService;
+    }
+
+    /** Compatibility constructor for Core-focused unit tests. */
+    public ProjectMemberService(
+            ProjectMemberRepository projectMemberRepository,
+            ProjectAuthorizationService authorizationService) {
+        this(projectMemberRepository, authorizationService, null);
     }
 
     @Transactional(readOnly = true)
@@ -59,6 +72,9 @@ public class ProjectMemberService {
             throw new BusinessException(ErrorCode.PROJECT_OWNER_REMOVAL_FORBIDDEN);
         }
         projectMemberRepository.delete(target);
+        if (retentionService != null) {
+            retentionService.schedulePurge(projectId, targetUserId);
+        }
     }
 
     /** MEMBER leaves; the OWNER cannot leave in Core v1. Documents remain. */
@@ -72,6 +88,9 @@ public class ProjectMemberService {
             throw new BusinessException(ErrorCode.OWNER_CANNOT_LEAVE_PROJECT);
         }
         projectMemberRepository.delete(membership);
+        if (retentionService != null) {
+            retentionService.schedulePurge(projectId, principal.getUserId());
+        }
     }
 
     private static ProjectMemberResponse toResponse(ProjectMember membership) {

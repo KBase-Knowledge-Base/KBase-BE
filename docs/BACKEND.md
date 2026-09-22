@@ -120,6 +120,11 @@ Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.
 - Project Assistant dùng `ProjectAuthorizationService` hiện tại và private conversation authorization riêng.
 - Vector query/repository bắt buộc project-scoped ở SQL.
 - Background indexing/retention là PostgreSQL-durable job; `@Async`/in-memory timer không đủ.
+- M3 job claiming thuộc `AiJobClaimRepository`/`AiJobStore`: PostgreSQL `FOR UPDATE SKIP LOCKED`, batch bounded, lease token riêng cho từng claim, stale recovery và transition có điều kiện theo `id + PROCESSING + locked_by`.
+- `AiJobScheduler` chỉ claim job type có handler trong registry; registry production của M3 rỗng để không consume `DOCUMENT_INDEX`, `CONVERSATION_PURGE` hoặc job thuộc milestone sau. Scheduler chỉ bật khi `kbase.ai.enabled=true`.
+- Handler chạy sau transaction claim; outcome dùng taxonomy provider-neutral `SUCCESS`/`RETRY`/`FAILURE`, error state chỉ là safe category code.
+- Document upload ghi AI intent/job sau document và tags trong cùng transaction; supported extension là `pdf`, `doc`, `docx`, `ppt`, `pptx`, `md`, `txt`, còn file Core-accepted khác nhận `UNSUPPORTED` không tạo job.
+- Member removal/leave enqueue `CONVERSATION_PURGE` theo `+P7D`; invitation rejoin cancel active purge trong cùng transaction. M3 chỉ ghi retention intent, không thực hiện destructive purge.
 - Network provider call không giữ DB transaction mở nếu có thể tránh; persist state trước/sau qua transaction ngắn.
 - No-evidence là domain outcome; provider error là infrastructure/error outcome.
 - AI request phải re-check project access trước khi completed answer được trả/persist.

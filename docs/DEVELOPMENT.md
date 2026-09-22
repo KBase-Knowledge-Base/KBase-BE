@@ -10,6 +10,8 @@ Backend foundation của KBase đã được bootstrap trong M1. M1 Gate đã pa
 
 AI v1 M2 – pgvector / AI Persistence Schema đã hoàn tất ngày `2026-09-22`: Flyway V4 tạo 8 AI tables trên nền PostgreSQL 17 + pgvector, với vector `768`, HNSW cosine indexes, JPA mappings, KBase-owned vector JDBC boundary, FK/delete/status guards, quota lock và active-generation guard; targeted M2 suite 36/36 và full gate 241/241 pass.
 
+AI v1 M3 – Durable Job Engine & Core Lifecycle Hooks đã hoàn tất ngày `2026-09-22`: PostgreSQL claim/lease/retry/stale recovery, bounded scheduler boundary, document AI intent, delete-race safety và membership retention hooks đã được verify; targeted M3 suites pass và full gate 268/268. M3 không gọi Gemini, không extraction/embedding execution, không public AI API và không destructive purge; active handoff là M4 Provider Adapters.
+
 M2 – PostgreSQL / Flyway Schema đã hoàn tất ngày `2026-09-17`: 3 Flyway migrations tạo 10 persistent tables với đầy đủ constraint, partial/expression unique index và query index theo Physical Database Design; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; Hibernate `ddl-auto=validate` pass.
 
 M3 – JPA Entities & Repositories đã hoàn tất ngày `2026-09-17`: 10 entity persistent, 5 enum, `DocumentTagId`, 10 feature-local repository, projection/query/fetch graph/lock và document specification đã được implement; mapping integration test 11/11 pass trên PostgreSQL 17 Testcontainer với Flyway từ database rỗng và Hibernate `ddl-auto=validate`. Không có OTP entity/repository.
@@ -102,6 +104,10 @@ M8_INVITATION_TEST_COMMAND=mvn -B -ntp "-Dtest=InvitationLifecycleIntegrationTes
 M8_UNIT_TEST_COMMAND=mvn -B -ntp "-Dtest=InvitationServiceTest" test
 M13_OPENAPI_TEST_COMMAND=mvn -B -ntp "-Dtest=OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest" test
 M14_DOC_TEST_COMMAND=mvn -B -ntp "-Dtest=DocumentApiIntegrationTest" test
+M3_JOB_TEST_COMMAND=mvn -B -ntp "-Dtest=AiJobEngineIntegrationTest" test
+M3_SCHEDULER_TEST_COMMAND=mvn -B -ntp "-Dtest=AiJobSchedulerTest" test
+M3_DOCUMENT_INTENT_TEST_COMMAND=mvn -B -ntp "-Dtest=DocumentAiIntentIntegrationTest,DocumentAiRollbackIntegrationTest" test
+M3_RETENTION_TEST_COMMAND=mvn -B -ntp "-Dtest=AiConversationRetentionIntegrationTest,AiRetentionTransactionIntegrationTest" test
 ```
 
 `.env.example` chỉ là danh sách tên biến và placeholder an toàn. Không tạo hoặc commit `.env` chứa credential thật.
@@ -405,6 +411,24 @@ Các kiểm tra sau đã chạy ngày `2026-09-22` trên nhánh `feat-AI` với 
 | Live catalog / scope review | Pass | `vector` extension, `vector(768)`, HNSW `vector_cosine_ops`, relational indexes, FK/delete/status checks, partial active-generation index và SQL project/active-version filters đã được verify; V1–V3 và `docs/generated/api-schema.md` không đổi |
 
 M2 không thêm worker, provider adapter/call, extraction, indexing, retrieval/RAG orchestration, Guide behavior hoặc public AI endpoint. Full Compose runtime verification với V4 vẫn thuộc AI runtime milestone sau; M2 chỉ yêu cầu Compose config và PostgreSQL/Testcontainers evidence.
+
+### AI v1 M3 verification record (Durable Job Engine & Core Lifecycle Hooks)
+
+Các kiểm tra sau đã chạy ngày `2026-09-22` trên nhánh `feat-AI` với PostgreSQL 17.11/pgvector Testcontainers:
+
+| Lệnh hoặc kiểm tra | Kết quả | Ghi chú |
+|---|---|---|
+| `M3_JOB_TEST_COMMAND` | Pass — 9/9 | Claim `FOR UPDATE SKIP LOCKED`, two-worker exclusivity/independent progress, due/retry timing, stale lease/token protection, bounded attempts, terminal filtering và advisory-lock active dedup |
+| `M3_SCHEDULER_TEST_COMMAND` | Pass — 5/5 | Bounded batch/registry, no-handler preservation, handler ngoài claim transaction, SUCCESS/RETRY/FAILURE/exception mapping và AI-disabled context |
+| `M3_DOCUMENT_INTENT_TEST_COMMAND` | Pass — 8/8 | Supported/unsupported upload intent, deterministic metadata, active idempotency, single/batch rollback và unchanged Core response |
+| `M3_RETENTION_TEST_COMMAND` | Pass — 5/5 | Remove/leave `+P7D`, same-transaction persistence, rejoin cancellation/no-op, later-loss rescheduling và project cascade cleanup |
+| `mvn -B -ntp test` | Pass — `BUILD SUCCESS`; 268 tests, 0 failures, 0 errors, 0 skipped | Full Core + AI M3 regression |
+| `mvn -B -ntp clean verify` | Pass — `BUILD SUCCESS`; 268 tests, 0 failures, 0 errors, 0 skipped | Compile/package/repackage và full release gate |
+| `docker compose -f docker-compose.yml config --quiet` | Pass | Compose topology/config không đổi |
+| `git diff --check` | Pass | Không có whitespace error |
+| Static scope review | Pass | V4 và generated DB/API docs không đổi; AI không import MinIO/provider/network/extraction SDK; không có public AI controller hoặc destructive purge handler; job state chỉ metadata/category-safe |
+
+M3 không thay đổi migration hoặc API contract, vì vậy không sinh lại `docs/generated/db-schema.md` hay `docs/generated/api-schema.md`. Hikari/Testcontainers có warning kết nối trong giai đoạn shutdown sau khi fork đã exit thành công; Surefire vẫn báo `BUILD SUCCESS` với 268/268.
 
 ## Tài liệu Generated
 

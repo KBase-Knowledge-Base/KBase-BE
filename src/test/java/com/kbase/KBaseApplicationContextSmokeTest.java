@@ -10,6 +10,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.kbase.config.properties.JwtProperties;
 import com.kbase.ai.config.AiProperties;
+import com.kbase.ai.service.AiJobScheduler;
 import com.kbase.security.jwt.JwtService;
 
 import org.springframework.boot.test.context.SpringBootTest;
@@ -62,5 +63,6 @@ class KBaseApplicationContextSmokeTest {
         assertThat(aiProperties.getGemini().getApiKey()).isNull();
         assertThat(applicationContext.getBeansOfType(ChatModel.class)).isEmpty();
         assertThat(applicationContext.getBeansOfType(EmbeddingModel.class)).isEmpty();
+        assertThat(applicationContext.getBeansOfType(AiJobScheduler.class)).isEmpty();
     }
 }

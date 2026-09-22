@@ -36,6 +36,7 @@ class AiPropertiesBindingTest {
             assertThat(properties.getWorker().getPollInterval()).isEqualTo(Duration.ofSeconds(5));
             assertThat(properties.getWorker().getBatchSize()).isEqualTo(10);
             assertThat(properties.getWorker().getLeaseTimeout()).isEqualTo(Duration.ofMinutes(2));
+            assertThat(properties.getWorker().getRetryBackoff()).isEqualTo(Duration.ofSeconds(30));
             assertThat(properties.getWorker().getMaxAttempts()).isEqualTo(3);
             assertThat(properties.getRetention()).isEqualTo(Duration.ofDays(7));
             assertThat(properties.getUsageRateNamespace()).isEqualTo("kbase:ai:rate");
@@ -62,6 +63,7 @@ class AiPropertiesBindingTest {
                         "kbase.ai.worker.poll-interval=6s",
                         "kbase.ai.worker.batch-size=11",
                         "kbase.ai.worker.lease-timeout=3m",
+                        "kbase.ai.worker.retry-backoff=31s",
                         "kbase.ai.worker.max-attempts=4",
                         "kbase.ai.retention=8d",
                         "kbase.ai.usage-rate-namespace=test:ai:rate")
@@ -78,6 +80,7 @@ class AiPropertiesBindingTest {
                     assertThat(properties.getChunkOverlapPercent()).isEqualTo(13);
                     assertThat(properties.getRetrievalSimilarityThreshold()).isEqualTo(0.72);
                     assertThat(properties.getWorker().getLeaseTimeout()).isEqualTo(Duration.ofMinutes(3));
+                    assertThat(properties.getWorker().getRetryBackoff()).isEqualTo(Duration.ofSeconds(31));
                     assertThat(properties.getRetention()).isEqualTo(Duration.ofDays(8));
                     assertThat(properties.getUsageRateNamespace()).isEqualTo("test:ai:rate");
                 });

@@ -102,3 +102,11 @@ AI v1 target journeys (chưa được coi là verified cho tới M11):
 - Deleted document/project không được resurrect bởi late worker.
 - Provider timeout/retry bounded; Core runtime không phụ thuộc Gemini availability.
 - AI observability dùng safe metadata (job state/latency/error category), không raw knowledge/prompt.
+
+### M3 evidence đã xác minh
+
+- PostgreSQL job engine: `AiJobEngineIntegrationTest` 9/9 chứng minh `SKIP LOCKED`, independent worker progress, unique lease token, stale reclaim, bounded attempts, terminal-state exclusion và active dedup.
+- Bounded scheduler: `AiJobSchedulerTest` 5/5 chứng minh registry-supported claim, không consume job không có handler, execution sau claim transaction và provider-neutral outcome mapping. Scheduler không tạo activity khi `kbase.ai.enabled=false`.
+- Document lifecycle: upload chỉ ghi intent/job metadata trong transaction sau Core document + tags; V4 FK cascade và conditional lease transition chặn late worker resurrection; không đọc MinIO hoặc gọi provider.
+- Membership retention: remove/leave enqueue `CONVERSATION_PURGE` tại `+P7D`, rejoin cancel active intent, mất membership sau rejoin tạo intent mới. M3 không thực hiện conversation deletion.
+- Rollback/race suites: `DocumentAiRollbackIntegrationTest` 2/2, `AiConversationRetentionIntegrationTest` 4/4 và `AiRetentionTransactionIntegrationTest` 1/1 pass trên PostgreSQL Testcontainers.

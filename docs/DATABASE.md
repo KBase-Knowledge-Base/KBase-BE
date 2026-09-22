@@ -113,3 +113,14 @@ Verification:
 - `AiPersistenceIntegrationTest` 11/11: vector dimension, cross-project SQL trap, active-version filtering, FK/delete semantics, status vocabulary, JPA/JSONB mapping và concurrent quota lock.
 
 `docs/generated/db-schema.md` đã được cập nhật sau live migration/catalog verification ngày `2026-09-22`. `docs/generated/api-schema.md` không đổi vì M2 không thêm endpoint/API contract.
+
+## AI v1 – M3 Durable Jobs và Lifecycle Transactions
+
+M3 không tạo migration mới và không sửa V4. `ai_jobs` của V4 tiếp tục là nguồn sự thật cho claim/lease/retry:
+
+- Claim chỉ lấy job type được handler registry hỗ trợ, lọc `PENDING`/`RETRY` đến hạn hoặc `PROCESSING` hết lease bằng `FOR UPDATE SKIP LOCKED` trong transaction ngắn.
+- Mỗi claim ghi lease token riêng vào `locked_by`; completion/retry/failure chỉ thành công khi còn đúng `id`, `PROCESSING` và token hiện tại. Stale job hết attempts chuyển `FAILED`, không retry vô hạn.
+- Active dedup dùng `pg_advisory_xact_lock(hashtextextended(dedup_key, 0))` + lookup active state trong transaction; không cần V5 partial unique index cho M3.
+- Document/project FK cascade của V4 dọn AI index/chunk/job; membership loss và rejoin dùng enqueue/cancel cùng transaction với `project_members` lifecycle.
+
+Verification: các integration tests M3 chạy trên PostgreSQL 17.11/pgvector Testcontainers và xác nhận delete/race/retention persistence; V4, `docs/generated/db-schema.md` và API snapshot không thay đổi.

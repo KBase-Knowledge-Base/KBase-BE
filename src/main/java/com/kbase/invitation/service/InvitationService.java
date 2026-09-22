@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
+import com.kbase.ai.service.AiConversationRetentionService;
 import com.kbase.config.properties.InvitationProperties;
 import com.kbase.invitation.dto.request.CreateInvitationRequest;
 import com.kbase.invitation.dto.response.AcceptInvitationResponse;
@@ -48,8 +49,24 @@ public class InvitationService {
     private final InvitationTokens invitationTokens;
     private final InvitationProperties invitationProperties;
     private final java.time.Clock clock;
+    private final AiConversationRetentionService retentionService;
 
     @Autowired
+    public InvitationService(
+            ProjectAuthorizationService authorizationService,
+            ProjectInvitationRepository invitationRepository,
+            ProjectMemberRepository projectMemberRepository,
+            UserRepository userRepository,
+            MailService mailService,
+            InvitationTokens invitationTokens,
+            InvitationProperties invitationProperties,
+            AiConversationRetentionService retentionService) {
+        this(authorizationService, invitationRepository, projectMemberRepository,
+                userRepository, mailService, invitationTokens, invitationProperties,
+                java.time.Clock.systemUTC(), retentionService);
+    }
+
+    /** Compatibility constructor for existing Core tests and callers. */
     public InvitationService(
             ProjectAuthorizationService authorizationService,
             ProjectInvitationRepository invitationRepository,
@@ -60,7 +77,7 @@ public class InvitationService {
             InvitationProperties invitationProperties) {
         this(authorizationService, invitationRepository, projectMemberRepository,
                 userRepository, mailService, invitationTokens, invitationProperties,
-                java.time.Clock.systemUTC());
+                java.time.Clock.systemUTC(), null);
     }
 
     public InvitationService(
@@ -72,6 +89,20 @@ public class InvitationService {
             InvitationTokens invitationTokens,
             InvitationProperties invitationProperties,
             java.time.Clock clock) {
+        this(authorizationService, invitationRepository, projectMemberRepository,
+                userRepository, mailService, invitationTokens, invitationProperties, clock, null);
+    }
+
+    public InvitationService(
+            ProjectAuthorizationService authorizationService,
+            ProjectInvitationRepository invitationRepository,
+            ProjectMemberRepository projectMemberRepository,
+            UserRepository userRepository,
+            MailService mailService,
+            InvitationTokens invitationTokens,
+            InvitationProperties invitationProperties,
+            java.time.Clock clock,
+            AiConversationRetentionService retentionService) {
         this.authorizationService = Objects.requireNonNull(authorizationService, "authorizationService");
         this.invitationRepository = Objects.requireNonNull(invitationRepository, "invitationRepository");
         this.projectMemberRepository =
@@ -81,6 +112,7 @@ public class InvitationService {
         this.invitationTokens = Objects.requireNonNull(invitationTokens, "invitationTokens");
         this.invitationProperties = Objects.requireNonNull(invitationProperties, "invitationProperties");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.retentionService = retentionService;
     }
 
     /** OWNER/ADMIN invites a normalized email; mail failure rolls back the row. */
@@ -209,6 +241,9 @@ public class InvitationService {
 
         ProjectMember membership = projectMemberRepository.save(
                 new ProjectMember(invitation.getProject(), acceptor, ProjectRole.MEMBER));
+        if (retentionService != null) {
+            retentionService.cancelPurgeOnRejoin(projectId, acceptor.getId());
+        }
         invitation.setStatus(InvitationStatus.ACCEPTED);
         invitation.setAcceptedAt(clock.instant());
 
