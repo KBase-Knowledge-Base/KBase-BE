@@ -1,9 +1,9 @@
 # KBase AI Chatbot v1 – M2 pgvector / AI Persistence Schema
 
-**Status:** READY
+**Status:** DONE
 **Parent plan:** `../KBase_AI_Chatbot_v1_Implementation_Plan.md`
 **Depends on:** Completed M0 and M1 (`../completed/KBase_AI_Chatbot_v1_M0_Preflight_and_Technical_Compatibility.md`, `../completed/KBase_AI_Chatbot_v1_M1_Runtime_Foundation_and_Provider_Ports.md`)
-**Current step:** AI-DB-01 – create the AI Flyway migration
+**Current step:** Complete; next slice is M3 – Durable Job Engine & Core Lifecycle Hooks
 **Scope:** SD-16 persistence schema, pgvector indexes, persistence mappings/repositories, and database-level quota/generation guards. Preserve Core v1 and keep provider calls, workers, retrieval behavior, and public AI API out of this slice.
 
 ## 1. Required source documents
@@ -66,15 +66,15 @@ SD-16 is the authority for table intent, foreign keys, deletion semantics, vecto
 ## 4. M2 Gate
 
 ```text
-[ ] fresh pgvector PostgreSQL 17 applies Core V1–V3 plus the AI migration
-[ ] vector extension and every vector(768) column are verified live
-[ ] all AI FK/delete rules, status constraints, and partial unique guards are verified
-[ ] relational and HNSW indexes are verified in the PostgreSQL catalog
-[ ] Hibernate validate and persistence/repository integration tests pass
-[ ] cross-project vector repository query proves SQL project filtering and active-version filtering
-[ ] concurrent quota/generation guard tests pass
-[ ] docs/generated/db-schema.md matches the verified schema
-[ ] no public API, worker, provider, or RAG behavior leaked into M2
+[x] fresh pgvector PostgreSQL 17 applies Core V1–V3 plus the AI migration
+[x] vector extension and every vector(768) column are verified live
+[x] all AI FK/delete rules, status constraints, and partial unique guards are verified
+[x] relational and HNSW indexes are verified in the PostgreSQL catalog
+[x] Hibernate validate and persistence/repository integration tests pass
+[x] cross-project vector repository query proves SQL project filtering and active-version filtering
+[x] concurrent quota/generation guard tests pass
+[x] docs/generated/db-schema.md matches the verified schema
+[x] no public API, worker, provider, or RAG behavior leaked into M2
 ```
 
 ## 5. Verification path
@@ -102,4 +102,14 @@ Use one forward-only migration after V3. Do not rewrite or renumber Core migrati
 | Date | Status | Evidence / next action |
 |---|---|---|
 | 2026-09-22 | READY | M1 Gate PASS: full suite 228/228, pgvector compatibility 1/1, dependency tree and Compose config pass. Read SD-16 before starting AI-DB-01. |
+| 2026-09-22 | DONE | V4 schema, JPA mappings/repositories, vector SQL boundary, quota/generation guards and generated DB schema completed. Fresh/upgrade migration, catalog, Hibernate and persistence evidence pass; targeted M2 set 36/36. Final `mvn -B -ntp clean verify` recorded `BUILD SUCCESS`, 241/241 tests, 0 failures/errors/skips; Compose config and `git diff --check` pass. |
 
+## 9. Final result
+
+M2 is complete. V4 is an additive Flyway source-of-truth migration after immutable Core V1–V3. The verified schema contains eight AI tables, pgvector `vector(768)`, HNSW cosine indexes, relational query indexes, lifecycle/status checks, same-project composite FKs, citation `SET NULL`, conversation/project/document cascades, a partial unique active-generation guard and durable job state. The implementation deliberately stops before workers, provider adapters, indexing, retrieval, conversation behavior and public API.
+
+Evidence:
+
+- `mvn -B -ntp "-Dtest=FlywayMigrationIntegrityTest,JpaMappingRepositoryIntegrationTest,FlywayAiUpgradeIntegrationTest,AiPersistenceIntegrationTest" test` — 36/36;
+- `mvn -B -ntp clean verify` — `BUILD SUCCESS`, 241 tests, 0 failures, 0 errors, 0 skipped; final full Core + AI gate;
+- `docker compose -f docker-compose.yml config --quiet` and `git diff --check` — pass.

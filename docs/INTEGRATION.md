@@ -183,13 +183,13 @@ M6 verification đã chạy:
 - Persistence đã verify trong runtime: `postgres_data`/`minio_data` giữ data qua backend restart và container force-recreate; Redis recreation làm mất pending OTP và resend vẫn hoạt động.
 
 
-## AI v1 Target Integrations (Chưa Implement ở Documentation Baseline)
+## AI v1 Integrations (M2 Persistence đã triển khai; behavior còn deferred)
 
 | Nguồn | Đích | Mục đích | Persistence | Boundary |
 |---|---|---|---|---|
 | AI application | Gemini | grounded chat generation | External provider, không durable | `AiChatModel -> SpringAiGeminiChatAdapter` baseline |
 | AI indexing/retrieval | Gemini embedding | document/query embeddings | External provider | `AiEmbeddingModel -> SpringAiGeminiEmbeddingAdapter` baseline |
-| AI repositories | PostgreSQL + pgvector | chunks/vectors/conversations/jobs/Guide corpus | Durable qua existing PostgreSQL volume | KBase repository + Flyway schema |
+| AI repositories | PostgreSQL + pgvector | chunks/vectors/conversations/jobs/Guide corpus | Durable qua existing PostgreSQL volume | KBase repository + Flyway V4 schema; verified M2 |
 | AI worker | MinIO | đọc binary source để extract | Binary vẫn durable trong MinIO | existing `StorageService` only |
 | AI usage guard (target) | Redis | ephemeral per-user AI rate/cost guard | Ephemeral; không business source of truth | dedicated AI rate adapter/namespace if M0/M10 approves |
 
@@ -207,6 +207,15 @@ pgvector requirements:
 - embedding baseline `gemini-embedding-2`, dimension 768.
 - vector retrieval project-scoped trong SQL.
 - real pgvector-enabled PostgreSQL Testcontainer verification.
+
+M2 verification đã chạy:
+
+- fresh Flyway V1–V4 apply và Hibernate `ddl-auto=validate` trên pgvector PostgreSQL 17.11;
+- Core V1–V3 upgrade-to-V4 path giữ nguyên user/project data;
+- live catalog xác nhận extension, `vector(768)`, HNSW cosine indexes, relational indexes và FK/delete rules;
+- `AiVectorRepository` giữ project filter và active-version predicate trong SQL; không global-search rồi filter bằng Java.
+
+Provider adapter/call, worker, extraction, retrieval orchestration, public AI API và rate guard vẫn là các milestone sau.
 
 Guide source integration:
 

@@ -84,24 +84,32 @@ Nguồn thiết kế chi tiết:
 - Sinh lại `docs/generated/db-schema.md`.
 
 
-## AI v1 – Planned Persistence Target
+## AI v1 – M2 Persistence Schema (Đã triển khai)
 
-AI v1 mở rộng PostgreSQL hiện tại bằng pgvector và các bảng AI, nhưng **chưa tồn tại ở snapshot documentation-only này**.
+AI v1 đã mở rộng PostgreSQL bằng Flyway V4 trên pgvector-compatible PostgreSQL 17. Migration V4 là nguồn sự thật cho tám bảng AI; Core migrations V1–V3 không bị sửa.
 
 Source design:
 
 - `docs/design-docs/KBase - AI Chatbot Persistence and Vector Search Design.md`
+- `src/main/resources/db/migration/V4__create_ai_persistence_schema.sql`
 
-Target M2:
+Đã triển khai và xác minh:
 
-- `CREATE EXTENSION IF NOT EXISTS vector`.
-- `document_ai_indexes` + `document_ai_chunks` với `vector(768)`.
-- private `ai_conversations`, `ai_messages`, `ai_message_sources`.
-- PostgreSQL-durable `ai_jobs`.
-- separate `ai_guide_sources` + `ai_guide_chunks`.
-- HNSW cosine index và relational project/document/job indexes.
-- composite document/project FK và delete/SET NULL lifecycle theo SD-16.
+- `CREATE EXTENSION IF NOT EXISTS vector` và hai cột `vector(768)`.
+- `document_ai_indexes` + `document_ai_chunks` với composite document/project FK và cascade khi document bị xóa.
+- private `ai_conversations`, `ai_messages`, `ai_message_sources` với retention-friendly user/project FK, message/citation cascade và citation live FK `SET NULL`.
+- PostgreSQL-durable `ai_jobs` với job/status vocabulary, JSONB payload và project/document/user delete rules.
+- separate `ai_guide_sources` + `ai_guide_chunks`, HNSW cosine indexes và source cascade.
+- relational indexes cho project/document/version/status/job/conversation paths.
+- partial unique index `uq_ai_messages_active_generation` cho tối đa một assistant generation PROCESSING mỗi conversation.
+- `AiConversationQuotaRepository` khóa row `users` trước count-then-insert; `AiVectorRepository` bắt buộc project predicate, READY/active-version predicate và 768 dimensions trong SQL boundary.
 
 Security invariant: project document vector retrieval phải có `project_id` trong SQL. Vector table không được framework auto-create làm production source of truth.
 
-Current `docs/generated/db-schema.md` vẫn là Core schema cho tới khi M2 migration thực tế apply/verify; không sửa snapshot generated chỉ từ design.
+Verification:
+
+- `FlywayMigrationIntegrityTest` 13/13: fresh V1–V4, catalog constraints/indexes/HNSW/vector dimensions và Hibernate validate.
+- `FlywayAiUpgradeIntegrationTest` 1/1: dữ liệu Core V1–V3 tồn tại sau khi apply V4.
+- `AiPersistenceIntegrationTest` 11/11: vector dimension, cross-project SQL trap, active-version filtering, FK/delete semantics, status vocabulary, JPA/JSONB mapping và concurrent quota lock.
+
+`docs/generated/db-schema.md` đã được cập nhật sau live migration/catalog verification ngày `2026-09-22`. `docs/generated/api-schema.md` không đổi vì M2 không thêm endpoint/API contract.

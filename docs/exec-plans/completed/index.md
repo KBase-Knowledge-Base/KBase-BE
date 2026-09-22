@@ -87,4 +87,9 @@
   - Result: `M1 Gate PASS` ngày `2026-09-22`
   - Evidence: Spring AI BOM 2.0.1 + approved Google GenAI starters + pgvector JDBC 0.1.6 resolve; typed disabled-by-default AI config and KBase-owned provider ports; deterministic chat/embedding fakes; pgvector PostgreSQL 17.11 compatibility test 1/1 with extension, `vector(768)`, JDBC binding, cosine ordering and HNSW; full `mvn -B -ntp clean verify` **228/228** with package/repackage; no AI migration, endpoint, RAG behavior, provider adapter/call, or generated DB/API change.
 
+- `KBase_AI_Chatbot_v1_M2_PgVector_AI_Persistence_Schema.md`
+  - Milestone: `M2 – pgvector / AI Persistence Schema`
+  - Result: `M2 Gate PASS` ngày `2026-09-22`
+  - Evidence: additive Flyway V4 with 8 AI tables and pgvector `vector(768)`; live HNSW cosine/relational catalog, FK/delete/status constraints, citation `SET NULL`, same-project integrity, vector SQL project + active-version filtering, quota lock and active-generation guard; fresh V1–V4 and Core V1–V3 → V4 upgrade pass; targeted M2 suite **36/36**; final `mvn -B -ntp clean verify` **241/241**; Compose config and `git diff --check` pass. No worker, provider, retrieval/RAG behavior or public AI API leaked.
+
 Di chuyển các kế hoạch đã hoàn thành ở đây thay vì xóa chúng. Các kế hoạch đã hoàn thành là một phần của bề mặt bộ nhớ kho lưu trữ và giúp các lần chạy agent sau hiểu tại sao mã trông như vậy.

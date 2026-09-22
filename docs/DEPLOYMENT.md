@@ -22,6 +22,10 @@ M1 đã tạo `docker-compose.yml` cho ba dependency local: `postgres`, `minio` 
 
 M2 đã thêm ba Flyway migrations làm schema source-of-truth và xác minh chúng từ database rỗng trên PostgreSQL 17 Testcontainer. Flyway áp dụng V1–V3 thành công; constraint/index PostgreSQL-specific đã được kiểm tra bằng live catalog và Hibernate khởi động với `ddl-auto=validate`. Đây chưa phải backend Compose runtime: migration chưa được chạy qua backend vào `postgres_data` local, việc đó thuộc M14.
 
+### Trạng thái AI v1 M2 đã xác minh
+
+AI v1 M2 đã thêm Flyway V4 `V4__create_ai_persistence_schema.sql` sau Core V1–V3. V4 tạo pgvector extension, tám AI tables, composite project/document FK, cascade/`SET NULL` lifecycle, status checks, relational indexes, HNSW cosine indexes và partial unique active-generation guard. Fresh apply và Core V1–V3 upgrade path đều pass trên pgvector PostgreSQL 17.11 Testcontainer; Hibernate `ddl-auto=validate`, vector repository SQL isolation, quota lock và delete/status guards đều có integration evidence. Compose topology không đổi; clean Compose runtime với V4 được dành cho AI runtime milestone/final verification.
+
 ### Trạng thái M10 đã xác minh
 
 M10 đã bổ sung storage adapter nhưng không thay đổi Docker topology. Local profile dùng `KBASE_STORAGE_AUTO_CREATE=true` và `KBASE_STORAGE_INITIALIZE_ON_STARTUP=true` để validate/tạo bucket cấu hình khi cần; base/production mặc định là `false`, yêu cầu bucket private được pre-provision. Runtime không thay bucket policy, versioning, retention hay object lock; Core v1 giữ hard-delete semantics với bucket unversioned. `KBASE_STORAGE_ENDPOINT`, access key, secret key, bucket, region và connect/write/read timeout đều externalized; access key/secret không được hard-code. Binary local vẫn nằm tại MinIO `/data` mount từ named volume `minio_data`, đã được giữ nguyên và static-verified; M10 MinIO Testcontainer xác minh stream/range/stat/delete nhưng full backend Compose runtime vẫn thuộc M14.

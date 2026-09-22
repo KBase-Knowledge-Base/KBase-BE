@@ -8,6 +8,8 @@ Tài liệu này cung cấp quy trình chuẩn để cài đặt, cấu hình, c
 
 Backend foundation của KBase đã được bootstrap trong M1. M1 Gate đã pass ngày `2026-09-17`.
 
+AI v1 M2 – pgvector / AI Persistence Schema đã hoàn tất ngày `2026-09-22`: Flyway V4 tạo 8 AI tables trên nền PostgreSQL 17 + pgvector, với vector `768`, HNSW cosine indexes, JPA mappings, KBase-owned vector JDBC boundary, FK/delete/status guards, quota lock và active-generation guard; targeted M2 suite 36/36 và full gate 241/241 pass.
+
 M2 – PostgreSQL / Flyway Schema đã hoàn tất ngày `2026-09-17`: 3 Flyway migrations tạo 10 persistent tables với đầy đủ constraint, partial/expression unique index và query index theo Physical Database Design; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; Hibernate `ddl-auto=validate` pass.
 
 M3 – JPA Entities & Repositories đã hoàn tất ngày `2026-09-17`: 10 entity persistent, 5 enum, `DocumentTagId`, 10 feature-local repository, projection/query/fetch graph/lock và document specification đã được implement; mapping integration test 11/11 pass trên PostgreSQL 17 Testcontainer với Flyway từ database rỗng và Hibernate `ddl-auto=validate`. Không có OTP entity/repository.
@@ -388,6 +390,21 @@ Các kiểm tra sau đã chạy ngày `2026-09-19` (M15 — Full Verification / 
 | Sửa documentation miscount | Docs-only | "48 operations" từ bản ghi M13 là miscount; runtime thật 47. Đã sửa `api-schema.md`, `CURRENT_STATE.md`, `DEVELOPMENT.md`, `QUALITY_SCORE.md`, master plan M13/M15; correction note trong completed M13 plan. Không có code change, không cần regression thêm |
 
 Kết quả: **Core v1 FROZEN ngày 2026-09-19** (M0–M15 tất cả PASS). Freeze report đầy đủ: `docs/exec-plans/completed/KBase_Core_v1_M15_Full_Verification_Freeze.md`.
+
+### AI v1 M2 verification record (pgvector / AI Persistence Schema)
+
+Các kiểm tra sau đã chạy ngày `2026-09-22` trên nhánh `feat-AI` với Docker daemon khả dụng:
+
+| Lệnh hoặc kiểm tra | Kết quả | Ghi chú |
+|---|---|---|
+| `mvn -B -ntp "-Dtest=FlywayMigrationIntegrityTest,JpaMappingRepositoryIntegrationTest,FlywayAiUpgradeIntegrationTest,AiPersistenceIntegrationTest" test` | Pass — 36/36, 0 failures, 0 errors, 0 skipped | `AiPersistenceIntegrationTest` 11/11; `FlywayAiUpgradeIntegrationTest` 1/1; `FlywayMigrationIntegrityTest` 13/13; `JpaMappingRepositoryIntegrationTest` 11/11 trên pgvector PostgreSQL 17.11 |
+| `mvn -B -ntp clean verify` | Pass — `BUILD SUCCESS`; 241 tests, 0 failures, 0 errors, 0 skipped | Full Core + AI regression, compile/package và Spring Boot repackage |
+| `docker compose -f docker-compose.yml config --quiet` | Pass | Compose topology/config hợp lệ; pgvector image và named volumes giữ nguyên |
+| `git diff --check` | Pass | Không có whitespace error |
+| Fresh V1–V4 và Core V1–V3 → V4 upgrade | Pass | V4 additive sau Core V3; Core data giữ nguyên ở upgrade path; Hibernate `ddl-auto=validate` pass |
+| Live catalog / scope review | Pass | `vector` extension, `vector(768)`, HNSW `vector_cosine_ops`, relational indexes, FK/delete/status checks, partial active-generation index và SQL project/active-version filters đã được verify; V1–V3 và `docs/generated/api-schema.md` không đổi |
+
+M2 không thêm worker, provider adapter/call, extraction, indexing, retrieval/RAG orchestration, Guide behavior hoặc public AI endpoint. Full Compose runtime verification với V4 vẫn thuộc AI runtime milestone sau; M2 chỉ yêu cầu Compose config và PostgreSQL/Testcontainers evidence.
 
 ## Tài liệu Generated
 

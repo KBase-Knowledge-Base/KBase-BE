@@ -68,7 +68,7 @@ class FlywayMigrationIntegrityTest {
         registry.add("kbase.storage.initialize-on-startup", () -> false);
     }
 
-    private static final Set<String> PERSISTENT_TABLES = Set.of(
+    private static final Set<String> CORE_PERSISTENT_TABLES = Set.of(
             "users",
             "refresh_sessions",
             "projects",
@@ -79,6 +79,36 @@ class FlywayMigrationIntegrityTest {
             "tags",
             "documents",
             "document_tags");
+
+    private static final Set<String> AI_PERSISTENT_TABLES = Set.of(
+            "document_ai_indexes",
+            "document_ai_chunks",
+            "ai_conversations",
+            "ai_messages",
+            "ai_message_sources",
+            "ai_jobs",
+            "ai_guide_sources",
+            "ai_guide_chunks");
+
+    private static final Set<String> ALL_PERSISTENT_TABLES = Set.of(
+            "users",
+            "refresh_sessions",
+            "projects",
+            "project_members",
+            "project_invitations",
+            "folders",
+            "categories",
+            "tags",
+            "documents",
+            "document_tags",
+            "document_ai_indexes",
+            "document_ai_chunks",
+            "ai_conversations",
+            "ai_messages",
+            "ai_message_sources",
+            "ai_jobs",
+            "ai_guide_sources",
+            "ai_guide_chunks");
 
     private static final Map<String, Set<String>> EXPECTED_CONSTRAINTS = Map.ofEntries(
             Map.entry("users", Set.of(
@@ -136,7 +166,76 @@ class FlywayMigrationIntegrityTest {
             Map.entry("document_tags", Set.of(
                     "pk_document_tags",
                     "fk_document_tags_document_same_project",
-                    "fk_document_tags_tag_same_project")));
+                    "fk_document_tags_tag_same_project")),
+            Map.entry("document_ai_indexes", Set.of(
+                    "fk_document_ai_indexes_document_same_project",
+                    "ck_document_ai_indexes_status",
+                    "ck_document_ai_indexes_source_hash",
+                    "ck_document_ai_indexes_active_version",
+                    "ck_document_ai_indexes_desired_version",
+                    "ck_document_ai_indexes_chunking_version",
+                    "ck_document_ai_indexes_embedding_model",
+                    "ck_document_ai_indexes_embedding_dimensions",
+                    "ck_document_ai_indexes_attempt_count",
+                    "ck_document_ai_indexes_last_error_code")),
+            Map.entry("document_ai_chunks", Set.of(
+                    "uq_document_ai_chunks_document_version_index",
+                    "fk_document_ai_chunks_document_same_project",
+                    "ck_document_ai_chunks_index_version",
+                    "ck_document_ai_chunks_chunk_index",
+                    "ck_document_ai_chunks_content",
+                    "ck_document_ai_chunks_page_number",
+                    "ck_document_ai_chunks_slide_number",
+                    "ck_document_ai_chunks_token_count",
+                    "ck_document_ai_chunks_content_hash")),
+            Map.entry("ai_conversations", Set.of(
+                    "fk_ai_conversations_project",
+                    "fk_ai_conversations_creator",
+                    "ck_ai_conversations_title")),
+            Map.entry("ai_messages", Set.of(
+                    "fk_ai_messages_conversation",
+                    "ck_ai_messages_role",
+                    "ck_ai_messages_generation_status",
+                    "ck_ai_messages_answer_type",
+                    "ck_ai_messages_user_lifecycle",
+                    "ck_ai_messages_answer_type_scope",
+                    "ck_ai_messages_processing_lifecycle",
+                    "ck_ai_messages_failure_code")),
+            Map.entry("ai_message_sources", Set.of(
+                    "pk_ai_message_sources",
+                    "fk_ai_message_sources_assistant_message",
+                    "fk_ai_message_sources_document",
+                    "fk_ai_message_sources_chunk",
+                    "ck_ai_message_sources_source_order",
+                    "ck_ai_message_sources_document_snapshot",
+                    "ck_ai_message_sources_page_snapshot",
+                    "ck_ai_message_sources_slide_snapshot")),
+            Map.entry("ai_jobs", Set.of(
+                    "fk_ai_jobs_project",
+                    "fk_ai_jobs_document_same_project",
+                    "fk_ai_jobs_user",
+                    "ck_ai_jobs_type",
+                    "ck_ai_jobs_status",
+                    "ck_ai_jobs_document_project_scope",
+                    "ck_ai_jobs_dedup_key",
+                    "ck_ai_jobs_attempt_count",
+                    "ck_ai_jobs_max_attempts",
+                    "ck_ai_jobs_last_error_code")),
+            Map.entry("ai_guide_sources", Set.of(
+                    "uq_ai_guide_sources_source_key",
+                    "ck_ai_guide_sources_source_key",
+                    "ck_ai_guide_sources_content_hash",
+                    "ck_ai_guide_sources_active_version",
+                    "ck_ai_guide_sources_desired_version",
+                    "ck_ai_guide_sources_status")),
+            Map.entry("ai_guide_chunks", Set.of(
+                    "uq_ai_guide_chunks_source_version_index",
+                    "fk_ai_guide_chunks_source",
+                    "ck_ai_guide_chunks_index_version",
+                    "ck_ai_guide_chunks_chunk_index",
+                    "ck_ai_guide_chunks_content",
+                    "ck_ai_guide_chunks_token_count",
+                    "ck_ai_guide_chunks_content_hash")));
 
     private static final Set<String> EXPECTED_INDEXES = Set.of(
             "uq_project_members_single_owner",
@@ -157,7 +256,29 @@ class FlywayMigrationIntegrityTest {
             "idx_documents_project_file_kind",
             "idx_documents_uploaded_by",
             "idx_document_tags_tag_id",
-            "idx_document_tags_project_id");
+            "idx_document_tags_project_id",
+            "idx_document_ai_indexes_project_status",
+            "idx_document_ai_indexes_status",
+            "uq_document_ai_chunks_document_version_index",
+            "idx_document_ai_chunks_project_id",
+            "idx_document_ai_chunks_document_id",
+            "idx_document_ai_chunks_document_version",
+            "idx_ai_conversations_project_user_updated_at",
+            "idx_ai_messages_conversation_created_at",
+            "idx_ai_message_sources_document_id",
+            "idx_ai_message_sources_chunk_id",
+            "idx_ai_jobs_status_run_at",
+            "idx_ai_jobs_project_id",
+            "idx_ai_jobs_document_id",
+            "idx_ai_jobs_user_id",
+            "idx_ai_jobs_dedup_key",
+            "uq_ai_guide_sources_source_key",
+            "idx_ai_guide_sources_status",
+            "uq_ai_guide_chunks_source_version_index",
+            "idx_ai_guide_chunks_source_version",
+            "uq_ai_messages_active_generation",
+            "idx_document_ai_chunks_embedding_hnsw",
+            "idx_ai_guide_chunks_embedding_hnsw");
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -170,16 +291,16 @@ class FlywayMigrationIntegrityTest {
         List<Map<String, Object>> history = jdbcTemplate.queryForList(
                 "SELECT version, description, success FROM flyway_schema_history ORDER BY installed_rank");
 
-        assertThat(history).hasSize(3);
+        assertThat(history).hasSize(4);
         assertThat(history)
                 .extracting(row -> String.valueOf(row.get("version")))
-                .containsExactly("1", "2", "3");
+                .containsExactly("1", "2", "3", "4");
         assertThat(history)
                 .allSatisfy(row -> assertThat((Boolean) row.get("success")).isTrue());
     }
 
     @Test
-    void exactlyTheTenPersistentTablesExist() {
+    void coreAndAiPersistentTablesExistWithoutUnexpectedBusinessTables() {
         List<String> tables = jdbcTemplate.queryForList(
                 "SELECT table_name FROM information_schema.tables "
                         + "WHERE table_schema = 'public' AND table_type = 'BASE TABLE'",
@@ -188,7 +309,9 @@ class FlywayMigrationIntegrityTest {
         Set<String> businessTables = tables.stream()
                 .filter(name -> !"flyway_schema_history".equals(name))
                 .collect(Collectors.toSet());
-        assertThat(businessTables).isEqualTo(PERSISTENT_TABLES);
+        assertThat(businessTables).isEqualTo(ALL_PERSISTENT_TABLES);
+        assertThat(businessTables).containsAll(CORE_PERSISTENT_TABLES);
+        assertThat(businessTables).containsAll(AI_PERSISTENT_TABLES);
     }
 
     @Test
@@ -211,6 +334,27 @@ class FlywayMigrationIntegrityTest {
 
         assertThat(tables)
                 .noneMatch(name -> name.toLowerCase().contains("otp"));
+    }
+
+    @Test
+    void vectorExtensionAndAllAiVectorColumnsAreExactly768() {
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT extname FROM pg_extension WHERE extname = 'vector'", String.class))
+                .isEqualTo("vector");
+
+        List<String> vectorTypes = jdbcTemplate.queryForList(
+                "SELECT format_type(a.atttypid, a.atttypmod) "
+                        + "FROM pg_attribute a "
+                        + "JOIN pg_class c ON c.oid = a.attrelid "
+                        + "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                        + "WHERE n.nspname = 'public' "
+                        + "AND c.relname IN ('document_ai_chunks', 'ai_guide_chunks') "
+                        + "AND a.attname = 'embedding' "
+                        + "AND a.attnum > 0 AND NOT a.attisdropped "
+                        + "ORDER BY c.relname",
+                String.class);
+
+        assertThat(vectorTypes).containsExactly("vector(768)", "vector(768)");
     }
 
     @Test
@@ -267,6 +411,16 @@ class FlywayMigrationIntegrityTest {
                 .contains("lower((name)::text)");
         assertThat(definitions.get("idx_documents_project_created_at"))
                 .contains("(project_id, created_at DESC)");
+        assertThat(definitions.get("uq_ai_messages_active_generation"))
+                .contains("ON public.ai_messages USING btree (conversation_id)")
+                .contains("role)::text = 'ASSISTANT'::text")
+                .contains("generation_status)::text = 'PROCESSING'::text");
+        assertThat(definitions.get("idx_document_ai_chunks_embedding_hnsw"))
+                .contains("USING hnsw")
+                .contains("vector_cosine_ops");
+        assertThat(definitions.get("idx_ai_guide_chunks_embedding_hnsw"))
+                .contains("USING hnsw")
+                .contains("vector_cosine_ops");
     }
 
     @Test

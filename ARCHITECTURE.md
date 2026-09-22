@@ -7,7 +7,7 @@ Tệp này là bản đồ cấp cao nhất của hệ thống. Nó nên ngắn 
 - Sản phẩm: `KBase – Knowledge Base`
 - Workflow Core đã frozen: `Đăng ký → xác minh email bằng OTP → đăng nhập → tạo/tham gia project → tổ chức và quản lý tài liệu project → tìm kiếm metadata → preview/download`
 - AI v1 workflow target: `upload supported knowledge → async index → Project Assistant hỏi/đáp có nguồn`; ngoài project có `KBase Guide` grounded trên approved product specs
-- Bề mặt runtime hiện tại trước AI implementation: `Spring Boot REST backend + PostgreSQL + Redis + MinIO + Gmail SMTP`; pgvector/Gemini chưa được triển khai ở snapshot này
+- Bề mặt runtime hiện tại: `Spring Boot REST backend + PostgreSQL/pgvector + Redis + MinIO + Gmail SMTP`; AI persistence/pgvector V4 đã được triển khai, còn Gemini adapter và AI behavior vẫn ở milestone sau
 - Frontend: `Optional và vẫn hoãn khỏi AI v1 backend phase`; streaming cũng deferred
 - Nguồn sự thật sản phẩm: Core = `docs/product-specs/KBase - Core v1 Specification.md`; AI active = `docs/product-specs/KBase - AI Chatbot v1 Specification.md`
 
@@ -76,7 +76,7 @@ Vector persistence/query thuộc KBase repository/Flyway schema; không để fr
 | Email | `MailService -> SmtpMailService` | Gmail SMTP cho OTP và invitation; credential từ environment |
 | Object Storage | `StorageService -> MinioStorageService` | Private bucket; binary ở MinIO; metadata ở PostgreSQL |
 | API contract | `docs/API_CONVENTIONS.md` và `docs/generated/api-schema.md` | Quy ước thiết kế API và contract hiện tại |
-| Database | `docs/DATABASE.md` và `docs/generated/db-schema.md` | PostgreSQL + Flyway; 10 persistent tables |
+| Database | `docs/DATABASE.md` và `docs/generated/db-schema.md` | PostgreSQL + pgvector + Flyway; 18 persistent tables (10 Core + 8 AI) |
 | Cross-system integration | `docs/INTEGRATION.md` | PostgreSQL, Redis, MinIO, Gmail SMTP |
 | Testing | `docs/TESTING.md` | Unit + PostgreSQL/Redis/MinIO Testcontainers + API/security contract |
 | Deployment | `docs/DEPLOYMENT.md` | Backend-first; local Docker persistence và runtime dependency |
