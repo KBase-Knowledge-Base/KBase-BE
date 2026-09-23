@@ -112,3 +112,11 @@ AI v1 target journeys (chưa được coi là verified cho tới M11):
 - Document lifecycle: upload chỉ ghi intent/job metadata trong transaction sau Core document + tags; V4 FK cascade và conditional lease transition chặn late worker resurrection; không đọc MinIO hoặc gọi provider.
 - Membership retention: remove/leave enqueue `CONVERSATION_PURGE` tại `+P7D`, rejoin cancel active intent, mất membership sau rejoin tạo intent mới. M3 không thực hiện conversation deletion.
 - Rollback/race suites: `DocumentAiRollbackIntegrationTest` 2/2, `AiConversationRetentionIntegrationTest` 4/4 và `AiRetentionTransactionIntegrationTest` 1/1 pass trên PostgreSQL Testcontainers.
+
+### M5 evidence đã xác minh
+
+- `DocumentIndexJobHandler` chạy sau claim transaction, đọc binary duy nhất qua `StorageService`, kiểm tra bounded source size + SHA-256, extract/chunk/embed theo từng document và persist state qua các transaction ngắn.
+- `document_ai_indexes` giữ last READY generation trong lúc replacement đang PROCESSING; staging chỉ được activate khi document/project còn tồn tại, desired version đúng và lease token còn hợp lệ. Activation lặp lại an toàn, stale worker không thể đổi state hoặc resurrect chunks sau document/project delete.
+- Supported AI extraction allowlist là PDF/DOC/DOCX/PPT/PPTX/MD/TXT; unsupported/corrupt/no-text/invalid embedding/provider/storage failure trở thành safe terminal hoặc bounded retry category. Raw source, prompt, vector, provider body, credential và exception message không đi vào durable job/index state.
+- `DocumentAiIndexPersistenceIntegrationTest` 6/6 trên PostgreSQL 17.11/pgvector và targeted M5 suite 17/17 pass; full `mvn -B -ntp clean verify` 307/307 pass. M5 không thêm endpoint, migration hoặc generated-doc change.
+- Worker lease hiện không heartbeat trong lúc extraction/embedding dài; limitation được ghi trong M5 completion plan và technical-debt tracker. Stale-lease protection vẫn là authoritative safety behavior.

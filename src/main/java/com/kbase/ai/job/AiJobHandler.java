@@ -2,7 +2,7 @@ package com.kbase.ai.job;
 
 import com.kbase.ai.enums.AiJobType;
 
-/** Feature-local handler boundary. M3 deliberately has no production handler implementations. */
+/** Feature-local handler boundary for durable AI job execution. */
 public interface AiJobHandler {
 
     AiJobType jobType();

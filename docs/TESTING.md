@@ -148,3 +148,12 @@ AI-specific source: `docs/design-docs/KBase - AI Chatbot Testing Strategy.md`.
 - Error/privacy tests chứng minh timeout/rate-limit/configuration/unavailable mapping và không lộ raw provider message, prompt, evidence, document, vector, response body hoặc key sentinel.
 - `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 290 tests, 0 failures, 0 errors, 0 skipped; Compose config và `git diff --check` pass.
 - Static audit chứng minh vendor imports chỉ ở `com.kbase.ai.provider.springai`, không có M5+ extraction/indexing/RAG/API leakage. Real-provider connectivity chưa được test theo M4 gate.
+
+### AI v1 M5 extraction/indexing verification đã chạy
+
+- `DocumentExtractionAndChunkingTest` 2/2 chứng minh đúng allowlist/unsupported behavior, PDF/PPT/PPTX/Markdown source locations, empty/corrupt/no-text safety, deterministic `kbase-lex-v1` token counts, `chunk-v1` boundaries, overlap and location preservation.
+- `DocumentIndexJobHandlerTest` 7/7 dùng deterministic `StorageService`, extractor và embedding doubles để chứng minh unsupported no-op, bounded source read/hash, successful embedding/activation path, partial embedding failure, provider retry/exhaustion and safe category mapping.
+- `DocumentAiIndexApplicationServiceTest` 2/2 chứng minh status view không expose entity và manual retry chỉ được phép từ terminal `FAILED` state với pessimistic-lock boundary.
+- `DocumentAiIndexPersistenceIntegrationTest` 6/6 dùng PostgreSQL 17.11/pgvector Testcontainer thật để chứng minh initial `PENDING → READY`, staged replacement/atomic activation, last-good preservation, idempotent activation, stale lease rejection và document/project delete races.
+- `mvn -B -ntp "-Dtest=DocumentExtractionAndChunkingTest,DocumentIndexJobHandlerTest,DocumentAiIndexApplicationServiceTest,DocumentAiIndexPersistenceIntegrationTest" test`: `17/17`, 0 failures, 0 errors, 0 skipped.
+- `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 307 tests, 0 failures, 0 errors, 0 skipped. Compose config, `git diff --check` and static boundary/privacy scans pass; no generated DB/API docs changed. Real Gemini network and live-provider Compose indexing remain intentionally untested.

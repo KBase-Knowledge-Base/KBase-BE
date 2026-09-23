@@ -11,7 +11,7 @@ import com.kbase.ai.job.AiJobHandler;
 
 import org.springframework.stereotype.Component;
 
-/** Production registry: empty in M3, so later job types cannot be consumed accidentally. */
+/** Production registry: only explicitly implemented job types can be claimed. */
 @Component
 public class AiJobHandlerRegistry {
 

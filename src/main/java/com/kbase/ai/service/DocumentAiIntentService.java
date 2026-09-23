@@ -8,6 +8,7 @@ import com.kbase.ai.config.AiProperties;
 import com.kbase.ai.entity.DocumentAiIndex;
 import com.kbase.ai.enums.AiJobType;
 import com.kbase.ai.enums.DocumentAiIndexStatus;
+import com.kbase.ai.extraction.ChunkingVersions;
 import com.kbase.ai.job.AiJobSchedule;
 import com.kbase.ai.repository.DocumentAiIndexRepository;
 import com.kbase.document.entity.Document;
@@ -22,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DocumentAiIntentService {
 
     public static final long INITIAL_INDEX_VERSION = 1L;
-    public static final String CHUNKING_VERSION = "chunk-v1";
+    public static final String CHUNKING_VERSION = ChunkingVersions.DOCUMENT;
     public static final int EMBEDDING_DIMENSIONS = 768;
 
     private final DocumentAiIndexRepository indexRepository;

@@ -121,11 +121,14 @@ Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.
 - Chat adapter chỉ map KBase request/result: system riêng, conversation giữ thứ tự, evidence là untrusted user data riêng và current question ở cuối; adapter không authorize, retrieve, persist hoặc parse citations.
 - Embedding adapter sở hữu query/document preparation và từ chối output khác chính xác `768`; không pad, truncate hoặc re-embed.
 - Core document binary chỉ đọc qua `StorageService`; AI không import MinIO SDK.
+- M5 `DOCUMENT_INDEX` handler đọc source qua `StorageService`, giữ extraction/chunking/provider calls ngoài claim transaction và chỉ ghi staging/activation qua KBase-owned persistence services; Tika types không lan vào application/domain code.
+- M5 indexing allowlist là `pdf`, `doc`, `docx`, `ppt`, `pptx`, `md`, `txt`; unsupported Core files kết thúc ở `UNSUPPORTED`, còn parser/provider/storage failures đi qua safe bounded retry/terminal categories.
+- Index replacement giữ last-good READY generation cho tới atomic activation; document/project liveness và lease-token predicates chặn stale worker resurrection. Index status/manual retry hiện là application boundary nội bộ, chưa có public controller.
 - Project Assistant dùng `ProjectAuthorizationService` hiện tại và private conversation authorization riêng.
 - Vector query/repository bắt buộc project-scoped ở SQL.
 - Background indexing/retention là PostgreSQL-durable job; `@Async`/in-memory timer không đủ.
 - M3 job claiming thuộc `AiJobClaimRepository`/`AiJobStore`: PostgreSQL `FOR UPDATE SKIP LOCKED`, batch bounded, lease token riêng cho từng claim, stale recovery và transition có điều kiện theo `id + PROCESSING + locked_by`.
-- `AiJobScheduler` chỉ claim job type có handler trong registry; registry production của M3 rỗng để không consume `DOCUMENT_INDEX`, `CONVERSATION_PURGE` hoặc job thuộc milestone sau. Scheduler chỉ bật khi `kbase.ai.enabled=true`.
+- `AiJobScheduler` chỉ claim job type có handler trong registry; M3 registry ban đầu rỗng, còn M5 đăng ký `DOCUMENT_INDEX` handler có điều kiện khi AI enabled. `CONVERSATION_PURGE` và job thuộc milestone sau vẫn không được consume. Scheduler chỉ bật khi `kbase.ai.enabled=true`.
 - Handler chạy sau transaction claim; outcome dùng taxonomy provider-neutral `SUCCESS`/`RETRY`/`FAILURE`, error state chỉ là safe category code.
 - Document upload ghi AI intent/job sau document và tags trong cùng transaction; supported extension là `pdf`, `doc`, `docx`, `ppt`, `pptx`, `md`, `txt`, còn file Core-accepted khác nhận `UNSUPPORTED` không tạo job.
 - Member removal/leave enqueue `CONVERSATION_PURGE` theo `+P7D`; invitation rejoin cancel active purge trong cùng transaction. M3 chỉ ghi retention intent, không thực hiện destructive purge.

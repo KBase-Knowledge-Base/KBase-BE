@@ -12,7 +12,9 @@ AI v1 M2 – pgvector / AI Persistence Schema đã hoàn tất ngày `2026-09-22
 
 AI v1 M3 – Durable Job Engine & Core Lifecycle Hooks đã hoàn tất ngày `2026-09-22`: PostgreSQL claim/lease/retry/stale recovery, bounded scheduler boundary, document AI intent, delete-race safety và membership retention hooks đã được verify; targeted M3 suites pass và full gate 268/268. M3 không gọi Gemini, không extraction/embedding execution, không public AI API và không destructive purge.
 
-AI v1 M4 – Gemini Provider Adapters đã hoàn tất ngày `2026-09-22`: explicit disabled-by-default Spring AI/Google GenAI configuration, KBase-owned chat/embedding adapters, deterministic query/document preparation, strict vector `768`, safe provider error categories, request-timeout wiring và privacy/logging guards; targeted M4 suite 22/22 và full gate 290/290 pass. Real Gemini credential/public network không cần và không được gọi; active handoff là M5 Content Extraction / Chunking / Document Indexing.
+AI v1 M4 – Gemini Provider Adapters đã hoàn tất ngày `2026-09-22`: explicit disabled-by-default Spring AI/Google GenAI configuration, KBase-owned chat/embedding adapters, deterministic query/document preparation, strict vector `768`, safe provider error categories, request-timeout wiring và privacy/logging guards; targeted M4 suite 22/22 và full gate 290/290 pass. Real Gemini credential/public network không cần và không được gọi.
+
+AI v1 M5 – Content Extraction / Chunking / Document Indexing đã hoàn tất ngày `2026-09-23`: exactly PDF/DOC/DOCX/PPT/PPTX/MD/TXT qua Tika adapter, proven source locations, deterministic `kbase-lex-v1`/`chunk-v1`, `StorageService`-only bounded/hash-checked reads, durable `DOCUMENT_INDEX` staging/atomic activation, bounded safe retry/failure, internal status/manual retry và PostgreSQL delete/stale-lease protection; targeted M5 suite 17/17 và full gate 307/307 pass. Không thêm migration, public API hoặc generated-doc change; real Gemini/live-provider Compose indexing chưa chạy. Active handoff là M6 Semantic Retrieval / Grounding / Citations planning-only.
 
 M2 – PostgreSQL / Flyway Schema đã hoàn tất ngày `2026-09-17`: 3 Flyway migrations tạo 10 persistent tables với đầy đủ constraint, partial/expression unique index và query index theo Physical Database Design; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; Hibernate `ddl-auto=validate` pass.
 
@@ -110,6 +112,7 @@ M3_JOB_TEST_COMMAND=mvn -B -ntp "-Dtest=AiJobEngineIntegrationTest" test
 M3_SCHEDULER_TEST_COMMAND=mvn -B -ntp "-Dtest=AiJobSchedulerTest" test
 M3_DOCUMENT_INTENT_TEST_COMMAND=mvn -B -ntp "-Dtest=DocumentAiIntentIntegrationTest,DocumentAiRollbackIntegrationTest" test
 M3_RETENTION_TEST_COMMAND=mvn -B -ntp "-Dtest=AiConversationRetentionIntegrationTest,AiRetentionTransactionIntegrationTest" test
+AI_M5_EXTRACTION_INDEX_TEST_COMMAND=mvn -B -ntp "-Dtest=DocumentExtractionAndChunkingTest,DocumentIndexJobHandlerTest,DocumentAiIndexApplicationServiceTest,DocumentAiIndexPersistenceIntegrationTest" test
 ```
 
 `.env.example` chỉ là danh sách tên biến và placeholder an toàn. Không tạo hoặc commit `.env` chứa credential thật.
@@ -445,6 +448,20 @@ Các kiểm tra sau đã chạy ngày `2026-09-22` trên nhánh `feat-AI`. Autom
 | Static boundary/scope audit | Pass | Spring AI/Google GenAI imports chỉ trong `com.kbase.ai.provider.springai`; không có storage/controller/RAG/extraction leakage; không đổi generated DB/API docs |
 
 M4 wires `kbase.ai.provider.request-timeout` through Google GenAI `HttpOptions`. Google GenAI `1.65.0` không có independent connect-timeout API trên selected client path; `kbase.ai.provider.connect-timeout` được giữ typed nhưng không claim là active. Hikari/Testcontainers shutdown warnings xuất hiện sau suite đã pass và không làm fail `BUILD SUCCESS`.
+
+### AI v1 M5 verification record (Content Extraction / Chunking / Document Indexing)
+
+Các kiểm tra sau đã chạy ngày `2026-09-23` trên nhánh `feat-AI` với Docker daemon khả dụng:
+
+| Lệnh hoặc kiểm tra | Kết quả | Ghi chú |
+|---|---|---|
+| `AI_M5_EXTRACTION_INDEX_TEST_COMMAND` | Pass — 17/17, 0 failures, 0 errors, 0 skipped | Extraction/chunking 2/2; handler 7/7; status/manual retry 2/2; PostgreSQL persistence 6/6. Covers exact format allowlist, source locations, deterministic boundaries, empty/corrupt/no-text safety, unsupported no-op, partial embedding failure, retry exhaustion, stale lease, activation idempotency and document/project delete races. |
+| `mvn -B -ntp clean verify` | Pass — `BUILD SUCCESS`; 307 tests, 0 failures, 0 errors, 0 skipped | Full Core + AI regression, compile/package/repackage pass. PostgreSQL/Redis/MinIO/Testcontainers suites completed. Shutdown-only Hikari/Testcontainers connection warnings did not change the successful result. |
+| `docker compose -f docker-compose.yml config --quiet` | Pass | Compose topology/config remains valid; no new service, volume or migration. |
+| `git diff --check` | Pass | No whitespace errors. |
+| Static boundary/privacy audit | Pass | No MinIO SDK import in `com.kbase.ai`; Tika only in extraction adapter; Spring AI/Google GenAI only in provider adapter package; no public AI controller/retrieval/conversation/Guide behavior; generated DB/API docs unchanged. |
+
+Real Gemini credential/network and live-provider Compose indexing are intentionally not part of the M5 automated gate. The worker's fixed lease/no-heartbeat limitation is recorded in the M5 completion plan and technical-debt tracker.
 
 ## Tài liệu Generated
 

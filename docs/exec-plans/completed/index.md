@@ -82,6 +82,11 @@
   - Result: `M16 Gate PASS` ngày `2026-09-19`
   - Evidence: Full Codebase Audit cùng ngày cho kết quả 0 BLOCKER / 0 HIGH / 1 MEDIUM / 8 LOW / 12 INFO; slice này fix 1 MEDIUM (M-01: invitation accept-expired giờ persist `EXPIRED` qua `InvitationExpiredException` + `@Transactional(noRollbackFor=...)`, regression test assert DB status + khả năng tạo invitation thay thế) và 7 LOW (L-01 batch compensation mỗi key đúng 1 lần; L-03 runtime swagger annotation search 400 khớp code; L-04 bỏ `JwtProperties.algorithm` + javadoc `findAllByStatusAndExpiresAtBefore`; L-05 LIKE wildcard escape cho `q` ở documents/my-projects/tags/admin-users; L-06 folder move pessimistic lock 2 rows theo UUID order + concurrency test 2 thread ngược chiều; L-07 SMTP failure log sanitized chỉ exception type; L-08 hygiene: xóa file rỗng `Trạng`, cập nhật `index.md`, bỏ `KBASE_MAIL_TEST_ENABLED`). Targeted suites: unit 48/48; integration 26/26 trên PostgreSQL/Redis Testcontainers (Invitation 5/5, Search 3/3, Organization 7/7, JpaMapping 11/11); full gate `mvn -B -ntp clean verify` **213/213**. Không fix: L-02 (PATCH document null semantics — cần product decision) và các INFO item (known limitations/phase mới) — phản hồi owner và ghi `../tech-debt-tracker.md`. Không đổi API contract, Flyway schema hay docs generated.
 
+- `KBase_AI_Chatbot_v1_M0_Preflight_and_Technical_Compatibility.md`
+  - Milestone: `M0 – AI Preflight & Technical Compatibility`
+  - Result: `M0 Gate PASS` ngày `2026-09-22`
+  - Evidence: dependency/pgvector/Tika compatibility probes, typed configuration decisions, deterministic fake contracts và harness source revalidation.
+
 - `KBase_AI_Chatbot_v1_M1_Runtime_Foundation_and_Provider_Ports.md`
   - Milestone: `M1 – AI Runtime Foundation & Provider Ports`
   - Result: `M1 Gate PASS` ngày `2026-09-22`
@@ -91,5 +96,20 @@
   - Milestone: `M2 – pgvector / AI Persistence Schema`
   - Result: `M2 Gate PASS` ngày `2026-09-22`
   - Evidence: additive Flyway V4 with 8 AI tables and pgvector `vector(768)`; live HNSW cosine/relational catalog, FK/delete/status constraints, citation `SET NULL`, same-project integrity, vector SQL project + active-version filtering, quota lock and active-generation guard; fresh V1–V4 and Core V1–V3 → V4 upgrade pass; targeted M2 suite **36/36**; final `mvn -B -ntp clean verify` **241/241**; Compose config and `git diff --check` pass. No worker, provider, retrieval/RAG behavior or public AI API leaked.
+
+- `KBase_AI_Chatbot_v1_M3_Durable_Job_Engine_Core_Lifecycle.md`
+  - Milestone: `M3 – Durable Job Engine & Core Lifecycle Hooks`
+  - Result: `M3 Gate PASS` ngày `2026-09-22`
+  - Evidence: PostgreSQL `SKIP LOCKED` claim/lease/retry/stale recovery, bounded scheduler/registry, document intent and delete races, membership retention hooks; targeted **27/27** and full `mvn -B -ntp clean verify` **268/268**.
+
+- `KBase_AI_Chatbot_v1_M4_Gemini_Provider_Adapters.md`
+  - Milestone: `M4 – Gemini Provider Adapters`
+  - Result: `M4 Gate PASS` ngày `2026-09-22`
+  - Evidence: disabled-by-default Spring AI/Google GenAI boundary, deterministic chat/embedding mapping, strict 768 validation, safe error/privacy guards; targeted **22/22** and full gate **290/290**; no real provider network.
+
+- `KBase_AI_Chatbot_v1_M5_Content_Extraction_Chunking_Document_Indexing.md`
+  - Milestone: `M5 – Content Extraction / Chunking / Document Indexing`
+  - Result: `M5 Gate PASS` ngày `2026-09-23`
+  - Evidence: exactly PDF/DOC/DOCX/PPT/PPTX/MD/TXT extraction, KBase-owned `kbase-lex-v1`/`chunk-v1` chunking, durable `DOCUMENT_INDEX` staging/atomic activation, safe bounded retries, internal status/manual retry boundary and delete/stale-lease protection; targeted **17/17** and full `mvn -B -ntp clean verify` **307/307**. No schema/API/generated-doc change.
 
 Di chuyển các kế hoạch đã hoàn thành ở đây thay vì xóa chúng. Các kế hoạch đã hoàn thành là một phần của bề mặt bộ nhớ kho lưu trữ và giúp các lần chạy agent sau hiểu tại sao mã trông như vậy.

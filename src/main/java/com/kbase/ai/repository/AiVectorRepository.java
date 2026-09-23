@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.time.Instant;
+import java.sql.Timestamp;
 
 import com.pgvector.PGvector;
 
@@ -214,6 +216,299 @@ public class AiVectorRepository {
                 documentId, indexVersion);
     }
 
+    /**
+     * Moves the lifecycle row into PROCESSING only for the currently leased
+     * document job. The caller wraps this and the other workflow operations in
+     * short transactions; provider calls never run inside these methods.
+     */
+    public int markDocumentIndexProcessing(UUID projectId, UUID documentId, long indexVersion,
+            UUID jobId, String leaseToken, Instant now) {
+        requireWorkflowIds(projectId, documentId, jobId, leaseToken, now);
+        requireVersion(indexVersion);
+        return jdbcTemplate.update("""
+                UPDATE document_ai_indexes i
+                   SET status = 'PROCESSING',
+                       attempt_count = attempt_count + 1,
+                       failure_reason = NULL,
+                       last_error_code = NULL,
+                       updated_at = ?
+                 WHERE i.project_id = ?
+                   AND i.document_id = ?
+                   AND i.desired_version = ?
+                   AND (
+                       i.status IN ('PENDING', 'FAILED', 'PROCESSING')
+                       OR (i.status = 'READY'
+                           AND (i.active_version IS NULL OR i.active_version < i.desired_version))
+                   )
+                   AND EXISTS (
+                       SELECT 1 FROM documents d
+                        WHERE d.id = i.document_id AND d.project_id = i.project_id)
+                   AND EXISTS (
+                       SELECT 1 FROM ai_jobs j
+                        WHERE j.id = ?
+                          AND j.document_id = i.document_id
+                          AND j.project_id = i.project_id
+                          AND j.status = 'PROCESSING'
+                          AND j.locked_by = ?
+                          AND j.lease_until > ?)
+                """, timestamp(now), projectId, documentId, indexVersion, jobId,
+                leaseToken, timestamp(now));
+    }
+
+    /** Records a retry category without making a stale worker change state. */
+    public int markDocumentIndexRetry(UUID projectId, UUID documentId, long indexVersion,
+            UUID jobId, String leaseToken, String errorCode, Instant now) {
+        requireWorkflowIds(projectId, documentId, jobId, leaseToken, now);
+        requireVersion(indexVersion);
+        return jdbcTemplate.update("""
+                UPDATE document_ai_indexes i
+                   SET status = 'PROCESSING',
+                       failure_reason = NULL,
+                       last_error_code = ?,
+                       updated_at = ?
+                 WHERE i.project_id = ?
+                   AND i.document_id = ?
+                   AND i.desired_version = ?
+                   AND i.status = 'PROCESSING'
+                   AND EXISTS (
+                       SELECT 1 FROM ai_jobs j
+                        WHERE j.id = ?
+                          AND j.document_id = i.document_id
+                          AND j.project_id = i.project_id
+                          AND j.status = 'PROCESSING'
+                          AND j.locked_by = ?
+                          AND j.lease_until > ?)
+                """, errorCode, timestamp(now), projectId, documentId, indexVersion, jobId,
+                leaseToken, timestamp(now));
+    }
+
+    /** Marks a safe terminal failure while the current claim still owns the lease. */
+    public int markDocumentIndexFailure(UUID projectId, UUID documentId, long indexVersion,
+            UUID jobId, String leaseToken, String failureReason, String errorCode, Instant now) {
+        requireWorkflowIds(projectId, documentId, jobId, leaseToken, now);
+        requireVersion(indexVersion);
+        return jdbcTemplate.update("""
+                UPDATE document_ai_indexes i
+                   SET status = 'FAILED',
+                       failure_reason = ?,
+                       last_error_code = ?,
+                       updated_at = ?
+                 WHERE i.project_id = ?
+                   AND i.document_id = ?
+                   AND i.desired_version = ?
+                   AND i.status = 'PROCESSING'
+                   AND EXISTS (
+                       SELECT 1 FROM ai_jobs j
+                        WHERE j.id = ?
+                          AND j.document_id = i.document_id
+                          AND j.project_id = i.project_id
+                          AND j.status = 'PROCESSING'
+                          AND j.locked_by = ?
+                          AND j.lease_until > ?)
+                """, failureReason, errorCode, timestamp(now), projectId, documentId,
+                indexVersion, jobId, leaseToken, timestamp(now));
+    }
+
+    /** Unsupported jobs are terminal and never stage or embed content. */
+    public int markDocumentIndexUnsupported(UUID projectId, UUID documentId, long indexVersion,
+            UUID jobId, String leaseToken, Instant now) {
+        requireWorkflowIds(projectId, documentId, jobId, leaseToken, now);
+        requireVersion(indexVersion);
+        return jdbcTemplate.update("""
+                UPDATE document_ai_indexes i
+                   SET status = 'UNSUPPORTED',
+                       failure_reason = 'UNSUPPORTED_FILE_TYPE',
+                       last_error_code = NULL,
+                       updated_at = ?
+                 WHERE i.project_id = ?
+                   AND i.document_id = ?
+                   AND i.desired_version = ?
+                   AND i.status <> 'READY'
+                   AND EXISTS (
+                       SELECT 1 FROM ai_jobs j
+                        WHERE j.id = ?
+                          AND j.document_id = i.document_id
+                          AND j.project_id = i.project_id
+                          AND j.status = 'PROCESSING'
+                          AND j.locked_by = ?
+                          AND j.lease_until > ?)
+                """, timestamp(now), projectId, documentId, indexVersion, jobId, leaseToken,
+                timestamp(now));
+    }
+
+    /**
+     * Replaces only a non-active staging version. This method must be called in
+     * a short transaction after all provider calls have completed.
+     */
+    public boolean stageDocumentChunks(UUID projectId, UUID documentId, long indexVersion,
+            List<DocumentAiChunkInsert> chunks) {
+        return stageDocumentChunks(projectId, documentId, indexVersion, null, null, null, chunks);
+    }
+
+    /** Lease-aware staging used by the production worker. */
+    public boolean stageDocumentChunks(UUID projectId, UUID documentId, long indexVersion,
+            UUID jobId, String leaseToken, Instant now, List<DocumentAiChunkInsert> chunks) {
+        Objects.requireNonNull(projectId, "projectId is mandatory");
+        Objects.requireNonNull(documentId, "documentId is mandatory");
+        requireVersion(indexVersion);
+        Objects.requireNonNull(chunks, "chunks is mandatory");
+        if (chunks.isEmpty()) {
+            throw new IllegalArgumentException("chunks must not be empty");
+        }
+        for (DocumentAiChunkInsert chunk : chunks) {
+            Objects.requireNonNull(chunk, "chunk is mandatory");
+            if (!projectId.equals(chunk.projectId()) || !documentId.equals(chunk.documentId())
+                    || chunk.indexVersion() != indexVersion) {
+                throw new IllegalArgumentException("staged chunk scope does not match index scope");
+            }
+        }
+
+        if (jobId != null || leaseToken != null || now != null) {
+            requireWorkflowIds(projectId, documentId, jobId, leaseToken, now);
+            List<UUID> documents = jdbcTemplate.query("""
+                    SELECT id FROM documents
+                     WHERE id = ? AND project_id = ?
+                     FOR UPDATE
+                    """, (resultSet, rowNum) -> resultSet.getObject("id", UUID.class),
+                    documentId, projectId);
+            if (documents.isEmpty()) {
+                return false;
+            }
+            List<LeaseState> leases = jdbcTemplate.query("""
+                    SELECT lease_until FROM ai_jobs
+                     WHERE id = ? AND document_id = ? AND project_id = ?
+                       AND status = 'PROCESSING' AND locked_by = ?
+                     FOR UPDATE
+                    """, (resultSet, rowNum) -> new LeaseState(
+                    resultSet.getTimestamp("lease_until") == null
+                            ? null : resultSet.getTimestamp("lease_until").toInstant()),
+                    jobId, documentId, projectId, leaseToken);
+            if (leases.isEmpty() || leases.getFirst().leaseUntil() == null
+                    || !leases.getFirst().leaseUntil().isAfter(now)) {
+                return false;
+            }
+        }
+
+        List<IndexState> states = jdbcTemplate.query("""
+                SELECT status, active_version, desired_version
+                  FROM document_ai_indexes
+                 WHERE project_id = ? AND document_id = ?
+                 FOR UPDATE
+                """, (resultSet, rowNum) -> new IndexState(
+                resultSet.getString("status"), nullableLong(resultSet, "active_version"),
+                resultSet.getLong("desired_version")), projectId, documentId);
+        if (states.isEmpty()) {
+            return false;
+        }
+        IndexState state = states.getFirst();
+        if ("READY".equals(state.status()) && Long.valueOf(indexVersion).equals(state.activeVersion())) {
+            return false;
+        }
+        if (!"PROCESSING".equals(state.status()) || state.desiredVersion() != indexVersion) {
+            return false;
+        }
+
+        jdbcTemplate.update(
+                "DELETE FROM document_ai_chunks WHERE project_id = ? AND document_id = ? AND index_version = ?",
+                projectId, documentId, indexVersion);
+        for (DocumentAiChunkInsert chunk : chunks) {
+            insertDocumentChunk(chunk);
+        }
+        return true;
+    }
+
+    /**
+     * Locks the document, current job lease and index row in that order before
+     * switching the active version. A deleted document or expired/reclaimed
+     * lease returns false and cannot resurrect chunks.
+     */
+    public boolean activateDocumentVersion(UUID projectId, UUID documentId, long indexVersion,
+            String sourceHash, UUID jobId, String leaseToken, Instant now) {
+        requireWorkflowIds(projectId, documentId, jobId, leaseToken, now);
+        requireVersion(indexVersion);
+        if (sourceHash == null || sourceHash.isBlank()) {
+            throw new IllegalArgumentException("sourceHash must be non-blank");
+        }
+
+        List<UUID> documents = jdbcTemplate.query("""
+                SELECT id FROM documents
+                 WHERE id = ? AND project_id = ?
+                 FOR UPDATE
+                """, (resultSet, rowNum) -> resultSet.getObject("id", UUID.class),
+                documentId, projectId);
+        if (documents.isEmpty()) {
+            return false;
+        }
+
+        List<LeaseState> leases = jdbcTemplate.query("""
+                SELECT lease_until FROM ai_jobs
+                 WHERE id = ? AND document_id = ? AND project_id = ?
+                   AND status = 'PROCESSING' AND locked_by = ?
+                 FOR UPDATE
+                """, (resultSet, rowNum) -> new LeaseState(
+                resultSet.getTimestamp("lease_until") == null
+                        ? null : resultSet.getTimestamp("lease_until").toInstant()),
+                jobId, documentId, projectId, leaseToken);
+        if (leases.isEmpty() || leases.getFirst().leaseUntil() == null
+                || !leases.getFirst().leaseUntil().isAfter(now)) {
+            return false;
+        }
+
+        List<IndexState> states = jdbcTemplate.query("""
+                SELECT status, active_version, desired_version
+                  FROM document_ai_indexes
+                 WHERE project_id = ? AND document_id = ?
+                 FOR UPDATE
+                """, (resultSet, rowNum) -> new IndexState(
+                resultSet.getString("status"), nullableLong(resultSet, "active_version"),
+                resultSet.getLong("desired_version")), projectId, documentId);
+        if (states.isEmpty()) {
+            return false;
+        }
+        IndexState state = states.getFirst();
+        if ("READY".equals(state.status()) && Long.valueOf(indexVersion).equals(state.activeVersion())) {
+            return true;
+        }
+        if (!"PROCESSING".equals(state.status()) || state.desiredVersion() != indexVersion) {
+            return false;
+        }
+
+        Integer stagedCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM document_ai_chunks
+                 WHERE project_id = ? AND document_id = ? AND index_version = ?
+                """, Integer.class, projectId, documentId, indexVersion);
+        if (stagedCount == null || stagedCount <= 0) {
+            return false;
+        }
+
+        int updated = jdbcTemplate.update("""
+                UPDATE document_ai_indexes
+                   SET status = 'READY', active_version = ?, source_hash = ?,
+                       failure_reason = NULL, last_error_code = NULL,
+                       indexed_at = ?, updated_at = ?
+                 WHERE project_id = ? AND document_id = ?
+                   AND status = 'PROCESSING' AND desired_version = ?
+                """, indexVersion, sourceHash, timestamp(now), timestamp(now), projectId,
+                documentId, indexVersion);
+        if (updated != 1) {
+            return false;
+        }
+        cleanupDocumentChunksExceptVersion(projectId, documentId, indexVersion);
+        return true;
+    }
+
+    /** Removes inactive generations only after a successful activation. */
+    public int cleanupDocumentChunksExceptVersion(UUID projectId, UUID documentId,
+            long activeVersion) {
+        Objects.requireNonNull(projectId, "projectId is mandatory");
+        Objects.requireNonNull(documentId, "documentId is mandatory");
+        requireVersion(activeVersion);
+        return jdbcTemplate.update("""
+                DELETE FROM document_ai_chunks
+                 WHERE project_id = ? AND document_id = ? AND index_version <> ?
+                """, projectId, documentId, activeVersion);
+    }
+
     private static Integer getNullableInt(ResultSet resultSet, String column) throws SQLException {
         int value = resultSet.getInt(column);
         return resultSet.wasNull() ? null : value;
@@ -221,6 +516,38 @@ public class AiVectorRepository {
 
     private static UUID required(UUID value, String name) {
         return Objects.requireNonNull(value, name + " is mandatory");
+    }
+
+    private static void requireWorkflowIds(UUID projectId, UUID documentId, UUID jobId,
+            String leaseToken, Instant now) {
+        Objects.requireNonNull(projectId, "projectId is mandatory");
+        Objects.requireNonNull(documentId, "documentId is mandatory");
+        Objects.requireNonNull(jobId, "jobId is mandatory");
+        if (leaseToken == null || leaseToken.isBlank()) {
+            throw new IllegalArgumentException("leaseToken must be non-blank");
+        }
+        Objects.requireNonNull(now, "now is mandatory");
+    }
+
+    private static void requireVersion(long indexVersion) {
+        if (indexVersion <= 0) {
+            throw new IllegalArgumentException("indexVersion must be positive");
+        }
+    }
+
+    private static Timestamp timestamp(Instant instant) {
+        return Timestamp.from(Objects.requireNonNull(instant, "instant"));
+    }
+
+    private static Long nullableLong(ResultSet resultSet, String column) throws SQLException {
+        long value = resultSet.getLong(column);
+        return resultSet.wasNull() ? null : value;
+    }
+
+    private record IndexState(String status, Long activeVersion, long desiredVersion) {
+    }
+
+    private record LeaseState(Instant leaseUntil) {
     }
 
     private static void validateLimit(int limit) {

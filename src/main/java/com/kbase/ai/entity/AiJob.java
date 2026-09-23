@@ -18,7 +18,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
-/** Durable AI job record; worker claiming/execution is intentionally deferred. */
+/** Durable AI job record; claim and execution are owned by the worker boundary. */
 @Entity
 @Table(name = "ai_jobs")
 public class AiJob {

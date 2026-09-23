@@ -183,14 +183,14 @@ M6 verification đã chạy:
 - Persistence đã verify trong runtime: `postgres_data`/`minio_data` giữ data qua backend restart và container force-recreate; Redis recreation làm mất pending OTP và resend vẫn hoạt động.
 
 
-## AI v1 Integrations (M4 Provider Boundary đã triển khai; indexing/RAG behavior còn deferred)
+## AI v1 Integrations (M5 Indexing Boundary đã triển khai; retrieval/RAG behavior còn deferred)
 
 | Nguồn | Đích | Mục đích | Persistence | Boundary |
 |---|---|---|---|---|
 | AI application | Gemini | grounded chat generation | External provider, không durable | `AiChatModel -> SpringAiGeminiChatAdapter` explicit M4 adapter |
 | AI indexing/retrieval | Gemini embedding | document/query embeddings | External provider | `AiEmbeddingModel -> SpringAiGeminiEmbeddingAdapter` explicit M4 adapter |
 | AI repositories | PostgreSQL + pgvector | chunks/vectors/conversations/jobs/Guide corpus | Durable qua existing PostgreSQL volume | KBase repository + Flyway V4 schema; verified M2 |
-| AI worker | MinIO | đọc binary source để extract | Binary vẫn durable trong MinIO | existing `StorageService` only |
+| AI worker | MinIO | đọc binary source để extract/index | Binary vẫn durable trong MinIO | existing `StorageService` only; không import MinIO SDK |
 | AI usage guard (target) | Redis | ephemeral per-user AI rate/cost guard | Ephemeral; không business source of truth | dedicated AI rate adapter/namespace if M0/M10 approves |
 
 Gemini integration requirements:
@@ -219,7 +219,7 @@ M2 verification đã chạy:
 - live catalog xác nhận extension, `vector(768)`, HNSW cosine indexes, relational indexes và FK/delete rules;
 - `AiVectorRepository` giữ project filter và active-version predicate trong SQL; không global-search rồi filter bằng Java.
 
-M4 đã triển khai provider adapter/configuration/error/privacy boundary nhưng chưa thực hiện worker provider call, extraction, retrieval orchestration, public AI API hoặc rate guard. M5 là active handoff tiếp theo.
+M4 đã triển khai provider adapter/configuration/error/privacy boundary; M5 dùng các port này trong worker nhưng chưa mở retrieval orchestration, public AI API hoặc rate guard.
 
 ## AI v1 M3 Durable Job và Core Lifecycle Hooks
 
@@ -243,6 +243,19 @@ M4 đã thêm explicit Spring AI/Google GenAI wiring và hai adapter sau KBase-o
 - raw prompts, evidence, document content, vectors, provider bodies and keys are not logged or retained by the provider exception.
 
 M4 verification: targeted adapter/configuration/error/privacy suite 22/22 and full `mvn -B -ntp clean verify` 290/290 pass. Tests use deterministic doubles and synthetic key values only; real Gemini credential/public network are intentionally not required. Request timeout is active through Google `HttpOptions`; connect-timeout remains a typed future transport setting because Google GenAI 1.65.0 exposes no independent setting on this path.
+
+## AI v1 M5 Content Extraction / Chunking / Document Indexing
+
+M5 adds the first production-shaped indexing execution behind the existing boundaries:
+
+- the KBase-owned `DocumentContentExtractor`/source-location models keep Tika types inside `TikaDocumentContentExtractor`;
+- the allowlist is exactly PDF, DOC, DOCX, PPT, PPTX, MD and TXT. Unsupported Core-accepted files remain `UNSUPPORTED` without extraction or embedding;
+- `kbase-lex-v1` and `chunk-v1` provide deterministic structure-aware chunks with known page/slide/section metadata, 700-token target and 12% overlap defaults;
+- `DocumentIndexJobHandler` reads only through `StorageService`, bounds and SHA-256 checks the source against Core metadata, uses `AiEmbeddingModel` with `DOCUMENT` requests and never calls a provider in the Core upload transaction;
+- PostgreSQL staging and atomic activation preserve the last READY generation until replacement succeeds. Lease-token, document/project liveness and active-version predicates prevent stale workers from resurrecting chunks;
+- provider/storage failures use bounded retry categories; terminal state and error values are safe categories only. Internal status/manual retry is an application service, not a public endpoint.
+
+M5 verification: targeted extraction/handler/status/persistence suite 17/17 and full `mvn -B -ntp clean verify` 307/307 pass; `DocumentAiIndexPersistenceIntegrationTest` 6/6 runs on PostgreSQL 17.11/pgvector. No migration, topology or generated DB/API change. Automated tests use deterministic doubles; real Gemini connectivity and live-provider Compose indexing are intentionally not required. The fixed worker lease/no-heartbeat limitation is tracked in `docs/exec-plans/tech-debt-tracker.md`.
 
 Guide source integration:
 

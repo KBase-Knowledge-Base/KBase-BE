@@ -1,6 +1,6 @@
 # Active Plans
 
-- **AI v1 active:** `KBase_AI_Chatbot_v1_M5_Content_Extraction_Chunking_Document_Indexing.md` — M0–M4 đã PASS; M5 chuẩn bị extraction/chunking/document indexing, chưa mở retrieval, conversation runtime, Guide runtime hoặc public API.
+- **AI v1 active:** `KBase_AI_Chatbot_v1_M6_Semantic_Retrieval_Grounding_Citations.md` — M0–M5 đã PASS; M6 hiện là handoff planning-only cho retrieval/grounding/citations, chưa mở conversation runtime, Guide runtime hoặc public API.
 - Parent roadmap: `../KBase_AI_Chatbot_v1_Implementation_Plan.md`.
 - Core v1 M0–M15 + M16 maintenance đã hoàn thành/frozen; không mở lại Core scope ngoài dependency cần thiết cho AI v1 nếu source docs/active plan không yêu cầu.
 
