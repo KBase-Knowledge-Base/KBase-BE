@@ -1,10 +1,34 @@
 # KBase AI Chatbot v1 – M6 Semantic Retrieval / Grounding / Citations
 
-**Status:** READY  
+**Status:** DONE – M6 Gate PASS
 **Parent plan:** `../KBase_AI_Chatbot_v1_Implementation_Plan.md`  
 **Depends on:** Completed M0, M1, M2, M3, M4 and M5 AI slices  
 **Scope:** provider-neutral query retrieval, strict evidence selection, grounded prompt construction, source-label validation and citation mapping behind an application boundary.  
-**Current step:** planning-only handoff; implementation has not started
+**Current step:** completed; handoff to M7 planning only
+
+## M6 decisions (locked before implementation, 2026-09-23)
+
+- Similarity is `1 - (embedding <=> queryVector)`; higher is better. Configured threshold is an inclusive minimum (`similarity >= threshold`). A null threshold applies no numeric filter. The configured candidate limit (default 10) bounds SQL rows; the configured final-context limit (default 6) bounds constituent chunks sent to chat, including merged blocks.
+- Suppress duplicates by `(documentId, contentHash)`, retaining the first/highest-ranked candidate. Maintain SQL relevance order, with chunk ID as a stable tie-breaker. Greedily merge a later candidate only into an earlier block with the same project/document/version, compatible known page/slide/section, and an immediately contiguous chunk index. Preserve all constituent rows and their original ranks. Preserve full chunk text separated by newlines: removing an apparent overlap without provenance could corrupt evidence.
+- Retain at most the most recent eight USER/ASSISTANT turns totaling at most 4,000 characters; remove oldest whole turns first and preserve chronological order. Exclude SYSTEM and any oversized single turn. Use the retained turns only as delimited query continuity and prompt conversation, never as evidence.
+- Internal result is `(AiAnswerType, text, modelId, ordered cited EvidenceSource list)`; no public DTO, vector, hash, URL or storage key. `NO_EVIDENCE` has the fixed Vietnamese refusal, empty sources and zero chat calls.
+- Labels are exact `SOURCE_1` etc. Parse bracketed references in first-mention order, deduplicate repeated labels and reject the entire generated response as `AiProviderException(INVALID_RESPONSE)` if any reference is unknown/malformed or if no valid label is present. Only cited backend-owned blocks contribute source rows; merged blocks contribute every constituent chunk. Citation `source_order` is zero-based and follows validated first-reference order, then constituent rank order; duplicate chunk IDs are emitted once.
+- Citation mapper accepts a caller-supplied existing assistant message ID and copies document name/location/score from selected backend rows. It creates no message and no durable state itself. After live document deletion, nullable document/chunk FKs become null while snapshot fields survive; availability requires live FK plus current document authorization at future source-open time.
+
+## M6 execution log (2026-09-23)
+
+| Task | Status | Implementation and executable evidence |
+|---|---|---|
+| AI-RAG-01 | DONE, targeted | `ProjectEvidenceRetriever` authorizes before `QUERY` embedding, validates 768 finite float values, then calls project-scoped `AiVectorRepository` with configured candidate limit. SQL retains `project_id`, READY/active-version predicates and joins current `documents` for display name. Real pgvector Project B closer-vector trap and document/version/status tests pass. |
+| AI-RAG-02 | DONE, targeted | `EvidenceSelector` uses inclusive minimum similarity when configured, `(documentId, contentHash)` dedup, forward contiguous/compatible adjacent merge with all source identities, deterministic rank order and final limit counted as constituent chunks. Unit and real pgvector top-K/score tests pass. |
+| AI-RAG-03 | DONE, targeted | `ProjectRagService` returns backend-owned fixed Vietnamese refusal, `NO_EVIDENCE`, empty sources and zero chat calls after a current-access recheck. History-only and threshold-filtered paths pass. |
+| AI-RAG-04 | DONE, targeted | `ConversationContextPolicy` keeps latest eight whole USER/ASSISTANT turns within 4,000 characters; query is delimited when context is present. `GroundedPromptBuilder` keeps system policy, conversation, evidence and current question in separate `AiChatRequest` fields. Real cross-project injection trap and captured fake request pass. |
+| AI-RAG-05 | DONE, targeted | `AiChatModel` runs only with selected evidence and a pre-chat authorization recheck. Exact `[SOURCE_n]` references are validated; any unknown/malformed or zero-label response is `INVALID_RESPONSE`, never `NO_EVIDENCE`. Access is rechecked after chat; unit and real membership-removal while fake chat blocked pass. Provider errors propagate unchanged. |
+| AI-RAG-06 | DONE, targeted | `CitationSnapshotMapper` maps only validated constituent `EvidenceSource` rows into `AiMessageSource` for a caller-supplied assistant ID. Zero-based order, current document name, location and score are copied from backend rows. Real PostgreSQL save/delete test proves live document/chunk FKs become NULL and historical snapshot survives. No URL/storage key is mapped. |
+
+Targeted command: `mvn -B -ntp "-Dtest=EvidenceSelectorTest,SourceLabelAndCitationTest,ConversationContextPolicyTest,ProjectRagServiceTest,AiPersistenceIntegrationTest" test` → `BUILD SUCCESS`, 33 tests, 0 failures/errors/skips (17 new unit and 16 real PostgreSQL/pgvector integration tests, including five new M6 integration cases). Initial M5 baseline `mvn -B -ntp clean verify` → `BUILD SUCCESS`, 307/307. `mvn -B -ntp -DskipTests compile`, `docker compose -f docker-compose.yml config --quiet` and `git diff --check` pass. Final `mvn -B -ntp clean verify` → `BUILD SUCCESS`, 329 tests, 0 failures, 0 errors, 0 skipped; package/repackage pass. No real Gemini key or public Gemini network was required or used. Shutdown-only Testcontainers/Hikari connection warnings appeared after passing tests and did not affect Surefire result.
+
+Final static/scope audit: no new controller/API/OpenAPI contract, conversation runtime, Guide runtime, retention purge, frontend, streaming, schema migration or generated DB/API change. New M6 application code has no provider SDK imports, content logging, vector/result leakage, storage key or URL mapping. Provider work occurs outside a service transaction. The conservative adjacent merge preserves full overlapping chunk text; a later evaluated overlap-trimming rule may reduce prompt duplication without risking content corruption. No new blocker or technical debt was opened by M6.
 
 ## 1. Goal and dependency gate
 
@@ -116,18 +140,18 @@ M6 adds no public endpoint, so `docs/generated/api-schema.md` must remain unchan
 
 ## 9. Handoff acceptance checklist
 
-- [ ] query embedding uses KBase-owned `QUERY` semantics;
-- [ ] retrieval SQL is project-scoped and active-READY-version scoped;
-- [ ] unauthorized, deleted, failed and inactive knowledge cannot enter evidence;
-- [ ] candidate selection is deterministic, bounded and metadata-preserving;
-- [ ] no-evidence returns deterministic `NO_EVIDENCE` without a chat-provider call;
-- [ ] prompt builder separates system/history/evidence/question and treats evidence as untrusted;
-- [ ] only backend-owned valid source labels become citations;
-- [ ] citation snapshots and live-FK deletion semantics are verified;
-- [ ] in-flight authorization loss cannot return/persist a completed result;
-- [ ] no M7+ conversation/API/Guide/frontend behavior is implemented;
-- [ ] real pgvector semantic trap, full regression, Compose config, diff check and scope audit pass;
-- [ ] `docs/CURRENT_STATE.md`, `docs/QUALITY_SCORE.md`, living reliability/integration/testing docs and this plan are updated with executable evidence.
+- [x] query embedding uses KBase-owned `QUERY` semantics;
+- [x] retrieval SQL is project-scoped and active-READY-version scoped;
+- [x] unauthorized, deleted, failed and inactive knowledge cannot enter evidence;
+- [x] candidate selection is deterministic, bounded and metadata-preserving;
+- [x] no-evidence returns deterministic `NO_EVIDENCE` without a chat-provider call;
+- [x] prompt builder separates system/history/evidence/question and treats evidence as untrusted;
+- [x] only backend-owned valid source labels become citations;
+- [x] citation snapshots and live-FK deletion semantics are verified;
+- [x] in-flight authorization loss cannot return/persist a completed result;
+- [x] no M7+ conversation/API/Guide/frontend behavior is implemented;
+- [x] real pgvector semantic trap, full regression, Compose config, diff check and scope audit pass;
+- [x] `docs/CURRENT_STATE.md`, `docs/QUALITY_SCORE.md`, living reliability/integration/testing docs and this plan are updated with executable evidence.
 
 ## 10. Completion rule
 

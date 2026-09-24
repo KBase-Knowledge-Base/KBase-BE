@@ -106,6 +106,8 @@ Source design:
 
 Security invariant: project document vector retrieval phải có `project_id` trong SQL. Vector table không được framework auto-create làm production source of truth.
 
+M6 bổ sung `JOIN documents d ON d.id = c.document_id AND d.project_id = c.project_id` vào retrieval SQL để lấy `display_name` hiện tại và loại document không còn tồn tại. `READY`, `active_version` và `project_id` vẫn là SQL predicates; order dùng cosine distance rồi chunk ID để tie-break. Citation snapshots dùng V4 `ai_message_sources` và live FK `ON DELETE SET NULL`; M6 không đổi schema hoặc generated DB snapshot.
+
 Verification:
 
 - `FlywayMigrationIntegrityTest` 13/13: fresh V1–V4, catalog constraints/indexes/HNSW/vector dimensions và Hibernate validate.

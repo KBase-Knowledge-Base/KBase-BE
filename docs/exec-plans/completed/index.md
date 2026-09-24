@@ -112,4 +112,9 @@
   - Result: `M5 Gate PASS` ngày `2026-09-23`
   - Evidence: exactly PDF/DOC/DOCX/PPT/PPTX/MD/TXT extraction, KBase-owned `kbase-lex-v1`/`chunk-v1` chunking, durable `DOCUMENT_INDEX` staging/atomic activation, safe bounded retries, internal status/manual retry boundary and delete/stale-lease protection; targeted **17/17** and full `mvn -B -ntp clean verify` **307/307**. No schema/API/generated-doc change.
 
+- `KBase_AI_Chatbot_v1_M6_Semantic_Retrieval_Grounding_Citations.md`
+  - Milestone: `M6 – Semantic Retrieval / Grounding / Citations`
+  - Result: `M6 Gate PASS` ngày `2026-09-23`
+  - Evidence: real PostgreSQL 17.11/pgvector cross-project trap, active READY/current-document filters, deterministic bounded evidence, NO_EVIDENCE zero chat, prompt injection isolation, exact source labels, citation snapshot delete lifecycle and in-flight membership revoke; targeted **33/33** and full `mvn -B -ntp clean verify` **329/329**. No real Gemini network/key, schema/API/generated-doc change or M7 implementation.
+
 Di chuyển các kế hoạch đã hoàn thành ở đây thay vì xóa chúng. Các kế hoạch đã hoàn thành là một phần của bề mặt bộ nhớ kho lưu trữ và giúp các lần chạy agent sau hiểu tại sao mã trông như vậy.

@@ -183,7 +183,7 @@ M6 verification đã chạy:
 - Persistence đã verify trong runtime: `postgres_data`/`minio_data` giữ data qua backend restart và container force-recreate; Redis recreation làm mất pending OTP và resend vẫn hoạt động.
 
 
-## AI v1 Integrations (M5 Indexing Boundary đã triển khai; retrieval/RAG behavior còn deferred)
+## AI v1 Integrations (M6 internal retrieval/RAG đã triển khai; conversation/API/Guide còn deferred)
 
 | Nguồn | Đích | Mục đích | Persistence | Boundary |
 |---|---|---|---|---|
@@ -219,7 +219,7 @@ M2 verification đã chạy:
 - live catalog xác nhận extension, `vector(768)`, HNSW cosine indexes, relational indexes và FK/delete rules;
 - `AiVectorRepository` giữ project filter và active-version predicate trong SQL; không global-search rồi filter bằng Java.
 
-M4 đã triển khai provider adapter/configuration/error/privacy boundary; M5 dùng các port này trong worker nhưng chưa mở retrieval orchestration, public AI API hoặc rate guard.
+M4 đã triển khai provider adapter/configuration/error/privacy boundary; M5 dùng embedding port trong worker và M6 dùng query embedding/chat port trong internal Project RAG. Public AI API và rate guard chưa mở.
 
 ## AI v1 M3 Durable Job và Core Lifecycle Hooks
 
@@ -256,6 +256,12 @@ M5 adds the first production-shaped indexing execution behind the existing bound
 - provider/storage failures use bounded retry categories; terminal state and error values are safe categories only. Internal status/manual retry is an application service, not a public endpoint.
 
 M5 verification: targeted extraction/handler/status/persistence suite 17/17 and full `mvn -B -ntp clean verify` 307/307 pass; `DocumentAiIndexPersistenceIntegrationTest` 6/6 runs on PostgreSQL 17.11/pgvector. No migration, topology or generated DB/API change. Automated tests use deterministic doubles; real Gemini connectivity and live-provider Compose indexing are intentionally not required. The fixed worker lease/no-heartbeat limitation is tracked in `docs/exec-plans/tech-debt-tracker.md`.
+
+## AI v1 M6 Project RAG integration
+
+- Authorized project question đi qua `AiEmbeddingModel` ở `QUERY` mode, rồi `AiVectorRepository` với project predicate, active READY version và current `documents` join trong SQL. Candidate top-K là `kbase.ai.retrieval-candidate-limit`; nullable similarity threshold là inclusive minimum của `1 - cosine distance`.
+- Evidence selector giữ final constituent chunks theo `retrieval-final-context-limit`; prompt gửi sang `AiChatModel` chỉ sau authorization recheck. Completed result được re-check lại sau provider call; `NO_EVIDENCE` bỏ qua chat. Citation mapper chuẩn bị `AiMessageSource` từ selected backend rows, không tạo message hay URL.
+- M6 Testcontainers/fakes chứng minh Project B có perfect vector vẫn không xuất hiện trong Project A prompt/citations, READY/active/deleted filters, source snapshot sau delete và membership removal trong lúc chat. Targeted 33/33 pass trên PostgreSQL 17.11/pgvector; full gate ghi trong M6 plan. Real Gemini credential/public network không cần cho automated gate.
 
 Guide source integration:
 

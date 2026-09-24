@@ -64,4 +64,6 @@ Tệp này định nghĩa các quy tắc bảo mật và an toàn mà agent khô
 - Project chunks gửi tới Gemini là external data transfer; chỉ gửi current authorized bounded evidence.
 - KBase Guide dùng separate approved corpus; không được truy cập project chunks/private conversations.
 - Citation chỉ là snapshot/navigation metadata; mở source vẫn cần current `DocumentAuthorizationService`.
+- M6 Project RAG thực thi authorization trước embedding/SQL, re-check trước khi gửi evidence tới chat provider và re-check sau chat hoặc trước `NO_EVIDENCE` return. SQL không có global vector search; current `documents` join ngăn deleted source vào prompt. Real pgvector Project B closer-vector trap, prompt-injection isolation và real membership revoke during blocked fake chat đã pass.
+- M6 chỉ map exact backend-issued `[SOURCE_n]` labels; unknown/malformed hoặc zero-label output trở thành `INVALID_RESPONSE`, không tạo citation. Snapshot lấy từ backend row, không từ free-form model text; không chứa storage key/URL. Query/history/evidence/answer/vector không vào job state hoặc log trong M6.
 - AI rate-limit state nếu dùng Redis là ephemeral guard, không phải durable permission/business state.

@@ -157,3 +157,9 @@ AI-specific source: `docs/design-docs/KBase - AI Chatbot Testing Strategy.md`.
 - `DocumentAiIndexPersistenceIntegrationTest` 6/6 dùng PostgreSQL 17.11/pgvector Testcontainer thật để chứng minh initial `PENDING → READY`, staged replacement/atomic activation, last-good preservation, idempotent activation, stale lease rejection và document/project delete races.
 - `mvn -B -ntp "-Dtest=DocumentExtractionAndChunkingTest,DocumentIndexJobHandlerTest,DocumentAiIndexApplicationServiceTest,DocumentAiIndexPersistenceIntegrationTest" test`: `17/17`, 0 failures, 0 errors, 0 skipped.
 - `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 307 tests, 0 failures, 0 errors, 0 skipped. Compose config, `git diff --check` and static boundary/privacy scans pass; no generated DB/API docs changed. Real Gemini network and live-provider Compose indexing remain intentionally untested.
+
+### AI v1 M6 retrieval/grounding/citation verification
+
+- `EvidenceSelectorTest`, `ConversationContextPolicyTest`, `SourceLabelAndCitationTest`, `ProjectRagServiceTest`: 17 deterministic unit tests for similarity threshold, dedup, adjacent merge/source identities, context budget, NO_EVIDENCE zero chat, prompt isolation, label rejection, auth order/rechecks, in-flight revoke and provider failure.
+- `AiPersistenceIntegrationTest`: 16 real PostgreSQL 17.11/pgvector tests including five M6 cases: closer Project B trap through full internal RAG, READY/active/staging/failed/deleted filters, candidate top-K and score direction, mapped citation snapshot surviving document deletion, and real membership removal while fake chat is blocked.
+- Targeted command `mvn -B -ntp "-Dtest=EvidenceSelectorTest,SourceLabelAndCitationTest,ConversationContextPolicyTest,ProjectRagServiceTest,AiPersistenceIntegrationTest" test` → 33/33 pass, 0 failures/errors/skips. Full gate result is recorded in the M6 execution plan.

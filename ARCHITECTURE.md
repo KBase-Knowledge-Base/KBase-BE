@@ -7,7 +7,7 @@ Tệp này là bản đồ cấp cao nhất của hệ thống. Nó nên ngắn 
 - Sản phẩm: `KBase – Knowledge Base`
 - Workflow Core đã frozen: `Đăng ký → xác minh email bằng OTP → đăng nhập → tạo/tham gia project → tổ chức và quản lý tài liệu project → tìm kiếm metadata → preview/download`
 - AI v1 workflow target: `upload supported knowledge → async index → Project Assistant hỏi/đáp có nguồn`; ngoài project có `KBase Guide` grounded trên approved product specs
-- Bề mặt runtime hiện tại: `Spring Boot REST backend + PostgreSQL/pgvector + Redis + MinIO + Gmail SMTP`; AI persistence/pgvector V4 đã được triển khai, còn Gemini adapter và AI behavior vẫn ở milestone sau
+- Bề mặt runtime hiện tại: `Spring Boot REST backend + PostgreSQL/pgvector + Redis + MinIO + Gmail SMTP`; AI persistence/pgvector V4, Gemini adapters, document indexing và internal Project RAG retrieval/grounding/citation mapping đã được triển khai; conversation/REST/Guide runtime thuộc các milestone sau
 - Frontend: `Optional và vẫn hoãn khỏi AI v1 backend phase`; streaming cũng deferred
 - Nguồn sự thật sản phẩm: Core = `docs/product-specs/KBase - Core v1 Specification.md`; AI active = `docs/product-specs/KBase - AI Chatbot v1 Specification.md`
 
@@ -43,6 +43,8 @@ AI v1 tiếp tục mô hình port/adapter:
 `AI Service -> AiChatModel / AiEmbeddingModel -> Spring AI Gemini adapter -> Gemini`
 
 Vector persistence/query thuộc KBase repository/Flyway schema; không để framework tự sở hữu production vector table. Durable background work dùng PostgreSQL-backed job state; scheduler chỉ poll job, không phải nguồn sự thật.
+
+M6 internal Project RAG đi qua `ProjectRagService -> ProjectEvidenceRetriever / EvidenceSelector / GroundedPromptBuilder / SourceLabelValidator / CitationSnapshotMapper`; SQL retrieval luôn project-scoped, active READY và join current document. Không có AI controller/conversation runtime trong M6.
 
 ## Quy tắc Phụ thuộc Cứng
 

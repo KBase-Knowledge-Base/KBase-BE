@@ -6,26 +6,26 @@
 ## Cập nhật Lần cuối
 
 * Ngày cập nhật: `2026-09-23`
-* Người hoặc agent cập nhật: `ChatGPT - M5 Completion`
+* Người hoặc agent cập nhật: `Codex - M6 Completion`
 * Nhánh hiện tại: `feat-AI` (được tạo trực tiếp từ `dev`)
-* M0 bắt đầu trên working tree sạch; Core baseline và AI compatibility evidence đã được xác nhận trên `feat-AI`. M1–M5 đã hoàn tất; active handoff là M6 semantic retrieval/grounding/citations ở trạng thái planning-only. Conversation/Guide runtime, public AI API, frontend/streaming và real provider call vẫn chưa có.
-* M5 final gate ngày `2026-09-23`: `mvn -B -ntp clean verify` PASS với `BUILD SUCCESS`, `307` tests, `0` failures, `0` errors, `0` skips; targeted M5 suite `17/17`, Compose config PASS và `git diff --check` PASS. Docker/Testcontainers environment đã hoạt động; các warning connection-refused chỉ xuất hiện khi shutdown sau khi Surefire đã pass.
+* Core baseline và AI M0–M5 evidence được xác nhận trên `feat-AI`. M6 semantic retrieval/grounding/citations đã PASS; active handoff là M7 Project Assistant conversations & REST API ở trạng thái READY, chưa implement. Guide runtime, frontend/streaming và real provider call vẫn chưa có.
+* M6 final gate ngày `2026-09-23`: `mvn -B -ntp clean verify` PASS với `BUILD SUCCESS`, `329` tests, `0` failures, `0` errors, `0` skips; targeted M6 suite `33/33` trên deterministic fakes và PostgreSQL 17.11/pgvector, Compose config PASS. M5 initial baseline trước thay đổi là 307/307. Shutdown-only connection warnings không ảnh hưởng kết quả Surefire.
 
 ## Trạng thái Tổng quan
 
 | Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
 | ---------------- | ------------- | ----------------------- |
-| Build            | M5 PASS / M6 planning-only | `mvn -B -ntp clean verify` → `BUILD SUCCESS`, 307/307; compile/package/repackage pass. |
+| Build            | M6 PASS / M7 READY | `mvn -B -ntp clean verify` → `BUILD SUCCESS`, 329/329; compile/package/repackage pass. |
 | Frontend         | Không áp dụng | Frontend và streaming tiếp tục deferred khỏi AI v1 backend. |
-| Backend          | Core v1 frozen / M5 indexing complete | **Core v1 FROZEN** + M16 maintenance complete. M5 now supports the exact seven AI formats, deterministic chunking, durable `DOCUMENT_INDEX`, staging/atomic activation, safe retries/failures and internal status/manual retry; M6 retrieval, grounding and endpoint behavior remain unopened. |
+| Backend          | Core v1 frozen / M6 internal RAG complete | **Core v1 FROZEN** + M16 maintenance complete. M5 indexing và M6 project-scoped semantic retrieval, evidence selection, NO_EVIDENCE, prompt/label validation, citation snapshot mapping đã verify. Conversation/REST/Guide runtime chưa mở. |
 | Database         | Core + AI persistence ổn định | Flyway V1–V4 tạo 18 persistent tables (10 Core + 8 AI); pgvector extension, `vector(768)`, HNSW, FK/delete rules và Hibernate validate đã verify trên PostgreSQL 17.11. |
 | API contract     | Core ổn định / AI chưa implement | Current runtime OpenAPI vẫn Core 32 paths/47 operations; chưa có AI endpoint. SD-17 là target contract, generated API chỉ cập nhật sau implementation/OpenAPI verification. |
-| Integration      | Core + M5 indexing boundary verified | Spring AI 2.0.1/Google GenAI 1.65.0 boundary, pgvector compatibility, V1–V4 fresh/upgrade migration, M3 lifecycle races, M5 PostgreSQL staging/activation/delete races and Compose config pass; real Gemini intentionally not called. |
-| Unit test        | M5 extraction/indexing boundary verified | M5 targeted 17/17: extraction/chunking 2, handler 7, status/retry 2; deterministic tests do not need credential/network; full gate 307/307. |
-| Integration test | M5 PostgreSQL lifecycle verified | `DocumentAiIndexPersistenceIntegrationTest` 6/6 on PostgreSQL 17.11/pgvector covers READY activation, last-good preservation, stale lease, duplicate activation and document/project deletion races; full Testcontainers regression pass. |
+| Integration      | Core + M6 project RAG boundary verified | Real pgvector Project B closer-vector trap, READY/active-version/deleted filtering, citation FK snapshot deletion and membership revoke during blocked fake chat pass; Compose config pass; real Gemini intentionally not called. |
+| Unit test        | M6 strict RAG verified | 17 new deterministic tests for threshold, dedup, adjacent merge, bounded context, NO_EVIDENCE zero-chat, prompt isolation, labels, auth rechecks and provider failures; full gate 329/329. |
+| Integration test | M6 PostgreSQL retrieval/citation verified | `AiPersistenceIntegrationTest` 16/16 on PostgreSQL 17.11/pgvector, including five M6 scenarios; full Testcontainers regression pass. |
 | End-to-end test  | Core ổn định / M5 worker boundary verified | Core golden journeys đã verify M14/M15; M5 async lifecycle and race tests pass; no live-provider Compose indexing, conversation or AI API E2E. |
-| Security checks  | Core + M5 privacy/lifecycle boundary verified | M5 validates bounded source reads, SHA-256/source-size checks, exact 768 finite vectors, lease/delete guards and category-only durable errors; retrieval authorization/grounding remains M6. |
-| Deployment       | Core + M5 configuration verified | Compose giữ service/healthcheck/`postgres_data` và `pgvector/pgvector:0.8.6-pg17-bookworm`; M5 không thêm migration/topology/API; AI disabled vẫn là mặc định. |
+| Security checks  | Core + M6 RAG boundary verified | Authorization trước embedding, trước chat và sau chat; SQL project/current-document/READY predicates; unknown labels invalid; old history không là evidence; deleted snapshot không tạo permanent access. |
+| Deployment       | Core + M6 configuration verified | Compose giữ service/healthcheck/`postgres_data` và `pgvector/pgvector:0.8.6-pg17-bookworm`; M6 không thêm migration/topology/API; AI disabled vẫn là mặc định. |
 
 Trạng thái nên dùng:
 
@@ -42,7 +42,7 @@ Trạng thái nên dùng:
 
 * Mục tiêu: `Triển khai KBase AI Chatbot v1 backend trên Core v1 đã frozen: Project Assistant private/project-scoped + KBase Guide grounded, không frontend/streaming/Project Chat.`
 * Execution plan: `docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md` (AI master roadmap M0–M11)
-* Active slice: `docs/exec-plans/active/KBase_AI_Chatbot_v1_M6_Semantic_Retrieval_Grounding_Citations.md`
+* Active slice: `docs/exec-plans/active/KBase_AI_Chatbot_v1_M7_Project_Assistant_Conversations_REST_API.md`
 * Product spec active: `docs/product-specs/KBase - AI Chatbot v1 Specification.md`; Core spec vẫn là source of truth cho frozen Core behavior
 * Design sources active: `KBase - AI Chatbot RAG Architecture.md`, `KBase - AI Chatbot Persistence and Vector Search Design.md`, `KBase - AI Chatbot REST API Specification.md`, `KBase - AI Chatbot Testing Strategy.md`
 
@@ -53,7 +53,8 @@ Trạng thái nên dùng:
 * `M3 Gate PASS: durable job claiming/lease/retry, bounded scheduler, document AI intent/delete safety và membership retention hooks đã hoàn tất; không mở provider, extraction, retrieval, public API hoặc destructive purge.`
 * `M4 Gate PASS: explicit Spring AI/Google GenAI Gemini chat/embedding adapters, deterministic query/document preparation, strict vector(768), provider-neutral error translation, request-timeout wiring và privacy/logging guards đã hoàn tất; không gọi real Gemini.`
 * `M5 Gate PASS: exactly seven supported extraction formats, deterministic kbase-lex-v1/chunk-v1 chunking, durable DOCUMENT_INDEX staging/activation, bounded retries, safe failure reasons, internal status/manual retry and delete/stale-lease protection đã hoàn tất; targeted 17/17 và full 307/307.`
-* `M6 READY: semantic retrieval, strict grounding, no-evidence policy và citation mapping đang ở planning-only handoff; chưa triển khai.`
+* `M6 Gate PASS: project-scoped semantic retrieval, strict NO_EVIDENCE, grounded prompt/label validation, citation snapshot mapping và membership recheck đã hoàn tất; targeted 33/33, full 329/329.`
+* `M7 READY: private Project Assistant conversation lifecycle và REST API chưa implement; chỉ có execution plan handoff.`
 
 ## Đã Hoàn thành và Kiểm chứng
 
@@ -157,6 +158,10 @@ Trạng thái nên dùng:
 
   * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M5_Content_Extraction_Chunking_Document_Indexing.md`, `src/main/java/com/kbase/ai/extraction/`, `src/main/java/com/kbase/ai/job/DocumentIndexJobHandler.java`, `src/test/java/com/kbase/ai/extraction/DocumentExtractionAndChunkingTest.java`, `src/test/java/com/kbase/ai/job/DocumentIndexJobHandlerTest.java`, `src/test/java/com/kbase/integration/DocumentAiIndexPersistenceIntegrationTest.java`
 
+* `M6 – Semantic Retrieval / Grounding / Citations đã PASS ngày 2026-09-23`: project authorization trước QUERY embedding, SQL project/READY/active/current-document filter, deterministic threshold/dedup/adjacent merge/final bound, strict NO_EVIDENCE zero-chat, untrusted prompt/history separation, exact source-label validation, citation snapshots và pre/post-chat authorization rechecks. Targeted 33/33; full gate 329/329; không real Gemini key/network, conversation/API/Guide runtime hay migration.
+
+  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M6_Semantic_Retrieval_Grounding_Citations.md`, `src/main/java/com/kbase/ai/retrieval/`, `src/main/java/com/kbase/ai/repository/AiVectorRepository.java`, `src/test/java/com/kbase/ai/retrieval/`, `src/test/java/com/kbase/integration/AiPersistenceIntegrationTest.java`
+
 ## Đã Hoàn thành nhưng Chưa Kiểm chứng
 
 * `Gmail SMTP delivery thật (manual smoke với App Password thật) chưa chạy — automated verification dùng mail double; thuộc optional production smoke.`
@@ -201,6 +206,7 @@ Blocker cũ "Archive không có Git metadata" đã được xử lý: repository
 * `M3 AI Durable Jobs (2026-09-22) đã hoàn tất: PostgreSQL claim/lease/retry/stale recovery + advisory-lock active dedup, bounded scheduler registry, document upload intent/delete safety và membership retention `+P7D`/rejoin cancellation đã verify; active slice chuyển sang M4 provider adapters.`
 * `M4 AI Provider Adapters (2026-09-22) đã hoàn tất: explicit disabled-by-default Gemini/Spring AI configuration, chat/embedding adapters, deterministic preparation, strict 768 validation, provider-neutral error taxonomy, request-timeout wiring và privacy/logging negative tests; active slice chuyển sang M5 extraction/chunking/indexing.`
 * `M5 AI Content Extraction / Chunking / Document Indexing (2026-09-23) đã hoàn tất: Tika extraction đúng allowlist 7 format, proven source locations, deterministic kbase-lex-v1/chunk-v1, StorageService-only bounded/hash-checked source reads, 768-vector embedding, staging/atomic activation, retry/failure categories, status/manual retry và PostgreSQL delete/stale-lease races; active slice chuyển sang M6 retrieval/grounding/citations planning-only.`
+* `M6 AI Semantic Retrieval / Grounding / Citations (2026-09-23) đã hoàn tất: internal Project RAG, SQL project/READY/active/current-document retrieval, deterministic bounded evidence, NO_EVIDENCE zero chat, prompt/label validation, citation snapshots và current-access rechecks; active slice chuyển sang M7 Project Assistant conversations/REST API planning-only.`
 * `Enable host-run path (owner yêu cầu, 2026-09-19): `application-local.yml` thêm `spring.config.import: optional:file:.env[.properties]` để `mvn spring-boot:run` tự đọc `.env` (container/prod/test không bị ảnh hưởng — no-op khi không có file, prod/test không load import này); `.env` thêm `KBASE_POSTGRES_PORT=5433` vì PostgreSQL native trên máy chiếm 5432 (Compose map `${KBASE_POSTGRES_PORT:-5432}:5432` — không đổi docker-compose.yml). Cả hai đường chạy đã verify: container `docker compose up -d --build` phục vụ 8080, host `mvn spring-boot:run` Started + api-docs 200 (đã ghi vào DEVELOPMENT.md).`
 
 Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhiệm lưu thay đổi code chi tiết.
@@ -209,6 +215,10 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 
 | Lệnh hoặc kiểm tra | Kết quả       | Thời điểm | Ghi chú |
 | ------------------ | ------------- | --------- | ------- |
+| `mvn -B -ntp "-Dtest=EvidenceSelectorTest,SourceLabelAndCitationTest,ConversationContextPolicyTest,ProjectRagServiceTest,AiPersistenceIntegrationTest" test` (M6 targeted) | Đạt | 2026-09-23 | 33/33: 17 M6 unit tests + 16 real PostgreSQL/pgvector integration tests (gồm 5 M6 cases) |
+| `mvn -B -ntp clean verify` (M6 final) | Đạt | 2026-09-23 | `BUILD SUCCESS`; 329 tests, 0 failures/errors/skips; compile/package/repackage pass |
+| `docker compose -f docker-compose.yml config --quiet` (M6) | Đạt | 2026-09-23 | Compose config exit 0; no topology/migration/API change |
+| `git diff --check` (M6) | Đạt | 2026-09-23 | Exit 0; final working-tree review không có whitespace error, no staged changes |
 | `mvn -B -ntp "-Dtest=AiGeminiProviderConfigurationTest,AiProviderErrorTranslatorTest,AiProviderPrivacyTest,SpringAiGeminiChatAdapterTest,SpringAiGeminiEmbeddingAdapterTest" test` (M4 targeted) | Đạt | 2026-09-22 | 22/22: disabled/enabled configuration, safe key validation/no network, chat mapping/evidence isolation, query/document preparation, strict 768/non-finite rejection, error categories và privacy negative tests |
 | `mvn -B -ntp clean verify` (M4 final) | Đạt | 2026-09-22 | `BUILD SUCCESS`; 290 tests, 0 failures/errors/skips; compile/package/repackage pass; shutdown Hikari/Testcontainers warnings không làm fail suite |
 | `mvn -B -ntp "-Dtest=DocumentExtractionAndChunkingTest,DocumentIndexJobHandlerTest,DocumentAiIndexApplicationServiceTest,DocumentAiIndexPersistenceIntegrationTest" test` (M5 targeted) | Đạt | 2026-09-23 | 17 tests, 0 failures/errors/skips; extraction/chunking, safe terminal behavior, handler retry/embedding, status/manual retry và PostgreSQL staging/activation/delete races |

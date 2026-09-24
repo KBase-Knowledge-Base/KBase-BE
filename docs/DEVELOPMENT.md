@@ -14,7 +14,9 @@ AI v1 M3 – Durable Job Engine & Core Lifecycle Hooks đã hoàn tất ngày `2
 
 AI v1 M4 – Gemini Provider Adapters đã hoàn tất ngày `2026-09-22`: explicit disabled-by-default Spring AI/Google GenAI configuration, KBase-owned chat/embedding adapters, deterministic query/document preparation, strict vector `768`, safe provider error categories, request-timeout wiring và privacy/logging guards; targeted M4 suite 22/22 và full gate 290/290 pass. Real Gemini credential/public network không cần và không được gọi.
 
-AI v1 M5 – Content Extraction / Chunking / Document Indexing đã hoàn tất ngày `2026-09-23`: exactly PDF/DOC/DOCX/PPT/PPTX/MD/TXT qua Tika adapter, proven source locations, deterministic `kbase-lex-v1`/`chunk-v1`, `StorageService`-only bounded/hash-checked reads, durable `DOCUMENT_INDEX` staging/atomic activation, bounded safe retry/failure, internal status/manual retry và PostgreSQL delete/stale-lease protection; targeted M5 suite 17/17 và full gate 307/307 pass. Không thêm migration, public API hoặc generated-doc change; real Gemini/live-provider Compose indexing chưa chạy. Active handoff là M6 Semantic Retrieval / Grounding / Citations planning-only.
+AI v1 M5 – Content Extraction / Chunking / Document Indexing đã hoàn tất ngày `2026-09-23`: exactly PDF/DOC/DOCX/PPT/PPTX/MD/TXT qua Tika adapter, proven source locations, deterministic `kbase-lex-v1`/`chunk-v1`, `StorageService`-only bounded/hash-checked reads, durable `DOCUMENT_INDEX` staging/atomic activation, bounded safe retry/failure, internal status/manual retry và PostgreSQL delete/stale-lease protection; targeted M5 suite 17/17 và full gate 307/307 pass. Không thêm migration, public API hoặc generated-doc change; real Gemini/live-provider Compose indexing chưa chạy.
+
+AI v1 M6 – Semantic Retrieval / Grounding / Citations đã hoàn tất ngày `2026-09-23`: internal Project RAG với QUERY embedding, real pgvector project/READY/active/current-document retrieval, deterministic evidence selection, strict NO_EVIDENCE, bounded history/untrusted prompt, exact source labels, citation snapshot mapper và authorization rechecks. Targeted M6 suite 33/33 và full gate 329/329 pass. Không thêm schema/API/Guide/conversation runtime; active handoff là M7 planning-only. Real Gemini key/public network không cần cho automated gate.
 
 M2 – PostgreSQL / Flyway Schema đã hoàn tất ngày `2026-09-17`: 3 Flyway migrations tạo 10 persistent tables với đầy đủ constraint, partial/expression unique index và query index theo Physical Database Design; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; Hibernate `ddl-auto=validate` pass.
 
@@ -113,6 +115,7 @@ M3_SCHEDULER_TEST_COMMAND=mvn -B -ntp "-Dtest=AiJobSchedulerTest" test
 M3_DOCUMENT_INTENT_TEST_COMMAND=mvn -B -ntp "-Dtest=DocumentAiIntentIntegrationTest,DocumentAiRollbackIntegrationTest" test
 M3_RETENTION_TEST_COMMAND=mvn -B -ntp "-Dtest=AiConversationRetentionIntegrationTest,AiRetentionTransactionIntegrationTest" test
 AI_M5_EXTRACTION_INDEX_TEST_COMMAND=mvn -B -ntp "-Dtest=DocumentExtractionAndChunkingTest,DocumentIndexJobHandlerTest,DocumentAiIndexApplicationServiceTest,DocumentAiIndexPersistenceIntegrationTest" test
+AI_M6_RAG_TEST_COMMAND=mvn -B -ntp "-Dtest=EvidenceSelectorTest,SourceLabelAndCitationTest,ConversationContextPolicyTest,ProjectRagServiceTest,AiPersistenceIntegrationTest" test
 ```
 
 `.env.example` chỉ là danh sách tên biến và placeholder an toàn. Không tạo hoặc commit `.env` chứa credential thật.

@@ -120,3 +120,9 @@ AI v1 target journeys (chưa được coi là verified cho tới M11):
 - Supported AI extraction allowlist là PDF/DOC/DOCX/PPT/PPTX/MD/TXT; unsupported/corrupt/no-text/invalid embedding/provider/storage failure trở thành safe terminal hoặc bounded retry category. Raw source, prompt, vector, provider body, credential và exception message không đi vào durable job/index state.
 - `DocumentAiIndexPersistenceIntegrationTest` 6/6 trên PostgreSQL 17.11/pgvector và targeted M5 suite 17/17 pass; full `mvn -B -ntp clean verify` 307/307 pass. M5 không thêm endpoint, migration hoặc generated-doc change.
 - Worker lease hiện không heartbeat trong lúc extraction/embedding dài; limitation được ghi trong M5 completion plan và technical-debt tracker. Stale-lease protection vẫn là authoritative safety behavior.
+
+### M6 evidence đã xác minh
+
+- Project RAG trả `NO_EVIDENCE` cố định khi retrieval hiện tại không có usable evidence, không gọi chat; provider timeout/unavailable/invalid response vẫn là lỗi riêng. Access được kiểm tra trước embedding, trước chat và sau chat, nên in-flight membership removal không trả completed result.
+- Query candidate top-K và final constituent-chunk budget bị chặn bởi `AiProperties`; lịch sử hội thoại chỉ giữ tối đa tám turns/4,000 ký tự, không là evidence. Citation snapshot giữ metadata khi live source bị xóa; no public URL được lưu.
+- Targeted M6 33/33 pass gồm real PostgreSQL 17.11/pgvector cross-project/active/deleted/citation/revocation cases. Full gate được ghi tại M6 plan; không yêu cầu real Gemini connectivity.

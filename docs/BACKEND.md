@@ -135,3 +135,9 @@ Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.
 - Network provider call không giữ DB transaction mở nếu có thể tránh; persist state trước/sau qua transaction ngắn.
 - No-evidence là domain outcome; provider error là infrastructure/error outcome.
 - AI request phải re-check project access trước khi completed answer được trả/persist.
+
+### AI v1 M6 internal Project RAG
+
+- `ProjectEvidenceRetriever` authorize bằng `ProjectAuthorizationService` trước `QUERY` embedding và project-scoped pgvector SQL; `ProjectRagService` không giữ transaction qua embedding/chat call, re-check trước chat và sau chat/trước result, kể cả `NO_EVIDENCE`.
+- `EvidenceSelector` quyết định threshold, dedup, adjacent merge và giới hạn constituent chunks; `GroundedPromptBuilder` tách system policy, bounded history, untrusted evidence và current question. History không là evidence.
+- `SourceLabelValidator` chỉ nhận `[SOURCE_n]` đã phát; unknown hoặc zero-label output là provider `INVALID_RESPONSE`. `CitationSnapshotMapper` chỉ dùng backend-selected chunk/document metadata cho caller-supplied assistant message ID; M6 không tạo conversation/message/controller.

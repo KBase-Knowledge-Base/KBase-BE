@@ -7,6 +7,7 @@ public record DocumentAiChunkMatch(
         UUID id,
         UUID projectId,
         UUID documentId,
+        String documentName,
         long indexVersion,
         int chunkIndex,
         String content,

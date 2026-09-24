@@ -45,6 +45,7 @@ public class AiVectorRepository {
             SELECT c.id,
                    c.project_id,
                    c.document_id,
+                   d.display_name AS document_name,
                    c.index_version,
                    c.chunk_index,
                    c.content,
@@ -58,10 +59,13 @@ public class AiVectorRepository {
             JOIN document_ai_indexes i
               ON i.document_id = c.document_id
              AND i.project_id = c.project_id
+            JOIN documents d
+              ON d.id = c.document_id
+             AND d.project_id = c.project_id
             WHERE c.project_id = ?
               AND i.status = 'READY'
               AND c.index_version = i.active_version
-            ORDER BY c.embedding <=> ?::vector
+            ORDER BY c.embedding <=> ?::vector, c.id
             LIMIT ?
             """;
 
@@ -159,6 +163,7 @@ public class AiVectorRepository {
                                 resultSet.getObject("id", UUID.class),
                                 resultSet.getObject("project_id", UUID.class),
                                 resultSet.getObject("document_id", UUID.class),
+                                resultSet.getString("document_name"),
                                 resultSet.getLong("index_version"),
                                 resultSet.getInt("chunk_index"),
                                 resultSet.getString("content"),
