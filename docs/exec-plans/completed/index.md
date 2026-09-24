@@ -122,4 +122,9 @@
   - Result: `M7 Gate PASS` ngày `2026-09-24`
   - Evidence: creator-private conversation API-AI-001..007, M5 index API-AI-008/009, atomic max-five/user/project, one-active generation, short transaction/provider split, GROUNDED/NO_EVIDENCE/FAILED lifecycle, revoke-before-finalization and historical source availability; targeted **36/36**, full `mvn -B -ntp clean verify` **346/346**, runtime OpenAPI **37 paths / 56 operations**. V1–V4 and generated DB unchanged; no real Gemini network/key, Guide/rate guard/purge implementation.
 
+- `KBase_AI_Chatbot_v1_M8_Membership_Retention_Deletion_Security_Races.md`
+  - Milestone: `M8 – Membership Retention / Deletion / Security Races`
+  - Result: `M8 Gate PASS` ngày `2026-09-24`
+  - Evidence: provider-independent `CONVERSATION_PURGE`, exact P7D due behavior, PostgreSQL lifecycle advisory serialization, current-lease/current-membership destructive guard, rejoin cancellation, scoped/idempotent cascade purge, project-delete safety and membership-continuity finalization; full `mvn -B -ntp clean verify` **352/352**, Compose config and diff check pass. V1–V4, public OpenAPI 37/56 and generated snapshots unchanged.
+
 Di chuyển các kế hoạch đã hoàn thành ở đây thay vì xóa chúng. Các kế hoạch đã hoàn thành là một phần của bề mặt bộ nhớ kho lưu trữ và giúp các lần chạy agent sau hiểu tại sao mã trông như vậy.

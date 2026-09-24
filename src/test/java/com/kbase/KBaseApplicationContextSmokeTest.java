@@ -63,6 +63,6 @@ class KBaseApplicationContextSmokeTest {
         assertThat(aiProperties.getGemini().getApiKey()).isNull();
         assertThat(applicationContext.getBeansOfType(ChatModel.class)).isEmpty();
         assertThat(applicationContext.getBeansOfType(EmbeddingModel.class)).isEmpty();
-        assertThat(applicationContext.getBeansOfType(AiJobScheduler.class)).isEmpty();
+        assertThat(applicationContext.getBeansOfType(AiJobScheduler.class)).hasSize(1);
     }
 }

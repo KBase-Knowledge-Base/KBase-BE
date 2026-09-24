@@ -85,12 +85,13 @@ public class ProjectAssistantPersistenceService {
         AiMessage assistant = messages.saveAndFlush(new AiMessage(conversation,
                 AiMessageRole.ASSISTANT, null, AiGenerationStatus.PROCESSING));
         return new StartedTurn(conversation.getId(), assistant.getId(), user.getContent(),
-                AiConversationResponse.from(conversation), List.of());
+                AiConversationResponse.from(conversation), List.of(), access.membershipId());
     }
 
     @Transactional
     public StartedTurn startSend(UUID projectId, UUID conversationId,
             CustomUserPrincipal principal, String question) {
+        var access = authorization.requireProjectAccess(projectId, principal);
         AiConversation conversation = requireOwned(projectId, conversationId, principal);
         if (messages.existsByConversationIdAndRoleAndGenerationStatus(conversationId,
                 AiMessageRole.ASSISTANT, AiGenerationStatus.PROCESSING)) {
@@ -112,12 +113,17 @@ public class ProjectAssistantPersistenceService {
         conversation.setUpdatedAt(Instant.now());
         conversations.saveAndFlush(conversation);
         return new StartedTurn(conversationId, assistant.getId(), question,
-                AiConversationResponse.from(conversation), List.copyOf(history));
+                AiConversationResponse.from(conversation), List.copyOf(history), access.membershipId());
     }
 
     @Transactional
     public AiTurnResponse complete(UUID projectId, CustomUserPrincipal principal,
             StartedTurn started, GroundedResult result) {
+        var currentAccess = authorization.requireProjectAccess(projectId, principal);
+        if (started.membershipId() != null
+                && !started.membershipId().equals(currentAccess.membershipId())) {
+            throw new BusinessException(ErrorCode.PROJECT_ACCESS_FORBIDDEN);
+        }
         requireOwned(projectId, started.conversationId(), principal);
         AiMessage assistant = messages.findByIdAndConversationIdAndRoleAndGenerationStatus(
                         started.assistantId(), started.conversationId(), AiMessageRole.ASSISTANT,
@@ -220,7 +226,7 @@ public class ProjectAssistantPersistenceService {
     }
 
     public record StartedTurn(UUID conversationId, UUID assistantId, String question,
-            AiConversationResponse conversation, List<AiChatMessage> history) {
+            AiConversationResponse conversation, List<AiChatMessage> history, UUID membershipId) {
         public StartedTurn {
             history = List.copyOf(history);
         }

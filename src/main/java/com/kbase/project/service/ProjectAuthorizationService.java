@@ -49,7 +49,7 @@ public class ProjectAuthorizationService {
         ProjectMember membership = projectMemberRepository
                 .findByProjectIdAndUserId(projectId, principal.getUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_ACCESS_FORBIDDEN));
-        return new ProjectAccess(project, membership.getRole(), false);
+        return new ProjectAccess(project, membership.getRole(), false, membership.getId());
     }
 
     /**
@@ -68,7 +68,7 @@ public class ProjectAuthorizationService {
                 .findByProjectIdAndUserId(projectId, principal.getUserId())
                 .filter(member -> member.getRole() == ProjectRole.OWNER)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_MANAGEMENT_FORBIDDEN));
-        return new ProjectAccess(project, membership.getRole(), false);
+        return new ProjectAccess(project, membership.getRole(), false, membership.getId());
     }
 
     private Project requireProject(UUID projectId) {
@@ -80,10 +80,16 @@ public class ProjectAuthorizationService {
      * Result of an authorization check. {@code role} is null for the ADMIN
      * override and must never be rendered as a fake project role.
      */
-    public record ProjectAccess(Project project, ProjectRole role, boolean adminOverride) {
+    public record ProjectAccess(Project project, ProjectRole role, boolean adminOverride,
+            UUID membershipId) {
+
+        /** Compatibility constructor for Core callers that do not need continuity state. */
+        public ProjectAccess(Project project, ProjectRole role, boolean adminOverride) {
+            this(project, role, adminOverride, null);
+        }
 
         static ProjectAccess adminOverride(Project project) {
-            return new ProjectAccess(project, null, true);
+            return new ProjectAccess(project, null, true, null);
         }
 
         public boolean hasRole(ProjectRole expected) {

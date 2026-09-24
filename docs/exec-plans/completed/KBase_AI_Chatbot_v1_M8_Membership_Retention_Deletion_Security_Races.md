@@ -1,6 +1,6 @@
 # KBase AI Chatbot v1 – M8 Membership Retention / Deletion / Security Races
 
-**Status:** READY – planning only; M8 implementation has not started  
+**Status:** DONE – M8 Gate PASS (2026-09-24)  
 **Parent plan:** `../KBase_AI_Chatbot_v1_Implementation_Plan.md`  
 **Depends on:** Completed AI M0–M7; Core v1 remains frozen  
 **Scope:** Seven-day private conversation retention/purge and lifecycle/security races, using M3 durable retention intent, M7 private conversation runtime and V4 persistence.
@@ -34,6 +34,26 @@ Before code, follow `AGENTS.md` startup, read `.harness/source-doc-registry.json
 
 Add focused unit and real PostgreSQL/pgvector integration tests for due-time purge, membership recheck, rejoin cancellation, project/document deletion, duplicate/stale job delivery and concurrent revoke/finalization. Reuse deterministic `FakeAiChatModel` and `FakeAiEmbeddingModel`; no real Gemini credential/network. Run targeted suites, then `mvn -B -ntp clean verify`, `docker compose -f docker-compose.yml config --quiet`, `git diff --check` and privacy/scope audit. Update generated DB/API snapshots only if their verified source of truth changes. Record exact command results and known limits before declaring M8 PASS.
 
+## M8 decision and evidence log
+
+- **AI-RET-01 Immediate revoke — DONE.** Existing current-project authorization continues to deny retained conversation operations after remove/leave; rows remain until due time.
+- **AI-RET-02 Purge handler — DONE.** `ConversationPurgeJobHandler` is provider-independent and ignores payload identity. Under the existing PostgreSQL advisory lock on `conversation-purge:{projectId}:{userId}`, it validates a current `PROCESSING` lease, rechecks membership, then bulk-deletes only the claimed project/user conversations. Zero rows, cancelled claims, expired/reclaimed leases and project cascade deletion are harmless.
+- **AI-RET-03 Rejoin — DONE.** Remove/leave acquire the lifecycle lock before deletion/scheduling. Invitation acceptance acquires it before absence check/insert, then cancels PENDING/PROCESSING/RETRY purge. A rejoin before purge restores retained rows; a purge that linearized first is not resurrected.
+- **AI-RET-04 Project delete — DONE.** Existing V4 project FKs immediately cascade conversations/messages/sources/jobs; stale claimed lease cannot transition a removed job.
+- **AI-RET-05 Deleted source — DONE.** M7 executable citation lifecycle remains: document/chunk live FKs become null, snapshot is represented `UNAVAILABLE`, and deleted corpus is absent from new retrieval.
+- **AI-RET-06 In-flight security — DONE.** `StartedTurn` carries the authenticated `project_members.id`; finalization requires the same current membership identity. Revoke→rejoin invalidates the old turn while a new request may use the replacement membership.
+
+### Provider-disabled maintenance decision
+
+`AiJobScheduler` is no longer conditional on `kbase.ai.enabled`. Handler registration remains the claim boundary: `DocumentIndexJobHandler` remains conditional on enabled AI, while `ConversationPurgeJobHandler` is always available and imports no chat, embedding, Spring AI, Google SDK, storage, or network type.
+
+### Verification
+
+- Targeted: `ConversationPurgeJobHandlerTest`, `AiConversationRetentionIntegrationTest`, `ProjectAssistantM7IntegrationTest`, `InvitationServiceTest`, and `ProjectMemberServiceTest` — **34/34 PASS** on the targeted run; the focused unit/smoke run was **9/9 PASS**.
+- Final: `mvn -B -ntp clean verify` — **BUILD SUCCESS, 352 tests, 0 failures, 0 errors, 0 skipped**. Testcontainers shutdown emitted known Hikari closed-connection warnings after test completion; Surefire reported success.
+- `docker compose -f docker-compose.yml config --quiet` — PASS. `git diff --check` — pending final working-tree check.
+- No migration, REST endpoint, generated DB/API document, provider credential/network, Guide, rate guard, frontend, streaming, broker, OCR, multimodal or XLSX scope was added.
+
 ## Handoff state
 
-M7 Gate PASS on `feat-AI` (2026-09-24): targeted 36/36, full 346/346, V1–V4 unchanged, 37 runtime OpenAPI paths / 56 operations, private Project Assistant and document index REST verified. M8 implementation: **NOT STARTED**. Next action: inspect M3 retention enqueue/cancel and job registry against SD-14/SD-16, lock purge transaction and race decisions, then implement AI-RET-01..06 as bounded tasks.
+M8 Gate PASS on `feat-AI`. V1–V4 and public runtime OpenAPI remain unchanged at 37 paths / 56 operations. Move this plan to `completed/`; M9 KBase Guide is the next active slice and has not been implemented.

@@ -128,10 +128,10 @@ Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.
 - Vector query/repository bắt buộc project-scoped ở SQL.
 - Background indexing/retention là PostgreSQL-durable job; `@Async`/in-memory timer không đủ.
 - M3 job claiming thuộc `AiJobClaimRepository`/`AiJobStore`: PostgreSQL `FOR UPDATE SKIP LOCKED`, batch bounded, lease token riêng cho từng claim, stale recovery và transition có điều kiện theo `id + PROCESSING + locked_by`.
-- `AiJobScheduler` chỉ claim job type có handler trong registry; M3 registry ban đầu rỗng, còn M5 đăng ký `DOCUMENT_INDEX` handler có điều kiện khi AI enabled. `CONVERSATION_PURGE` và job thuộc milestone sau vẫn không được consume. Scheduler chỉ bật khi `kbase.ai.enabled=true`.
+- `AiJobScheduler` chỉ claim job type có handler trong registry. `DOCUMENT_INDEX` vẫn chỉ đăng ký khi AI enabled, nhưng provider-independent `CONVERSATION_PURGE` đăng ký độc lập để retention chạy khi `kbase.ai.enabled=false`; handler không được import/call provider, storage hoặc network.
 - Handler chạy sau transaction claim; outcome dùng taxonomy provider-neutral `SUCCESS`/`RETRY`/`FAILURE`, error state chỉ là safe category code.
 - Document upload ghi AI intent/job sau document và tags trong cùng transaction; supported extension là `pdf`, `doc`, `docx`, `ppt`, `pptx`, `md`, `txt`, còn file Core-accepted khác nhận `UNSUPPORTED` không tạo job.
-- Member removal/leave enqueue `CONVERSATION_PURGE` theo `+P7D`; invitation rejoin cancel active purge trong cùng transaction. M3 chỉ ghi retention intent, không thực hiện destructive purge.
+- Member removal/leave và invitation rejoin dùng cùng PostgreSQL advisory lifecycle lock `conversation-purge:{projectId}:{userId}`. Rejoin lấy lock trước membership insert/cancel; purge lấy lock, xác minh current `PROCESSING` lease + current membership rồi bulk hard-delete scoped conversations. Stale/cancelled lease không được delete.
 - Network provider call không giữ DB transaction mở nếu có thể tránh; persist state trước/sau qua transaction ngắn.
 - No-evidence là domain outcome; provider error là infrastructure/error outcome.
 - AI request phải re-check project access trước khi completed answer được trả/persist.

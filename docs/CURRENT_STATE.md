@@ -6,16 +6,16 @@
 ## Cập nhật Lần cuối
 
 * Ngày cập nhật: `2026-09-24`
-* Người hoặc agent cập nhật: `Codex - M7 Completion`
+* Người hoặc agent cập nhật: `Codex - M8 Completion`
 * Nhánh hiện tại: `feat-AI` (được tạo trực tiếp từ `dev`)
-* Core v1 frozen và AI M0–M7 evidence được xác nhận trên `feat-AI`. M7 private Project Assistant conversations, public API-AI-001..009, document AI index status/retry và runtime OpenAPI đã triển khai; active handoff là M8 retention/deletion/security races ở trạng thái READY. Guide runtime, destructive purge handler, usage guard, frontend/streaming và real provider call vẫn chưa có.
-* M7 final gate ngày `2026-09-24`: `mvn -B -ntp clean verify` PASS với `BUILD SUCCESS`, `346` tests, `0` failures, `0` errors, `0` skips; targeted M7 36/36 trên deterministic fakes và PostgreSQL 17.11/pgvector, Compose config và diff check PASS. Baseline trước M7 là 329/329. Initial full run gặp một stale M5 assertion về exception message; sửa assertion sang stable ErrorCode rồi full rerun PASS.
+* Core v1 frozen và AI M0–M8 evidence được xác nhận trên `feat-AI`. M8 triển khai provider-independent seven-day purge, PostgreSQL lifecycle serialization, rejoin cancellation, project-delete cascade proof và membership-continuity finalization; next active slice là M9 KBase Guide. Guide runtime, usage guard, frontend/streaming và real provider call vẫn chưa có.
+* M8 final gate ngày `2026-09-24`: `mvn -B -ntp clean verify` PASS với `BUILD SUCCESS`, `352` tests, `0` failures, `0` errors, `0` skips; targeted retention/M7/invitation/membership 34/34, Compose config và diff check PASS. V1–V4, generated DB/API và public OpenAPI 37 paths/56 operations không đổi.
 
 ## Trạng thái Tổng quan
 
 | Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
 | ---------------- | ------------- | ----------------------- |
-| Build            | M7 PASS / M8 READY | `mvn -B -ntp clean verify` → `BUILD SUCCESS`, 346/346; compile/package/repackage pass. |
+| Build            | M8 PASS / M9 READY | `mvn -B -ntp clean verify` → `BUILD SUCCESS`, 352/352; compile/package/repackage pass. |
 | Frontend         | Không áp dụng | Frontend và streaming tiếp tục deferred khỏi AI v1 backend. |
 | Backend          | Core v1 frozen / M7 private Assistant complete | **Core v1 FROZEN** + M16 maintenance complete. M6 strict RAG được M7 bọc bằng private creator-scoped conversation lifecycle, short transactions, max-five DB quota, active-generation guard và status/retry REST. Guide chưa mở. |
 | Database         | Core + AI persistence ổn định | Flyway V1–V4 tạo 18 persistent tables (10 Core + 8 AI); pgvector extension, `vector(768)`, HNSW, FK/delete rules và Hibernate validate đã verify trên PostgreSQL 17.11. |
@@ -42,7 +42,7 @@ Trạng thái nên dùng:
 
 * Mục tiêu: `Triển khai KBase AI Chatbot v1 backend trên Core v1 đã frozen: Project Assistant private/project-scoped + KBase Guide grounded, không frontend/streaming/Project Chat.`
 * Execution plan: `docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md` (AI master roadmap M0–M11)
-* Active slice: `docs/exec-plans/active/KBase_AI_Chatbot_v1_M8_Membership_Retention_Deletion_Security_Races.md`
+* Active slice: `docs/exec-plans/active/KBase_AI_Chatbot_v1_M9_KBase_Guide.md`
 * Product spec active: `docs/product-specs/KBase - AI Chatbot v1 Specification.md`; Core spec vẫn là source of truth cho frozen Core behavior
 * Design sources active: `KBase - AI Chatbot RAG Architecture.md`, `KBase - AI Chatbot Persistence and Vector Search Design.md`, `KBase - AI Chatbot REST API Specification.md`, `KBase - AI Chatbot Testing Strategy.md`
 
@@ -306,8 +306,8 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 
 ## Bước Tiếp theo
 
-1. `M8 AI-RET-01..06: hoàn thiện 7-day membership retention, destructive purge handler, rejoin/deletion và security races theo active M8 plan; M8 implementation chưa bắt đầu.`
-2. `Giữ Core v1 frozen; M8 dùng M3 retention hooks, M7 privacy/lifecycle và V4 schema làm baseline. Không mở Guide, rate guard, frontend hoặc real Gemini automated dependency.`
+1. `M9 KBase Guide: triển khai strict stateless grounded Guide theo active M9 plan; không dùng project data hoặc persistent Guide conversation.`
+2. `Giữ Core v1 frozen; M9 dùng M8 retention/M7 privacy và V4 schema làm baseline. Không mở rate guard, frontend hoặc real Gemini automated dependency.`
 3. `Core tech-debt cũ (PATCH null semantics, CI, Gmail production smoke, Redis observability) và M5 worker lease heartbeat vẫn theo tracker; không kéo vào M8 ngoài scope.`
 
 

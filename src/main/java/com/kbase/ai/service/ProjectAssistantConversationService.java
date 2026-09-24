@@ -161,8 +161,7 @@ public class ProjectAssistantConversationService {
         if (accessFailure != null) {
             return accessFailure;
         }
-        if (failure instanceof KBaseException known
-                && known.getErrorCode() == ErrorCode.AI_CONVERSATION_NOT_FOUND) {
+        if (failure instanceof KBaseException known) {
             return known;
         }
         return new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);

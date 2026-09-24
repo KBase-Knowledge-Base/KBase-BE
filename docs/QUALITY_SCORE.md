@@ -18,7 +18,7 @@ Tài liệu này theo dõi liệu kho lưu trữ có đang trở nên mạnh hơ
 | Project / Membership / Invitation | A | M7/M8 integration + M11 API + M14 runtime invitation flow và membership matrix qua container | Cao - spec/service/security docs rõ | OWNER/ADMIN delete, storage failure stop-DB và OWNER-path hard delete (regression M14) được cover | Invitation email Gmail thật manual smoke chưa chạy | 2026-09-18 |
 | Folder / Category / Tag | A | M9 suites vẫn pass; M11 API test chứng minh folder/category/tag cross-project bị reject lúc upload; M13 contract test verify role docs | Cao - product/design/service/API rules rõ | Authorization, hierarchy, uniqueness, delete dependency và cross-project integrity đã được test | Chi tiết field-level trong api-schema.md vẫn sync thủ công | 2026-09-18 |
 | Document / MinIO / Search | A | M12 search suites; M14 runtime upload/download checksum khớp, preview 206/416, hard delete storage-first qua MinIO container | Cao | Storage/lifecycle/search authorization boundary, project isolation và persistence qua `minio_data` được verify | Chi tiết field-level trong api-schema.md vẫn sync thủ công | 2026-09-18 |
-| AI Chatbot / RAG | B | M0–M7 executable evidence: M6 strict RAG plus M7 private conversation/API, quota 4→5 race, one-active send, revoke-before-finalize, source availability and index status/retry; M7 targeted 36/36, full 346/346 | Cao ở application/REST boundary và source docs | Guide, destructive retention purge và usage guard còn thuộc M8–M10; real Gemini smoke absent; M5 worker lease heartbeat còn là debt | 2026-09-24 |
+| AI Chatbot / RAG | B | M0–M8 executable evidence: strict RAG/private API plus PostgreSQL P7D purge, lifecycle advisory lock, rejoin cancellation, provider-disabled maintenance and membership-continuity finalization; full 352/352 | Cao ở application/REST boundary, retention và source docs | Guide và usage guard còn thuộc M9–M10; real Gemini smoke absent; M5 worker lease heartbeat còn là debt | 2026-09-24 |
 
 ## Lớp Kiến trúc
 
@@ -34,7 +34,7 @@ Tài liệu này theo dõi liệu kho lưu trữ có đang trở nên mạnh hơ
 
 | Năng lực | Điểm | Bằng chứng | Khoảng trống chính | Cập nhật lần cuối |
 |---|---|---|---|---|
-| Backend | A | M0–M16 Core implementation/maintenance + M1–M7 AI foundation, indexing, strict RAG and private REST verified; Core v1 frozen; full M7 regression 346/346 | Core ngoài AI routes giữ nguyên; M8 retention hardening là slice kế tiếp | 2026-09-24 |
+| Backend | A | M0–M16 Core implementation/maintenance + M1–M8 AI foundation, indexing, strict RAG, private REST and retention hardening verified; Core v1 frozen; full 352/352 | Core ngoài AI routes giữ nguyên; M9 Guide là slice kế tiếp | 2026-09-24 |
 | AI / RAG | B | M6 real pgvector trap/grounding plus M7 PostgreSQL/JWT conversation lifecycle, concurrent quota/send, final access recheck, citations, index API; targeted 36/36, full 346/346 | Guide/purge/rate guard và real Gemini connectivity chưa có | 2026-09-24 |
 | Frontend | - | `docs/FRONTEND.md` | Optional và hoãn khỏi phase hiện tại | 2026-09-17 |
 | Database và migration | A | Flyway V1–V4 fresh apply + Core V1–V3 upgrade trên pgvector PostgreSQL 17.11; integrity 13/13, AI persistence 11/11, mapping 11/11, upgrade 1/1; M3 real-PostgreSQL job/delete/retention races; Hibernate validate; `docs/generated/db-schema.md` đối chiếu 18 tables/vector(768)/HNSW/FK/index catalog | Chưa có generator schema tự động; full Compose runtime với AI V4 chưa re-run trong slice này | 2026-09-22 |

@@ -100,6 +100,12 @@ public class AiJobStore {
                 dedupKey, clock.instant()));
     }
 
+    /** Acquires the transaction-scoped PostgreSQL lock for a semantic lifecycle key. */
+    public void lockLifecycleKey(String dedupKey) {
+        requireNonBlank(dedupKey, "dedupKey");
+        transactionTemplate.executeWithoutResult(status -> repository.lockDedupKey(dedupKey));
+    }
+
     public Instant now() {
         return clock.instant();
     }

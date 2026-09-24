@@ -396,6 +396,38 @@ class ProjectAssistantM7IntegrationTest {
     }
 
     @Test
+    void transientRevokeAndRejoinCannotCompleteTheOldRequest() throws Exception {
+        Fixture fixture = fixture();
+        Evidence evidence = evidence(fixture, "rollout");
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            entered.countDown();
+            if (!release.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("test timeout");
+            return fakeChat.generate(invocation.getArgument(0));
+        }).when(chatModel).generate(any());
+        try (ExecutorService pool = Executors.newSingleThreadExecutor()) {
+            Future<Object> pending = pool.submit(() -> sendOrFailure(fixture, evidence));
+            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
+            jdbc.update("DELETE FROM project_members WHERE project_id = ? AND user_id = ?",
+                    fixture.projectId(), fixture.owner().getId());
+            membership(fixture.projectId(), fixture.owner(), "MEMBER");
+            release.countDown();
+
+            assertThat(pending.get(20, TimeUnit.SECONDS)).isInstanceOf(BusinessException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.PROJECT_ACCESS_FORBIDDEN);
+        } finally {
+            release.countDown();
+        }
+        assertThat(jdbc.queryForObject("SELECT generation_status FROM ai_messages "
+                + "WHERE conversation_id = ? AND role = 'ASSISTANT' ORDER BY created_at DESC LIMIT 1",
+                String.class, evidence.conversationId())).isEqualTo("FAILED");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_message_sources s JOIN ai_messages m "
+                + "ON m.id = s.assistant_message_id WHERE m.conversation_id = ?", Long.class,
+                evidence.conversationId())).isZero();
+    }
+
+    @Test
     void deletingConversationDuringGenerationCannotResurrectIt() throws Exception {
         Fixture fixture = fixture();
         Evidence evidence = evidence(fixture, "rollout");

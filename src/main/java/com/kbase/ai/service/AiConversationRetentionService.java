@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-/** Schedules retention intent only; destructive conversation purge is a later milestone. */
+/** Coordinates the durable project/user conversation-retention lifecycle. */
 @Service
 public class AiConversationRetentionService {
 
@@ -51,6 +51,14 @@ public class AiConversationRetentionService {
 
     public int cancelPurgeOnRejoin(UUID projectId, UUID userId) {
         return jobStore.cancelActiveByDedupKey(purgeDedupKey(projectId, userId));
+    }
+
+    /**
+     * Must run before inserting a rejoined membership. The same PostgreSQL
+     * advisory lock is held by enqueue and by the destructive purge handler.
+     */
+    public void lockLifecycle(UUID projectId, UUID userId) {
+        jobStore.lockLifecycleKey(purgeDedupKey(projectId, userId));
     }
 
     public static String purgeDedupKey(UUID projectId, UUID userId) {

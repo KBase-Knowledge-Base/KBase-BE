@@ -10,11 +10,15 @@ import java.util.UUID;
 
 import com.kbase.ai.config.AiProperties;
 import com.kbase.ai.entity.AiJob;
+import com.kbase.ai.entity.AiConversation;
 import com.kbase.ai.enums.AiJobStatus;
 import com.kbase.ai.enums.AiJobType;
+import com.kbase.ai.job.ConversationPurgeJobHandler;
 import com.kbase.ai.job.AiJobClaim;
+import com.kbase.ai.repository.AiConversationRepository;
 import com.kbase.ai.repository.AiJobRepository;
 import com.kbase.ai.service.AiConversationRetentionService;
+import com.kbase.ai.service.AiJobScheduler;
 import com.kbase.ai.service.AiJobStore;
 import com.kbase.invitation.entity.ProjectInvitation;
 import com.kbase.invitation.enums.InvitationStatus;
@@ -94,6 +98,15 @@ class AiConversationRetentionIntegrationTest {
 
     @Autowired
     private AiJobRepository jobRepository;
+
+    @Autowired
+    private AiConversationRepository conversationRepository;
+
+    @Autowired
+    private ConversationPurgeJobHandler purgeHandler;
+
+    @Autowired
+    private AiJobScheduler scheduler;
 
     @Autowired
     private ProjectMemberService projectMemberService;
@@ -218,6 +231,55 @@ class AiConversationRetentionIntegrationTest {
         assertThat(projectRepository.findById(project.getId())).isEmpty();
         assertThat(jobRepository.findAllByProjectId(project.getId())).isEmpty();
         assertThat(jobStore.markDone(claim)).isFalse();
+    }
+
+    @Test
+    void purgeIsExactScopedAndIdempotentOnlyAtOrAfterDueTime() {
+        User owner = user("purge-owner");
+        User member = user("purge-member");
+        User other = user("purge-other");
+        Project project = project(owner, "purge-scope");
+        addMember(project, member);
+        addMember(project, other);
+        AiConversation retained = conversationRepository.saveAndFlush(
+                new AiConversation(project, member, "retained conversation"));
+        AiConversation unaffected = conversationRepository.saveAndFlush(
+                new AiConversation(project, other, "other conversation"));
+
+        projectMemberService.removeMember(project.getId(), member.getId(), principal(owner));
+        AiJob job = onlyPurge(project, member);
+        assertThat(jobStore.claimDueJobs(Set.of(AiJobType.CONVERSATION_PURGE), 1,
+                job.getRunAt().minusMillis(1))).isEmpty();
+
+        AiJobClaim claim = jobStore.claimDueJobs(Set.of(AiJobType.CONVERSATION_PURGE), 1,
+                job.getRunAt().plusMillis(1)).getFirst();
+        assertThat(purgeHandler.handle(claim).outcome().name()).isEqualTo("SUCCESS");
+        assertThat(jobStore.markDone(claim)).isTrue();
+        assertThat(conversationRepository.findById(retained.getId())).isEmpty();
+        assertThat(conversationRepository.findById(unaffected.getId())).isPresent();
+
+        // The stale duplicate can only see an already-absent target and remains harmless.
+        assertThat(purgeHandler.handle(claim).outcome().name()).isEqualTo("SUCCESS");
+        assertThat(conversationRepository.findById(unaffected.getId())).isPresent();
+    }
+
+    @Test
+    void disabledAiStillRunsOnlyProviderIndependentDuePurge() {
+        User owner = user("disabled-purge-owner");
+        User member = user("disabled-purge-member");
+        Project project = project(owner, "disabled-purge");
+        addMember(project, member);
+        AiConversation retained = conversationRepository.saveAndFlush(
+                new AiConversation(project, member, "retained while AI disabled"));
+        projectMemberService.removeMember(project.getId(), member.getId(), principal(owner));
+        AiJob job = onlyPurge(project, member);
+        jdbcTemplate.update("UPDATE ai_jobs SET run_at = CURRENT_TIMESTAMP - INTERVAL '1 second' "
+                + "WHERE id = ?", job.getId());
+
+        assertThat(scheduler.pollOnce()).isEqualTo(1);
+        assertThat(conversationRepository.findById(retained.getId())).isEmpty();
+        assertThat(jobRepository.findById(job.getId())).hasValueSatisfying(done ->
+                assertThat(done.getStatus()).isEqualTo(AiJobStatus.DONE));
     }
 
     private AiJob onlyPurge(Project project, User user) {

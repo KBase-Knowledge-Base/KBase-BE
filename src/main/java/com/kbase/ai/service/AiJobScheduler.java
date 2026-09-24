@@ -13,13 +13,11 @@ import com.kbase.ai.job.AiJobHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /** Bounded poll/dispatch boundary; PostgreSQL, not this scheduler, owns backlog state. */
 @Component
-@ConditionalOnProperty(prefix = "kbase.ai", name = "enabled", havingValue = "true")
 public class AiJobScheduler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AiJobScheduler.class);

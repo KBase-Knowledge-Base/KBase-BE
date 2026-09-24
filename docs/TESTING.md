@@ -136,7 +136,7 @@ AI-specific source: `docs/design-docs/KBase - AI Chatbot Testing Strategy.md`.
 - `AiJobEngineIntegrationTest` 9/9 dùng PostgreSQL Testcontainer thật: `SKIP LOCKED`, hai worker, due/retry timing, lease expiry/reclaim, stale-owner rejection, bounded attempts, terminal filtering và transaction-advisory-lock dedup.
 - `AiJobSchedulerTest` 5/5 và scheduler integration cases: handler registry boundary, no-handler preservation, handler ngoài claim transaction, `SUCCESS`/`RETRY`/`FAILURE`/exception mapping và AI-disabled startup.
 - `DocumentAiIntentIntegrationTest` 6/6 + `DocumentAiRollbackIntegrationTest` 2/2: supported/unsupported intent, one active job, deterministic metadata, duplicate idempotency, single/batch rollback, pending/claimed delete race và no resurrection.
-- `AiConversationRetentionIntegrationTest` 4/4 + `AiRetentionTransactionIntegrationTest` 1/1: remove/leave `+P7D`, same-transaction persistence, rejoin cancel/no-op, loss-after-rejoin scheduling và project cascade cleanup.
+- `ConversationPurgeJobHandlerTest` 3/3 và `AiConversationRetentionIntegrationTest` 6/6 + `AiRetentionTransactionIntegrationTest` 1/1: malformed/stale lease safety, exact pre-due protection, scoped idempotent purge, AI-disabled purge execution, same-transaction loss scheduling, rejoin cancellation/no-op, loss-after-rejoin scheduling và project cascade cleanup on PostgreSQL.
 - `mvn -B -ntp test` và `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 268 tests, 0 failures, 0 errors, 0 skipped. Các job/lease tests không dùng H2 hoặc `Thread.sleep`; clock được inject/điều khiển.
 
 ### AI v1 M4 provider verification đã chạy

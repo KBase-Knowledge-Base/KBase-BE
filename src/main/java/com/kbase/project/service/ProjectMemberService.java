@@ -71,6 +71,9 @@ public class ProjectMemberService {
             // even by an ADMIN.
             throw new BusinessException(ErrorCode.PROJECT_OWNER_REMOVAL_FORBIDDEN);
         }
+        if (retentionService != null) {
+            retentionService.lockLifecycle(projectId, targetUserId);
+        }
         projectMemberRepository.delete(target);
         if (retentionService != null) {
             retentionService.schedulePurge(projectId, targetUserId);
@@ -86,6 +89,9 @@ public class ProjectMemberService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_MEMBER_NOT_FOUND));
         if (membership.getRole() == ProjectRole.OWNER) {
             throw new BusinessException(ErrorCode.OWNER_CANNOT_LEAVE_PROJECT);
+        }
+        if (retentionService != null) {
+            retentionService.lockLifecycle(projectId, principal.getUserId());
         }
         projectMemberRepository.delete(membership);
         if (retentionService != null) {

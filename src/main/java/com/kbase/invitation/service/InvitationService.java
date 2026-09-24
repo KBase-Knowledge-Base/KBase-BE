@@ -235,6 +235,11 @@ public class InvitationService {
         }
 
         UUID projectId = invitation.getProject().getId();
+        if (retentionService != null) {
+            // This is intentionally before both the membership absence check
+            // and insert: purge and rejoin have one DB linearization point.
+            retentionService.lockLifecycle(projectId, acceptor.getId());
+        }
         if (projectMemberRepository.existsByProjectIdAndUserId(projectId, acceptor.getId())) {
             throw new BusinessException(ErrorCode.PROJECT_MEMBER_ALREADY_EXISTS);
         }

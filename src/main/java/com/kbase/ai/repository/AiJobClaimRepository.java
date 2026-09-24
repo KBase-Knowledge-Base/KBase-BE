@@ -248,7 +248,13 @@ public class AiJobClaimRepository {
                 .addValue("now", timestamp(now)));
     }
 
-    private void lockDedupKey(String dedupKey) {
+    /**
+     * Serializes one semantic job/lifecycle key for the lifetime of the current
+     * PostgreSQL transaction. This is intentionally reusable by the retention
+     * rejoin and purge paths: a Java-side mutex would not protect another node.
+     */
+    public void lockDedupKey(String dedupKey) {
+        Objects.requireNonNull(dedupKey, "dedupKey");
         jdbcTemplate.getJdbcOperations().execute((ConnectionCallback<Void>) connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
                     "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")) {
@@ -262,6 +268,36 @@ public class AiJobClaimRepository {
             }
             return null;
         });
+    }
+
+    /**
+     * Checks that a destructive worker still owns the exact processing lease.
+     * The caller must already hold the corresponding lifecycle advisory lock.
+     */
+    public boolean hasCurrentConversationPurgeLease(UUID jobId, UUID projectId, UUID userId,
+            String leaseToken, Instant now) {
+        if (jobId == null || projectId == null || userId == null || leaseToken == null
+                || leaseToken.isBlank() || now == null) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT count(*)
+                FROM ai_jobs
+                WHERE id = :id
+                  AND job_type = 'CONVERSATION_PURGE'
+                  AND status = 'PROCESSING'
+                  AND project_id = :projectId
+                  AND user_id = :userId
+                  AND document_id IS NULL
+                  AND locked_by = :leaseToken
+                  AND lease_until > :now
+                """, new MapSqlParameterSource()
+                .addValue("id", jobId)
+                .addValue("projectId", projectId)
+                .addValue("userId", userId)
+                .addValue("leaseToken", leaseToken)
+                .addValue("now", timestamp(now)), Integer.class);
+        return count != null && count == 1;
     }
 
     private static JobRow mapRow(ResultSet resultSet, int rowNum) throws SQLException {
