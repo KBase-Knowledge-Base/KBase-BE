@@ -66,4 +66,10 @@ Tệp này định nghĩa các quy tắc bảo mật và an toàn mà agent khô
 - Citation chỉ là snapshot/navigation metadata; mở source vẫn cần current `DocumentAuthorizationService`.
 - M6 Project RAG thực thi authorization trước embedding/SQL, re-check trước khi gửi evidence tới chat provider và re-check sau chat hoặc trước `NO_EVIDENCE` return. SQL không có global vector search; current `documents` join ngăn deleted source vào prompt. Real pgvector Project B closer-vector trap, prompt-injection isolation và real membership revoke during blocked fake chat đã pass.
 - M6 chỉ map exact backend-issued `[SOURCE_n]` labels; unknown/malformed hoặc zero-label output trở thành `INVALID_RESPONSE`, không tạo citation. Snapshot lấy từ backend row, không từ free-form model text; không chứa storage key/URL. Query/history/evidence/answer/vector không vào job state hoặc log trong M6.
+
+### M7 REST privacy enforcement
+
+- Conversation list/get/rename/delete/send/messages kiểm tra current project access rồi query theo `id + projectId + createdByUserId`; wrong owner/project/missing ID cùng trả privacy-safe `AI_CONVERSATION_NOT_FOUND`. OWNER và ADMIN không đọc private conversation của creator khác; ADMIN chỉ dùng own conversation nhờ project override.
+- Initial USER và PROCESSING marker được commit trước provider call. Final transaction kiểm tra access/ownership lại; revoke trong hoặc sau M6 generation chặn COMPLETED answer/source. Internal cleanup chỉ ghi safe FAILED code, không cấp lại read access hay lưu generated text.
+- Public source/index DTO không chứa retrieval score, chunk ID, vector/hash, storage key, job payload/lease, raw provider error hoặc permanent URL. Core document authorization vẫn áp dụng khi mở live source.
 - AI rate-limit state nếu dùng Redis là ephemeral guard, không phải durable permission/business state.

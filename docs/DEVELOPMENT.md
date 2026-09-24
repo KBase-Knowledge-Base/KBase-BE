@@ -18,6 +18,8 @@ AI v1 M5 – Content Extraction / Chunking / Document Indexing đã hoàn tất 
 
 AI v1 M6 – Semantic Retrieval / Grounding / Citations đã hoàn tất ngày `2026-09-23`: internal Project RAG với QUERY embedding, real pgvector project/READY/active/current-document retrieval, deterministic evidence selection, strict NO_EVIDENCE, bounded history/untrusted prompt, exact source labels, citation snapshot mapper và authorization rechecks. Targeted M6 suite 33/33 và full gate 329/329 pass. Không thêm schema/API/Guide/conversation runtime; active handoff là M7 planning-only. Real Gemini key/public network không cần cho automated gate.
 
+AI v1 M7 – Project Assistant Conversations & REST API đã hoàn tất ngày `2026-09-24`: private creator-only conversation CRUD, max-five quota, one-active generation, short transaction split, grounded/NO_EVIDENCE/FAILED lifecycle, source availability và document index status/retry API-AI-001..009. Targeted 36/36 và full gate 346/346 pass; runtime OpenAPI 37 paths/56 operations. V1–V4/generated DB unchanged; active handoff là M8 planning-only. Abrupt JVM death có thể để lại PROCESSING marker, đã ghi trong technical-debt tracker. Automated gate không cần real Gemini credential/network.
+
 M2 – PostgreSQL / Flyway Schema đã hoàn tất ngày `2026-09-17`: 3 Flyway migrations tạo 10 persistent tables với đầy đủ constraint, partial/expression unique index và query index theo Physical Database Design; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; Hibernate `ddl-auto=validate` pass.
 
 M3 – JPA Entities & Repositories đã hoàn tất ngày `2026-09-17`: 10 entity persistent, 5 enum, `DocumentTagId`, 10 feature-local repository, projection/query/fetch graph/lock và document specification đã được implement; mapping integration test 11/11 pass trên PostgreSQL 17 Testcontainer với Flyway từ database rỗng và Hibernate `ddl-auto=validate`. Không có OTP entity/repository.
@@ -465,6 +467,16 @@ Các kiểm tra sau đã chạy ngày `2026-09-23` trên nhánh `feat-AI` với 
 | Static boundary/privacy audit | Pass | No MinIO SDK import in `com.kbase.ai`; Tika only in extraction adapter; Spring AI/Google GenAI only in provider adapter package; no public AI controller/retrieval/conversation/Guide behavior; generated DB/API docs unchanged. |
 
 Real Gemini credential/network and live-provider Compose indexing are intentionally not part of the M5 automated gate. The worker's fixed lease/no-heartbeat limitation is recorded in the M5 completion plan and technical-debt tracker.
+
+### AI v1 M7 verification record (Project Assistant Conversations & REST API)
+
+M7 targeted command on `feat-AI`:
+
+```text
+mvn -B -ntp "-Dtest=ProjectAssistantM7IntegrationTest,ProjectAssistantTitleTest,OpenApiContractIntegrationTest" test
+```
+
+Result: 36/36 PASS, 0 failures, 0 errors, 0 skipped on 2026-09-24. Real PostgreSQL 17.11/pgvector and SecurityFilterChain exercise the nine M7 operations with deterministic fake chat/embedding ports; no real Gemini key or public network. Exact OpenAPI path/operation assertions pass at 37 paths / 56 operations. Full `mvn -B -ntp clean verify`: BUILD SUCCESS, 346 tests, 0 failures/errors/skips; Compose config and diff check PASS. The first full run failed one stale M5 exception-message assertion; it now checks stable `AI_INDEX_RETRY_NOT_ALLOWED` ErrorCode/409, and the full rerun passed.
 
 ## Tài liệu Generated
 

@@ -7,7 +7,7 @@ Tệp này là bản đồ cấp cao nhất của hệ thống. Nó nên ngắn 
 - Sản phẩm: `KBase – Knowledge Base`
 - Workflow Core đã frozen: `Đăng ký → xác minh email bằng OTP → đăng nhập → tạo/tham gia project → tổ chức và quản lý tài liệu project → tìm kiếm metadata → preview/download`
 - AI v1 workflow target: `upload supported knowledge → async index → Project Assistant hỏi/đáp có nguồn`; ngoài project có `KBase Guide` grounded trên approved product specs
-- Bề mặt runtime hiện tại: `Spring Boot REST backend + PostgreSQL/pgvector + Redis + MinIO + Gmail SMTP`; AI persistence/pgvector V4, Gemini adapters, document indexing và internal Project RAG retrieval/grounding/citation mapping đã được triển khai; conversation/REST/Guide runtime thuộc các milestone sau
+- Bề mặt runtime hiện tại: `Spring Boot REST backend + PostgreSQL/pgvector + Redis + MinIO + Gmail SMTP`; AI persistence/pgvector V4, Gemini adapters, document indexing, internal Project RAG và M7 private Project Assistant conversation/REST runtime đã được triển khai; Guide runtime thuộc M9
 - Frontend: `Optional và vẫn hoãn khỏi AI v1 backend phase`; streaming cũng deferred
 - Nguồn sự thật sản phẩm: Core = `docs/product-specs/KBase - Core v1 Specification.md`; AI active = `docs/product-specs/KBase - AI Chatbot v1 Specification.md`
 
@@ -21,7 +21,7 @@ Tệp này là bản đồ cấp cao nhất của hệ thống. Nó nên ngắn 
 | Invitation | Mời thành viên bằng email và invitation token | `/api/v1/projects/{projectId}/invitations/**`, `/api/v1/invitations/accept`, `invitation`, `mail` | `docs/product-specs/KBase - Core v1 Specification.md`, `docs/design-docs/KBase - Core v1 Service Layer Detailed Design.md` |
 | Knowledge Organization | Folder, category và tag trong project | `/api/v1/projects/{projectId}/folders|categories|tags`, `folder`, `category`, `tag` | `docs/design-docs/KBase - Core v1 REST API Specification.md`, `docs/design-docs/KBase - Core v1 JPA Entity Mapping Repository Design.md` |
 | Document & Search | Upload, metadata, preview, download, hard delete và metadata search | `/api/v1/projects/{projectId}/documents`, `/api/v1/documents/**`, `document`, `storage` | `docs/design-docs/KBase - Core v1 MinIO Integration Design.md`, `docs/design-docs/KBase - Core v1 Service Layer Detailed Design.md` |
-| Project Assistant (AI v1 target) | Private project-scoped grounded RAG conversations + citations | `/api/v1/projects/{projectId}/ai/**`, `ai` | `docs/product-specs/KBase - AI Chatbot v1 Specification.md`, `docs/design-docs/KBase - AI Chatbot RAG Architecture.md` |
+| Project Assistant (AI v1 M7) | Private project-scoped grounded RAG conversations + citations | `/api/v1/projects/{projectId}/ai/**`, `ai` | `docs/product-specs/KBase - AI Chatbot v1 Specification.md`, `docs/design-docs/KBase - AI Chatbot RAG Architecture.md` |
 | KBase Guide (AI v1 target) | Grounded product/help assistant from approved KBase product specs; no project data | `/api/v1/ai/guide/**`, `ai.guide` | `docs/product-specs/KBase - AI Chatbot v1 Specification.md`, `docs/design-docs/KBase - AI Chatbot REST API Specification.md` |
 
 ## Mô hình Lớp
@@ -44,7 +44,7 @@ AI v1 tiếp tục mô hình port/adapter:
 
 Vector persistence/query thuộc KBase repository/Flyway schema; không để framework tự sở hữu production vector table. Durable background work dùng PostgreSQL-backed job state; scheduler chỉ poll job, không phải nguồn sự thật.
 
-M6 internal Project RAG đi qua `ProjectRagService -> ProjectEvidenceRetriever / EvidenceSelector / GroundedPromptBuilder / SourceLabelValidator / CitationSnapshotMapper`; SQL retrieval luôn project-scoped, active READY và join current document. Không có AI controller/conversation runtime trong M6.
+M6 internal Project RAG đi qua `ProjectRagService -> ProjectEvidenceRetriever / EvidenceSelector / GroundedPromptBuilder / SourceLabelValidator / CitationSnapshotMapper`; SQL retrieval luôn project-scoped, active READY và join current document. M7 bọc pipeline đó bằng `ProjectAssistantConversationService -> ProjectAssistantPersistenceService` với transaction ngắn trước/sau provider và public controllers/DTO; document index REST dùng M5 application service.
 
 ## Quy tắc Phụ thuộc Cứng
 

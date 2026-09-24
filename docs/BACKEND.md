@@ -123,7 +123,7 @@ Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.
 - Core document binary chỉ đọc qua `StorageService`; AI không import MinIO SDK.
 - M5 `DOCUMENT_INDEX` handler đọc source qua `StorageService`, giữ extraction/chunking/provider calls ngoài claim transaction và chỉ ghi staging/activation qua KBase-owned persistence services; Tika types không lan vào application/domain code.
 - M5 indexing allowlist là `pdf`, `doc`, `docx`, `ppt`, `pptx`, `md`, `txt`; unsupported Core files kết thúc ở `UNSUPPORTED`, còn parser/provider/storage failures đi qua safe bounded retry/terminal categories.
-- Index replacement giữ last-good READY generation cho tới atomic activation; document/project liveness và lease-token predicates chặn stale worker resurrection. Index status/manual retry hiện là application boundary nội bộ, chưa có public controller.
+- Index replacement giữ last-good READY generation cho tới atomic activation; document/project liveness và lease-token predicates chặn stale worker resurrection. M7 đã expose index status/manual retry qua AI controller, giữ application authorization và async job boundary của M5.
 - Project Assistant dùng `ProjectAuthorizationService` hiện tại và private conversation authorization riêng.
 - Vector query/repository bắt buộc project-scoped ở SQL.
 - Background indexing/retention là PostgreSQL-durable job; `@Async`/in-memory timer không đủ.
@@ -141,3 +141,9 @@ Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.
 - `ProjectEvidenceRetriever` authorize bằng `ProjectAuthorizationService` trước `QUERY` embedding và project-scoped pgvector SQL; `ProjectRagService` không giữ transaction qua embedding/chat call, re-check trước chat và sau chat/trước result, kể cả `NO_EVIDENCE`.
 - `EvidenceSelector` quyết định threshold, dedup, adjacent merge và giới hạn constituent chunks; `GroundedPromptBuilder` tách system policy, bounded history, untrusted evidence và current question. History không là evidence.
 - `SourceLabelValidator` chỉ nhận `[SOURCE_n]` đã phát; unknown hoặc zero-label output là provider `INVALID_RESPONSE`. `CitationSnapshotMapper` chỉ dùng backend-selected chunk/document metadata cho caller-supplied assistant message ID; M6 không tạo conversation/message/controller.
+
+### AI v1 M7 private conversation runtime
+
+- `ProjectAssistantConversationService` điều phối turn ngoài transaction; `ProjectAssistantPersistenceService` tạo conversation/USER/ASSISTANT PROCESSING trong một transaction ngắn, gọi M6 RAG sau commit, rồi recheck current access và hoàn tất marker/citations trong transaction khác. Failure giữ USER và chuyển marker sang FAILED bằng safe code.
+- Quota dùng existing durable User row lock trước count, tối đa năm conversation theo project/user. V4 partial unique index là guard cuối cùng cho một PROCESSING assistant mỗi conversation; USER và marker được flush trong cùng transaction để request thua rollback toàn bộ.
+- Mọi normal conversation operation kiểm tra current project access trước creator-scoped query. ADMIN project override không vượt qua ownership. API chỉ xuất DTO, nguồn lịch sử dùng live document/chunk FK và snapshot availability; không xuất score, vector, storage key hoặc provider details.

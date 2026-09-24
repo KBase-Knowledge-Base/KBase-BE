@@ -183,7 +183,7 @@ M6 verification đã chạy:
 - Persistence đã verify trong runtime: `postgres_data`/`minio_data` giữ data qua backend restart và container force-recreate; Redis recreation làm mất pending OTP và resend vẫn hoạt động.
 
 
-## AI v1 Integrations (M6 internal retrieval/RAG đã triển khai; conversation/API/Guide còn deferred)
+## AI v1 Integrations (M7 conversation/API đã triển khai; Guide còn deferred)
 
 | Nguồn | Đích | Mục đích | Persistence | Boundary |
 |---|---|---|---|---|
@@ -219,7 +219,7 @@ M2 verification đã chạy:
 - live catalog xác nhận extension, `vector(768)`, HNSW cosine indexes, relational indexes và FK/delete rules;
 - `AiVectorRepository` giữ project filter và active-version predicate trong SQL; không global-search rồi filter bằng Java.
 
-M4 đã triển khai provider adapter/configuration/error/privacy boundary; M5 dùng embedding port trong worker và M6 dùng query embedding/chat port trong internal Project RAG. Public AI API và rate guard chưa mở.
+M4 đã triển khai provider adapter/configuration/error/privacy boundary; M5 dùng embedding port trong worker, M6 dùng query embedding/chat port trong Project RAG, và M7 expose private conversation cùng document index REST. Usage/rate guard vẫn thuộc M10.
 
 ## AI v1 M3 Durable Job và Core Lifecycle Hooks
 
@@ -262,6 +262,12 @@ M5 verification: targeted extraction/handler/status/persistence suite 17/17 and 
 - Authorized project question đi qua `AiEmbeddingModel` ở `QUERY` mode, rồi `AiVectorRepository` với project predicate, active READY version và current `documents` join trong SQL. Candidate top-K là `kbase.ai.retrieval-candidate-limit`; nullable similarity threshold là inclusive minimum của `1 - cosine distance`.
 - Evidence selector giữ final constituent chunks theo `retrieval-final-context-limit`; prompt gửi sang `AiChatModel` chỉ sau authorization recheck. Completed result được re-check lại sau provider call; `NO_EVIDENCE` bỏ qua chat. Citation mapper chuẩn bị `AiMessageSource` từ selected backend rows, không tạo message hay URL.
 - M6 Testcontainers/fakes chứng minh Project B có perfect vector vẫn không xuất hiện trong Project A prompt/citations, READY/active/deleted filters, source snapshot sau delete và membership removal trong lúc chat. Targeted 33/33 pass trên PostgreSQL 17.11/pgvector; full gate ghi trong M6 plan. Real Gemini credential/public network không cần cho automated gate.
+
+## AI v1 M7 conversation và REST integration
+
+- JWT filter cấp current principal; service kiểm tra project access trước creator-scoped conversation query. M5 `DocumentAiIndexApplicationService` tiếp tục sở hữu document read/modify permission cho status/retry routes.
+- PostgreSQL transaction đầu tiên persist USER và ASSISTANT PROCESSING, dùng row lock/partial unique index; M6 retrieval/embedding/chat chạy sau commit. Transaction cuối recheck current project access và persist COMPLETED answer/citations atomically. Provider failure chuyển marker FAILED, giữ USER; revoke trả current authorization error và không lưu completed content/sources.
+- API source DTO lấy availability từ live document/chunk FK, chỉ giữ snapshot metadata khi source bị delete. Mở document tiếp tục dùng Core document route và current authorization. Automated M7 tests dùng deterministic `FakeAiChatModel`/`FakeAiEmbeddingModel` với real PostgreSQL 17/pgvector, không gọi public Gemini network.
 
 Guide source integration:
 

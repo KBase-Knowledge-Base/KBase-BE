@@ -34,6 +34,7 @@ public class ConstraintViolationTranslator {
         mappings.put("uq_folders_child_name", ErrorCode.FOLDER_NAME_ALREADY_EXISTS);
         mappings.put("uq_categories_project_name", ErrorCode.CATEGORY_NAME_ALREADY_EXISTS);
         mappings.put("uq_tags_project_name", ErrorCode.TAG_NAME_ALREADY_EXISTS);
+        mappings.put("uq_ai_messages_active_generation", ErrorCode.AI_REQUEST_IN_PROGRESS);
         CONSTRAINT_TO_ERROR_CODE = Collections.unmodifiableMap(mappings);
     }
 

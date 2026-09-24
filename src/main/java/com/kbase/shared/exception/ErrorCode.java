@@ -100,6 +100,18 @@ public enum ErrorCode {
     STORAGE_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE,
             "The storage service is temporarily unavailable."),
 
+    // AI Project Assistant and document indexing
+    AI_CONVERSATION_LIMIT_REACHED(HttpStatus.CONFLICT,
+            "The project conversation limit has been reached."),
+    AI_CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND,
+            "The requested conversation was not found."),
+    AI_REQUEST_IN_PROGRESS(HttpStatus.CONFLICT,
+            "A response is already being generated for this conversation."),
+    AI_INDEX_RETRY_NOT_ALLOWED(HttpStatus.CONFLICT,
+            "Only a failed document index can be retried."),
+    AI_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE,
+            "The AI service is temporarily unavailable."),
+
     // External services and final fallback
     OTP_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE,
             "The verification service is temporarily unavailable."),

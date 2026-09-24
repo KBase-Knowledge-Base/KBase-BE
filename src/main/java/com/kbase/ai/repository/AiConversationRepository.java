@@ -7,6 +7,8 @@ import java.util.UUID;
 import com.kbase.ai.entity.AiConversation;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /** Project/user-scoped conversation persistence queries. */
 public interface AiConversationRepository extends JpaRepository<AiConversation, UUID> {
@@ -18,4 +20,7 @@ public interface AiConversationRepository extends JpaRepository<AiConversation, 
 
     List<AiConversation> findAllByProjectIdAndCreatedByUserIdOrderByUpdatedAtDesc(
             UUID projectId, UUID createdByUserId);
+
+    Page<AiConversation> findByProjectIdAndCreatedByUserId(
+            UUID projectId, UUID createdByUserId, Pageable pageable);
 }

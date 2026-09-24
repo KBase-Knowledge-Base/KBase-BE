@@ -132,7 +132,7 @@ AI agent không được tự:
 Các hành động trên chỉ được thực hiện khi có yêu cầu và phê duyệt rõ ràng.
 
 
-## AI v1 Deployment Target (M4 Provider Boundary; indexing/RAG còn planned)
+## AI v1 Deployment Target (M7 Project Assistant runtime)
 
 AI v1 không thêm microservice/broker trong initial phase.
 
@@ -169,4 +169,6 @@ M4 deployment/configuration rules:
 
 Guide accepted product specs phải được package reproducibly vào backend artifact từ canonical `docs/product-specs` files; runtime không phụ thuộc GitHub network.
 
-AI rollback phải ưu tiên disable AI/provider path và giữ Core healthy. Additive AI Flyway schema không được destructive-drop tự động khi rollback application. M4 chưa thêm migration hay runtime indexing/retrieval behavior.
+AI rollback phải ưu tiên disable AI/provider path và giữ Core healthy. Additive AI Flyway schema không được destructive-drop tự động khi rollback application. M4 ban đầu chỉ thêm provider boundary; indexing/retrieval/conversation được triển khai ở các milestone M5–M7 sau đó.
+
+M7 thêm private Project Assistant và document index REST endpoints trên backend hiện tại. Không thêm migration, service, volume, secret family hoặc broker; Flyway vẫn V1–V4. `kbase.ai.enabled=false` giữ Core startup không phụ thuộc real Gemini key. Khi bật AI ngoài test, provider configuration cần credential từ môi trường; M7 automated gate dùng deterministic fakes và không xác minh public Gemini connectivity. Usage guard/Guide/retention purge runtime vẫn thuộc M10/M9/M8.

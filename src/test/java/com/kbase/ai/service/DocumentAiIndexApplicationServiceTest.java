@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.kbase.ai.config.AiProperties;
+import com.kbase.shared.exception.ErrorCode;
 import com.kbase.ai.entity.DocumentAiIndex;
 import com.kbase.ai.enums.DocumentAiIndexStatus;
 import com.kbase.ai.repository.DocumentAiIndexRepository;
@@ -83,7 +84,7 @@ class DocumentAiIndexApplicationServiceTest {
                 documents, indexes, authorization, jobs, new AiProperties());
         assertThatThrownBy(() -> service.requestManualRetry(documentId, mock(CustomUserPrincipal.class)))
                 .isInstanceOf(AiIndexRetryNotAllowedException.class)
-                .hasMessage("AI_INDEX_RETRY_NOT_ALLOWED");
+                .extracting("errorCode").isEqualTo(ErrorCode.AI_INDEX_RETRY_NOT_ALLOWED);
     }
 
     private static com.kbase.project.entity.Project project(UUID id) {

@@ -44,12 +44,14 @@ public class OpenApiConfig {
     public static final String TAG_CATEGORIES = "Categories";
     public static final String TAG_TAGS = "Tags";
     public static final String TAG_DOCUMENTS = "Documents";
+    public static final String TAG_AI_PROJECT_ASSISTANT = "AI - Project Assistant";
+    public static final String TAG_AI_DOCUMENT_INDEXING = "AI - Document Indexing";
 
     @Bean
     public OpenAPI kbaseOpenApi() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("KBase Core API")
+                        .title("KBase API")
                         .version("v1")
                         .description("""
                                 REST API for KBase Core v1 knowledge-base management: authentication, \
@@ -60,7 +62,9 @@ public class OpenApiConfig {
                                 Protected endpoints take a JWT access token through the bearerAuth scheme; the \
                                 refresh token travels only in an HttpOnly cookie. Document upload uses multipart \
                                 form data; preview and download stream the private binary through the backend. \
-                                Search is metadata-only: Core v1 has no content, embedding, vector or AI endpoints."""))
+                                Core document search is metadata-only. AI v1 adds private, non-streaming Project \
+                                Assistant conversations and document indexing status/retry, with current project \
+                                authorization and strict grounded or NO_EVIDENCE answers."""))
                 .components(new Components().addSecuritySchemes(SECURITY_SCHEME_BEARER,
                         new SecurityScheme()
                                 .name(SECURITY_SCHEME_BEARER)
@@ -95,7 +99,11 @@ public class OpenApiConfig {
                 new Tag().name(TAG_TAGS)
                         .description("Project-scoped tags. Create/read: any project member; rename/delete: OWNER or system ADMIN."),
                 new Tag().name(TAG_DOCUMENTS)
-                        .description("Document upload, metadata, search, download, preview and hard delete with project-scoped authorization."));
+                        .description("Document upload, metadata, search, download, preview and hard delete with project-scoped authorization."),
+                new Tag().name(TAG_AI_PROJECT_ASSISTANT)
+                        .description("Private creator-owned project conversations and grounded assistant turns."),
+                new Tag().name(TAG_AI_DOCUMENT_INDEXING)
+                        .description("Document AI index status and asynchronous failed-index retry."));
     }
 
     /**

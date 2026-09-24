@@ -12,4 +12,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AiMessageSourceRepository extends JpaRepository<AiMessageSource, AiMessageSourceId> {
 
     List<AiMessageSource> findAllByIdAssistantMessageIdOrderByIdSourceOrder(UUID assistantMessageId);
+
+    List<AiMessageSource> findAllByIdAssistantMessageIdInOrderByIdAssistantMessageIdAscIdSourceOrderAsc(
+            java.util.Collection<UUID> assistantMessageIds);
 }

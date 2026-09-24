@@ -126,3 +126,8 @@ AI v1 target journeys (chưa được coi là verified cho tới M11):
 - Project RAG trả `NO_EVIDENCE` cố định khi retrieval hiện tại không có usable evidence, không gọi chat; provider timeout/unavailable/invalid response vẫn là lỗi riêng. Access được kiểm tra trước embedding, trước chat và sau chat, nên in-flight membership removal không trả completed result.
 - Query candidate top-K và final constituent-chunk budget bị chặn bởi `AiProperties`; lịch sử hội thoại chỉ giữ tối đa tám turns/4,000 ký tự, không là evidence. Citation snapshot giữ metadata khi live source bị xóa; no public URL được lưu.
 - Targeted M6 33/33 pass gồm real PostgreSQL 17.11/pgvector cross-project/active/deleted/citation/revocation cases. Full gate được ghi tại M6 plan; không yêu cầu real Gemini connectivity.
+
+### M7 conversation lifecycle
+
+- M7 tạo USER và ASSISTANT PROCESSING trong transaction ngắn trước provider; failure/revoke chuyển marker thành FAILED an toàn trong transaction riêng, giữ câu hỏi đã chấp nhận. V4 partial unique index và durable user-row quota lock bảo vệ concurrency qua nhiều JVM; delete conversation không thể bị late provider completion tái tạo.
+- Grounded answer và citations được commit cùng transaction sau current-access recheck; NO_EVIDENCE là successful completed result. Source snapshot vẫn đọc được khi live document/chunk bị xóa, nhưng `availability=UNAVAILABLE` và không có live document ID. API-AI-008/009 chỉ đọc trạng thái hoặc enqueue retry; không gọi provider đồng bộ.

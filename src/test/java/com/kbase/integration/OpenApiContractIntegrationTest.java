@@ -80,7 +80,12 @@ class OpenApiContractIntegrationTest {
             "/api/v1/projects/{projectId}/documents/batch",
             "/api/v1/documents/{documentId}",
             "/api/v1/documents/{documentId}/download",
-            "/api/v1/documents/{documentId}/preview");
+            "/api/v1/documents/{documentId}/preview",
+            "/api/v1/projects/{projectId}/ai/conversations",
+            "/api/v1/projects/{projectId}/ai/conversations/{conversationId}",
+            "/api/v1/projects/{projectId}/ai/conversations/{conversationId}/messages",
+            "/api/v1/projects/{projectId}/documents/{documentId}/ai-index",
+            "/api/v1/projects/{projectId}/documents/{documentId}/ai-index/retry");
 
     private static final Set<String> PUBLIC_AUTH_PATHS = Set.of(
             "/api/v1/auth/register",
@@ -109,12 +114,19 @@ class OpenApiContractIntegrationTest {
 
     @Test
     void specDescribesKBaseCoreV1WithExactlyTheImplementedPaths() {
-        assertThat(spec.get("info").get("title").asString()).isEqualTo("KBase Core API");
+        assertThat(spec.get("info").get("title").asString()).isEqualTo("KBase API");
         assertThat(spec.get("info").get("version").asString()).isEqualTo("v1");
         assertThat(spec.get("openapi").asString()).startsWith("3.");
 
         Set<String> documentedPaths = new java.util.HashSet<>(spec.get("paths").propertyNames());
         assertThat(documentedPaths).containsExactlyInAnyOrderElementsOf(EXPECTED_PATHS);
+        int operations = 0;
+        for (String path : documentedPaths) {
+            for (String method : spec.get("paths").get(path).propertyNames()) {
+                if (!method.equals("parameters")) operations++;
+            }
+        }
+        assertThat(operations).isEqualTo(56);
     }
 
     @Test
@@ -127,13 +139,14 @@ class OpenApiContractIntegrationTest {
     }
 
     @Test
-    void allTwelveFeatureTagsAreDeclared() {
+    void allFourteenFeatureTagsAreDeclared() {
         List<String> tagNames = new java.util.ArrayList<>();
         spec.get("tags").forEach(tag -> tagNames.add(tag.get("name").asString()));
         assertThat(tagNames).containsExactly(
                 "Authentication", "Users", "Admin - Users", "Projects", "Admin - Projects",
                 "Project Members", "Project Invitations", "Invitations",
-                "Folders", "Categories", "Tags", "Documents");
+                "Folders", "Categories", "Tags", "Documents",
+                "AI - Project Assistant", "AI - Document Indexing");
     }
 
     @Test
@@ -367,7 +380,9 @@ class OpenApiContractIntegrationTest {
     void sensitiveAndInternalFieldsAreAbsentFromEverySchema() {
         List<String> forbidden = List.of(
                 "passwordHash", "tokenHash", "storageKey", "refreshToken",
-                "rawToken", "otpHash", "appPassword", "secretKey", "accessKey");
+                "rawToken", "otpHash", "appPassword", "secretKey", "accessKey",
+                "retrievalScore", "chunkId", "sourceHash", "activeVersion", "desiredVersion",
+                "attemptCount", "lastErrorCode", "lockedBy", "payload");
         JsonNode schemas = spec.get("components").get("schemas");
         for (String schemaName : schemas.propertyNames()) {
             JsonNode properties = schemas.get(schemaName).get("properties");
@@ -389,9 +404,60 @@ class OpenApiContractIntegrationTest {
     }
 
     @Test
-    void noAiOrRagEndpointsAreDocumented() {
+    void noUnapprovedAiOrRagEndpointsAreDocumented() {
         for (String path : EXPECTED_PATHS) {
-            assertThat(path).doesNotContain("/chat", "/ask", "/embedding", "/rag", "/semantic");
+            assertThat(path).doesNotContain("/chat", "/ask", "/embedding", "/rag", "/semantic", "/guide");
+        }
+    }
+
+    @Test
+    void aiPathsMethodsAndSchemasMatchTheImplementedM7Boundary() {
+        String conversations = "/api/v1/projects/{projectId}/ai/conversations";
+        String conversation = conversations + "/{conversationId}";
+        String messages = conversation + "/messages";
+        String index = "/api/v1/projects/{projectId}/documents/{documentId}/ai-index";
+        assertThat(spec.get("paths").get(conversations).propertyNames())
+                .containsExactlyInAnyOrder("get", "post");
+        assertThat(spec.get("paths").get(conversation).propertyNames())
+                .containsExactlyInAnyOrder("get", "patch", "delete");
+        assertThat(spec.get("paths").get(messages).propertyNames())
+                .containsExactlyInAnyOrder("get", "post");
+        assertThat(spec.get("paths").get(index).propertyNames()).containsExactly("get");
+        assertThat(spec.get("paths").get(index + "/retry").propertyNames()).containsExactly("post");
+
+        assertThat(operation(conversations, "post").get("tags").get(0).asString())
+                .isEqualTo("AI - Project Assistant");
+        assertThat(operation(index, "get").get("tags").get(0).asString())
+                .isEqualTo("AI - Document Indexing");
+        assertThat(textOrEmpty(operation(conversations, "post").get("responses").get("409")
+                .get("description"))).contains("AI_CONVERSATION_LIMIT_REACHED");
+        assertThat(textOrEmpty(operation(messages, "post").get("responses").get("409")
+                .get("description"))).contains("AI_REQUEST_IN_PROGRESS");
+        assertThat(textOrEmpty(operation(messages, "post").get("responses").get("503")
+                .get("description"))).contains("AI_PROVIDER_UNAVAILABLE");
+        assertThat(operation(index + "/retry", "post").get("responses").has("202")).isTrue();
+        assertThat(spec.toString()).doesNotContain("AI_RATE_LIMIT_EXCEEDED");
+
+        JsonNode createRequest = firstJsonSchema(operation(conversations, "post")
+                .get("requestBody").get("content"));
+        JsonNode sendRequest = firstJsonSchema(operation(messages, "post")
+                .get("requestBody").get("content"));
+        assertThat(createRequest.get("$ref").asString()).contains("CreateAiConversationRequest");
+        assertThat(sendRequest.get("$ref").asString()).contains("SendAiMessageRequest");
+        assertThat(firstJsonSchema(operation(conversations, "post").get("responses")
+                .get("201").get("content")).get("$ref").asString())
+                .contains("CreateAiConversationResponse");
+        assertThat(firstJsonSchema(operation(messages, "post").get("responses")
+                .get("200").get("content")).get("$ref").asString())
+                .contains("AiTurnResponse");
+        assertThat(firstJsonSchema(operation(index + "/retry", "post").get("responses")
+                .get("202").get("content")).get("$ref").asString())
+                .contains("DocumentAiIndexResponse");
+
+        JsonNode schemas = spec.get("components").get("schemas");
+        for (String name : List.of("AiConversationResponse", "AiMessageResponse", "AiSourceResponse",
+                "DocumentAiIndexResponse")) {
+            assertThat(schemas.has(name)).as("M7 DTO %s", name).isTrue();
         }
     }
 
