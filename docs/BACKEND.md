@@ -147,3 +147,12 @@ Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.
 - `ProjectAssistantConversationService` điều phối turn ngoài transaction; `ProjectAssistantPersistenceService` tạo conversation/USER/ASSISTANT PROCESSING trong một transaction ngắn, gọi M6 RAG sau commit, rồi recheck current access và hoàn tất marker/citations trong transaction khác. Failure giữ USER và chuyển marker sang FAILED bằng safe code.
 - Quota dùng existing durable User row lock trước count, tối đa năm conversation theo project/user. V4 partial unique index là guard cuối cùng cho một PROCESSING assistant mỗi conversation; USER và marker được flush trong cùng transaction để request thua rollback toàn bộ.
 - Mọi normal conversation operation kiểm tra current project access trước creator-scoped query. ADMIN project override không vượt qua ownership. API chỉ xuất DTO, nguồn lịch sử dùng live document/chunk FK và snapshot availability; không xuất score, vector, storage key hoặc provider details.
+
+### AI v1 M10 usage guard / observability / contract hardening
+
+- `AiUsageGuard` là KBase-owned application port. `RedisAiUsageGuard` dùng fixed window với injected `Clock`, key `kbase:ai:rate:{userId}:{bucket}` và một Lua script cho atomic `INCR` + first-request `PEXPIRE`; không có JVM/PostgreSQL rate state.
+- Guard chỉ chạy sau capability and authorization checks trên create conversation, send message và Guide query. Project Assistant và Guide dùng chung budget theo authenticated user; conversation reads/rename/delete, document-index retry và background jobs không bị tính quota.
+- Counter vượt 20 request trong 1 phút trả `AI_RATE_LIMIT_EXCEEDED`/429. Redis failure trả `AI_USAGE_GUARD_UNAVAILABLE`/503 cho guarded AI only; raw Redis exception/key/count không ra HTTP/log. Accepted `NO_EVIDENCE` và provider failure không được refund.
+- `AiObservability` là best-effort Micrometer facade với finite operation/outcome/provider/job tags. Nó ghi request/provider/job latency, rate outcomes, retrieval candidate count, `NO_EVIDENCE`, job depth và failed/stale gauges; telemetry không được làm request fail và không tạo public metrics endpoint.
+- Retrieval production default là `0.70`, được chọn từ deterministic fixture evaluation. Nullable blank override vẫn fail-closed cho Guide test behavior; không đổi project authorization hoặc Guide two-source allowlist.
+- Controllers document stable M10 429/503 responses and expose only DTOs. M10 runtime contract remains 38 paths / 57 operations / 15 tags; generated API Markdown is synchronized and no Flyway/generated DB change occurred.

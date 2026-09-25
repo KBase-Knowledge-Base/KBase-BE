@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import com.kbase.ai.config.AiProperties;
 import com.kbase.ai.enums.AiAnswerType;
+import com.kbase.ai.observability.AiObservability;
 import com.kbase.ai.provider.model.AiChatMessage;
 import com.kbase.ai.provider.model.AiChatResult;
 import com.kbase.ai.provider.port.AiChatModel;
@@ -13,6 +14,7 @@ import com.kbase.project.service.ProjectAuthorizationService;
 import com.kbase.security.principal.CustomUserPrincipal;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Internal strict RAG pipeline. Provider work is outside a database transaction. */
@@ -30,12 +32,14 @@ public class ProjectRagService {
     private final SourceLabelValidator labels;
     private final ProjectAuthorizationService authorization;
     private final AiProperties properties;
+    private final AiObservability observability;
 
+    @Autowired
     public ProjectRagService(ProjectEvidenceRetriever retriever,
             ConversationContextPolicy contextPolicy, EvidenceSelector selector,
             GroundedPromptBuilder promptBuilder, AiChatModel chatModel,
             SourceLabelValidator labels, ProjectAuthorizationService authorization,
-            AiProperties properties) {
+            AiProperties properties, AiObservability observability) {
         this.retriever = Objects.requireNonNull(retriever);
         this.contextPolicy = Objects.requireNonNull(contextPolicy);
         this.selector = Objects.requireNonNull(selector);
@@ -44,6 +48,17 @@ public class ProjectRagService {
         this.labels = Objects.requireNonNull(labels);
         this.authorization = Objects.requireNonNull(authorization);
         this.properties = Objects.requireNonNull(properties);
+        this.observability = Objects.requireNonNull(observability);
+    }
+
+    /** Compatibility constructor for focused retrieval tests. */
+    public ProjectRagService(ProjectEvidenceRetriever retriever,
+            ConversationContextPolicy contextPolicy, EvidenceSelector selector,
+            GroundedPromptBuilder promptBuilder, AiChatModel chatModel,
+            SourceLabelValidator labels, ProjectAuthorizationService authorization,
+            AiProperties properties) {
+        this(retriever, contextPolicy, selector, promptBuilder, chatModel, labels,
+                authorization, properties, new AiObservability());
     }
 
     public GroundedResult answer(UUID projectId, CustomUserPrincipal principal,
@@ -59,9 +74,24 @@ public class ProjectRagService {
                 properties.getRetrievalFinalContextLimit());
         authorization.requireProjectAccess(projectId, principal);
         if (evidence.isEmpty()) {
+            observability.recordNoEvidence("PROJECT_ASSISTANT");
             return new GroundedResult(AiAnswerType.NO_EVIDENCE, NO_EVIDENCE_TEXT, "", List.of());
         }
-        AiChatResult generated = chatModel.generate(promptBuilder.build(question, context, evidence));
+        long startedAt = System.nanoTime();
+        String providerOutcome = "SUCCESS";
+        AiChatResult generated;
+        try {
+            generated = chatModel.generate(promptBuilder.build(question, context, evidence));
+        } catch (com.kbase.ai.provider.error.AiProviderException failure) {
+            providerOutcome = failure.category().name();
+            throw failure;
+        } catch (RuntimeException failure) {
+            providerOutcome = "INTERNAL";
+            throw failure;
+        } finally {
+            observability.recordProviderCall("CHAT", providerOutcome,
+                    System.nanoTime() - startedAt);
+        }
         authorization.requireProjectAccess(projectId, principal);
         List<EvidenceSource> cited = labels.validate(generated == null ? null : generated.text(), evidence);
         return new GroundedResult(AiAnswerType.GROUNDED, generated.text(), generated.modelId(), cited);

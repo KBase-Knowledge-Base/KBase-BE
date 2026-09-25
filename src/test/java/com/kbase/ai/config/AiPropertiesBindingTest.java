@@ -32,7 +32,7 @@ class AiPropertiesBindingTest {
             assertThat(properties.getChunkOverlapPercent()).isEqualTo(12);
             assertThat(properties.getRetrievalCandidateLimit()).isEqualTo(10);
             assertThat(properties.getRetrievalFinalContextLimit()).isEqualTo(6);
-            assertThat(properties.getRetrievalSimilarityThreshold()).isNull();
+            assertThat(properties.getRetrievalSimilarityThreshold()).isEqualTo(0.70);
             assertThat(properties.getWorker().getPollInterval()).isEqualTo(Duration.ofSeconds(5));
             assertThat(properties.getWorker().getBatchSize()).isEqualTo(10);
             assertThat(properties.getWorker().getLeaseTimeout()).isEqualTo(Duration.ofMinutes(2));
@@ -40,6 +40,8 @@ class AiPropertiesBindingTest {
             assertThat(properties.getWorker().getMaxAttempts()).isEqualTo(3);
             assertThat(properties.getRetention()).isEqualTo(Duration.ofDays(7));
             assertThat(properties.getUsageRateNamespace()).isEqualTo("kbase:ai:rate");
+            assertThat(properties.getUsageMaxRequests()).isEqualTo(20);
+            assertThat(properties.getUsageWindow()).isEqualTo(Duration.ofMinutes(1));
         });
     }
 
@@ -66,7 +68,9 @@ class AiPropertiesBindingTest {
                         "kbase.ai.worker.retry-backoff=31s",
                         "kbase.ai.worker.max-attempts=4",
                         "kbase.ai.retention=8d",
-                        "kbase.ai.usage-rate-namespace=test:ai:rate")
+                        "kbase.ai.usage-rate-namespace=test:ai:rate",
+                        "kbase.ai.usage-max-requests=5",
+                        "kbase.ai.usage-window=30s")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     AiProperties properties = context.getBean(AiProperties.class);
@@ -83,6 +87,8 @@ class AiPropertiesBindingTest {
                     assertThat(properties.getWorker().getRetryBackoff()).isEqualTo(Duration.ofSeconds(31));
                     assertThat(properties.getRetention()).isEqualTo(Duration.ofDays(8));
                     assertThat(properties.getUsageRateNamespace()).isEqualTo("test:ai:rate");
+                    assertThat(properties.getUsageMaxRequests()).isEqualTo(5);
+                    assertThat(properties.getUsageWindow()).isEqualTo(Duration.ofSeconds(30));
                 });
     }
 
@@ -100,6 +106,16 @@ class AiPropertiesBindingTest {
                         "kbase.ai.provider.connect-timeout=0s",
                         "kbase.ai.max-message-chars=0",
                         "kbase.ai.chunk-overlap-percent=100")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void rejectsInvalidUsageGuardConfiguration() {
+        contextRunner
+                .withPropertyValues(
+                        "kbase.ai.usage-max-requests=0",
+                        "kbase.ai.usage-window=0s",
+                        "kbase.ai.usage-rate-namespace= ")
                 .run(context -> assertThat(context).hasFailed());
     }
 

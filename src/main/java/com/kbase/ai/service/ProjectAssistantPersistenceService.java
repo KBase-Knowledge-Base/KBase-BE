@@ -116,6 +116,16 @@ public class ProjectAssistantPersistenceService {
                 AiConversationResponse.from(conversation), List.copyOf(history), access.membershipId());
     }
 
+    /**
+     * Privacy-safe read preflight used before the usage guard. The actual
+     * start transaction still repeats authorization and ownership checks.
+     */
+    @Transactional(readOnly = true)
+    public void preflightSend(UUID projectId, UUID conversationId,
+            CustomUserPrincipal principal) {
+        requireOwned(projectId, conversationId, principal);
+    }
+
     @Transactional
     public AiTurnResponse complete(UUID projectId, CustomUserPrincipal principal,
             StartedTurn started, GroundedResult result) {

@@ -6,10 +6,12 @@ import com.kbase.ai.config.AiProperties;
 import com.kbase.ai.dto.response.AiConversationResponse;
 import com.kbase.ai.dto.response.AiTurnResponse;
 import com.kbase.ai.dto.response.CreateAiConversationResponse;
+import com.kbase.ai.observability.AiObservability;
 import com.kbase.ai.provider.error.AiProviderException;
 import com.kbase.ai.retrieval.GroundedResult;
 import com.kbase.ai.retrieval.ProjectRagService;
 import com.kbase.ai.service.ProjectAssistantPersistenceService.StartedTurn;
+import com.kbase.ai.usage.AiUsageGuard;
 import com.kbase.project.service.ProjectAuthorizationService;
 import com.kbase.security.principal.CustomUserPrincipal;
 import com.kbase.shared.exception.BusinessException;
@@ -17,6 +19,7 @@ import com.kbase.shared.exception.ErrorCode;
 import com.kbase.shared.exception.KBaseException;
 import com.kbase.shared.pagination.PageResponse;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -30,33 +33,72 @@ public class ProjectAssistantConversationService {
     private final ProjectAuthorizationService authorization;
     private final ProjectAssistantFinalizationHook finalizationHook;
     private final AiProperties properties;
+    private final AiUsageGuard usageGuard;
+    private final AiObservability observability;
 
+    @Autowired
     public ProjectAssistantConversationService(ProjectAssistantPersistenceService persistence,
             ObjectProvider<ProjectRagService> ragProvider,
             ProjectAuthorizationService authorization,
-            ProjectAssistantFinalizationHook finalizationHook, AiProperties properties) {
+            ProjectAssistantFinalizationHook finalizationHook, AiProperties properties,
+            AiUsageGuard usageGuard, AiObservability observability) {
         this.persistence = persistence;
         this.ragProvider = ragProvider;
         this.authorization = authorization;
         this.finalizationHook = finalizationHook;
         this.properties = properties;
+        this.usageGuard = usageGuard;
+        this.observability = observability;
+    }
+
+    /** Compatibility constructor for focused orchestration tests. */
+    public ProjectAssistantConversationService(ProjectAssistantPersistenceService persistence,
+            ObjectProvider<ProjectRagService> ragProvider,
+            ProjectAuthorizationService authorization,
+            ProjectAssistantFinalizationHook finalizationHook, AiProperties properties) {
+        this(persistence, ragProvider, authorization, finalizationHook, properties,
+                userId -> { }, new AiObservability());
     }
 
     public CreateAiConversationResponse create(UUID projectId, CustomUserPrincipal principal,
             String message) {
-        String question = validMessage(message);
-        ProjectRagService rag = requireRag();
-        StartedTurn started = persistence.create(projectId, principal, question, initialTitle(question));
-        AiTurnResponse turn = answer(projectId, principal, started, rag);
-        return new CreateAiConversationResponse(started.conversation(), turn.message(), turn.sources());
+        long startedAt = System.nanoTime();
+        String outcome = "SUCCESS";
+        try {
+            String question = validMessage(message);
+            ProjectRagService rag = requireRag();
+            authorization.requireProjectAccess(projectId, principal);
+            usageGuard.consume(principal.getUserId());
+            StartedTurn started = persistence.create(projectId, principal, question, initialTitle(question));
+            AiTurnResponse turn = answer(projectId, principal, started, rag);
+            return new CreateAiConversationResponse(started.conversation(), turn.message(), turn.sources());
+        } catch (RuntimeException failure) {
+            outcome = AiObservability.requestOutcome(failure);
+            throw failure;
+        } finally {
+            observability.recordInteractiveRequest("PROJECT_ASSISTANT_CREATE", outcome,
+                    System.nanoTime() - startedAt);
+        }
     }
 
     public AiTurnResponse send(UUID projectId, UUID conversationId,
             CustomUserPrincipal principal, String message) {
-        String question = validMessage(message);
-        ProjectRagService rag = requireRag();
-        StartedTurn started = persistence.startSend(projectId, conversationId, principal, question);
-        return answer(projectId, principal, started, rag);
+        long startedAt = System.nanoTime();
+        String outcome = "SUCCESS";
+        try {
+            String question = validMessage(message);
+            ProjectRagService rag = requireRag();
+            persistence.preflightSend(projectId, conversationId, principal);
+            usageGuard.consume(principal.getUserId());
+            StartedTurn started = persistence.startSend(projectId, conversationId, principal, question);
+            return answer(projectId, principal, started, rag);
+        } catch (RuntimeException failure) {
+            outcome = AiObservability.requestOutcome(failure);
+            throw failure;
+        } finally {
+            observability.recordInteractiveRequest("PROJECT_ASSISTANT_SEND", outcome,
+                    System.nanoTime() - startedAt);
+        }
     }
 
     public PageResponse<AiConversationResponse> list(UUID projectId, CustomUserPrincipal principal,

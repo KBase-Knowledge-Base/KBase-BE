@@ -10,7 +10,9 @@ import com.kbase.ai.job.AiJobClaim;
 import com.kbase.ai.job.AiJobExecutionOutcome;
 import com.kbase.ai.job.AiJobExecutionResult;
 import com.kbase.ai.job.AiJobHandler;
+import com.kbase.ai.observability.AiObservability;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,10 +28,19 @@ public class AiJobScheduler {
 
     private final AiJobStore jobStore;
     private final AiJobHandlerRegistry handlerRegistry;
+    private final AiObservability observability;
 
-    public AiJobScheduler(AiJobStore jobStore, AiJobHandlerRegistry handlerRegistry) {
+    @Autowired
+    public AiJobScheduler(AiJobStore jobStore, AiJobHandlerRegistry handlerRegistry,
+            AiObservability observability) {
         this.jobStore = jobStore;
         this.handlerRegistry = handlerRegistry;
+        this.observability = observability;
+    }
+
+    /** Compatibility constructor for focused scheduler tests. */
+    public AiJobScheduler(AiJobStore jobStore, AiJobHandlerRegistry handlerRegistry) {
+        this(jobStore, handlerRegistry, new AiObservability());
     }
 
     @Scheduled(fixedDelayString = "${kbase.ai.worker.poll-interval:5s}")
@@ -47,10 +58,17 @@ public class AiJobScheduler {
         for (AiJobClaim claim : claims) {
             executeOne(claim);
         }
+        try {
+            observability.recordJobDepth(jobStore.depthByStatus(supportedTypes),
+                    jobStore.staleJobCount(supportedTypes));
+        } catch (RuntimeException ignored) {
+            // Job telemetry must never stop the worker loop.
+        }
         return claims.size();
     }
 
     private void executeOne(AiJobClaim claim) {
+        long startedAt = System.nanoTime();
         AiJobExecutionResult result;
         try {
             AiJobHandler handler = handlerRegistry.handlerFor(claim.jobType()).orElse(null);
@@ -71,23 +89,30 @@ public class AiJobScheduler {
                             jobStore.now().plus(jobStore.retryBackoff()), WORKER_EXCEPTION);
         }
 
-        if (result == null || result.outcome() == null) {
-            jobStore.markFailed(claim, "INVALID_HANDLER_RESULT");
-            return;
-        }
-
-        switch (result.outcome()) {
-            case SUCCESS -> jobStore.markDone(claim);
-            case RETRY -> {
-                Instant nextRunAt = result.nextRunAt() == null
-                        ? jobStore.now().plus(jobStore.retryBackoff()) : result.nextRunAt();
-                if (claim.attemptCount() >= claim.maxAttempts()) {
-                    jobStore.markFailed(claim, result.errorCode());
-                } else {
-                    jobStore.markRetry(claim, nextRunAt, result.errorCode());
-                }
+        try {
+            if (result == null || result.outcome() == null) {
+                jobStore.markFailed(claim, "INVALID_HANDLER_RESULT");
+                return;
             }
-            case FAILURE -> jobStore.markFailed(claim, result.errorCode());
+
+            switch (result.outcome()) {
+                case SUCCESS -> jobStore.markDone(claim);
+                case RETRY -> {
+                    Instant nextRunAt = result.nextRunAt() == null
+                            ? jobStore.now().plus(jobStore.retryBackoff()) : result.nextRunAt();
+                    if (claim.attemptCount() >= claim.maxAttempts()) {
+                        jobStore.markFailed(claim, result.errorCode());
+                    } else {
+                        jobStore.markRetry(claim, nextRunAt, result.errorCode());
+                    }
+                }
+                case FAILURE -> jobStore.markFailed(claim, result.errorCode());
+            }
+        } finally {
+            observability.recordJobExecution(claim.jobType().name(),
+                    result == null || result.outcome() == null
+                            ? AiJobExecutionOutcome.FAILURE.name() : result.outcome().name(),
+                    System.nanoTime() - startedAt);
         }
     }
 }

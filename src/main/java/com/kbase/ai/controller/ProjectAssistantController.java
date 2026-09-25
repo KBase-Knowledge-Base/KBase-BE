@@ -81,7 +81,10 @@ public class ProjectAssistantController {
             @ApiResponse(responseCode = "409", description = "AI_CONVERSATION_LIMIT_REACHED",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ApiErrorResponse.class))),
-            @ApiResponse(responseCode = "503", description = "AI_PROVIDER_UNAVAILABLE",
+            @ApiResponse(responseCode = "429", description = "AI_RATE_LIMIT_EXCEEDED",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "AI_PROVIDER_UNAVAILABLE or AI_USAGE_GUARD_UNAVAILABLE",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ApiErrorResponse.class)))
     })
@@ -178,7 +181,10 @@ public class ProjectAssistantController {
             @ApiResponse(responseCode = "409", description = "AI_REQUEST_IN_PROGRESS",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ApiErrorResponse.class))),
-            @ApiResponse(responseCode = "503", description = "AI_PROVIDER_UNAVAILABLE",
+            @ApiResponse(responseCode = "429", description = "AI_RATE_LIMIT_EXCEEDED",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "AI_PROVIDER_UNAVAILABLE or AI_USAGE_GUARD_UNAVAILABLE",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ApiErrorResponse.class)))
     })

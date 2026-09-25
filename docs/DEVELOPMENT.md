@@ -22,7 +22,9 @@ AI v1 M7 – Project Assistant Conversations & REST API đã hoàn tất ngày `
 
 AI v1 M8 – Membership Retention / Deletion / Security Races đã hoàn tất ngày `2026-09-24`: provider-independent `CONVERSATION_PURGE`, retention lifecycle và AI-disabled maintenance đã verify; full gate 352/352 pass.
 
-AI v1 M9 – KBase Guide đã hoàn tất ngày `2026-09-25`: exact two-spec canonical Maven/Docker packaging, packaged SHA-256 reconciliation and last-good `GUIDE_REINDEX`, fenced-code-safe deterministic Guide chunks, SQL-bound allowlist retrieval proven against a rogue perfect vector, null-threshold fail-closed NO_EVIDENCE, and authenticated stateless API-AI-010. Runtime OpenAPI is 38 paths/57 operations; final full gate is 356/356. V1–V4/generated DB unchanged; M10 usage guard/observability is ready but not started. Automated gate uses deterministic fakes and no real Gemini credential/network.
+AI v1 M9 – KBase Guide đã hoàn tất ngày `2026-09-25`: exact two-spec canonical Maven/Docker packaging, packaged SHA-256 reconciliation and last-good `GUIDE_REINDEX`, fenced-code-safe deterministic Guide chunks, SQL-bound allowlist retrieval proven against a rogue perfect vector, null-threshold fail-closed NO_EVIDENCE, and authenticated stateless API-AI-010. Runtime OpenAPI remains 38 paths/57 operations; automated gate uses deterministic fakes and no real Gemini credential/network.
+
+AI v1 M10 – Usage Guard / OpenAPI / Observability / Hardening đã hoàn tất ngày `2026-09-25`: Redis 7.4 fixed-window per-user guard với atomic Lua `INCR` + first-request TTL, shared Project Assistant/Guide budget mặc định 20/1m, stable `AI_RATE_LIMIT_EXCEEDED`/429 và `AI_USAGE_GUARD_UNAVAILABLE`/503, retrieval threshold `0.70`, bounded Micrometer telemetry, safe logs, exact OpenAPI 38 paths/57 operations/15 tags, generated API snapshot sync và sensitive-data audit. Final `mvn -B -ntp clean verify` là 371/371; focused Redis 5/5, OpenAPI 22/22, Compose config và diff check pass. M11 full runtime verification/freeze là active handoff; M10 không dùng real Gemini credential/network và không đổi V1–V4.
 
 M2 – PostgreSQL / Flyway Schema đã hoàn tất ngày `2026-09-17`: 3 Flyway migrations tạo 10 persistent tables với đầy đủ constraint, partial/expression unique index và query index theo Physical Database Design; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; Hibernate `ddl-auto=validate` pass.
 
@@ -352,6 +354,18 @@ Các kiểm tra sau đã chạy ngày `2026-09-18`:
 | Static M10 scope/boundary review | Pass | SDK chỉ trong `storage` adapter/config; không storage byte-array buffering, public API, migration, policy/versioning/retention/object-lock mutation hay M11 lifecycle; Compose vẫn mount `minio_data:/data` |
 
 M10 không thay đổi Flyway migration, REST endpoint hay generated API/DB schema; vì vậy `docs/generated/db-schema.md` và `docs/generated/api-schema.md` không cần tái sinh.
+
+### AI v1 M10 verification record
+
+| Lệnh hoặc kiểm tra | Kết quả | Ghi chú |
+|---|---|---|
+| `mvn -B -ntp "-Dtest=RedisAiUsageGuardIntegrationTest" test` | Pass — 5/5 | Redis 7.4 Testcontainer; atomic limit, shared user isolation, controllable rollover, TTL semantics and unavailable mapping. |
+| `mvn -B -ntp "-Dtest=AiObservabilityTest,GuideControllerTest,ProjectAssistantM7IntegrationTest,OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest" test` | Pass | M10 bounded telemetry, Guide guard/provider boundary, Project Assistant guard ordering and exact runtime OpenAPI regression. |
+| `mvn -B -ntp clean verify` | Pass — `BUILD SUCCESS`; 371 tests, 0 failures/errors/skips | Non-fatal Testcontainers shutdown/placeholder PostgreSQL scheduler warnings were observed; Surefire completed successfully. |
+| `docker compose -f docker-compose.yml config --quiet` + `git diff --check` | Pass | M10 env passthrough valid; no whitespace errors; no Flyway/generated DB change. |
+| Sensitive-data/scope scan | Pass | No raw prompt/chunk/answer/vector/hash/storage key/job lease/worker/Redis/provider/credential emission; no real Gemini network. |
+
+M10 automated verification uses deterministic fakes and does not require `KBASE_AI_GEMINI_API_KEY`. M11 remains responsible for provider-backed Docker golden journeys, restart/recovery and AI v1 freeze.
 
 ### M13 verification record
 

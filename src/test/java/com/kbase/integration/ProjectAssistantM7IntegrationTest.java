@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -34,6 +37,9 @@ import com.kbase.ai.repository.AiVectorRepository;
 import com.kbase.ai.repository.DocumentAiChunkInsert;
 import com.kbase.ai.service.ProjectAssistantConversationService;
 import com.kbase.ai.service.ProjectAssistantFinalizationHook;
+import com.kbase.ai.usage.AiUsageGuard;
+import com.kbase.shared.exception.AiRateLimitExceededException;
+import com.kbase.shared.exception.AiUsageGuardUnavailableException;
 import com.kbase.security.jwt.JwtService;
 import com.kbase.security.principal.CustomUserPrincipal;
 import com.kbase.shared.exception.BusinessException;
@@ -107,6 +113,10 @@ class ProjectAssistantM7IntegrationTest {
     @MockitoBean
     private ProjectAssistantFinalizationHook finalizationHook;
 
+    /** M7 focuses on conversation semantics; M10 owns the real Redis guard tests. */
+    @MockitoBean
+    private AiUsageGuard usageGuard;
+
     @Autowired private MockMvc mvc;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private UserRepository users;
@@ -156,6 +166,69 @@ class ProjectAssistantM7IntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, bearer(fixture.owner())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(2));
+    }
+
+    @Test
+    void rateRejectedCreateHasNoConversationOrProviderSideEffects() throws Exception {
+        Fixture fixture = fixture();
+        doThrow(new AiRateLimitExceededException()).when(usageGuard).consume(any());
+
+        mvc.perform(post(conversationsPath(fixture.projectId()))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(fixture.owner()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"blocked\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("AI_RATE_LIMIT_EXCEEDED"));
+
+        assertThat(countPair(fixture.projectId(), fixture.owner().getId())).isZero();
+        assertThat(fakeEmbedding.invocationCount()).isZero();
+        assertThat(fakeChat.invocationCount()).isZero();
+    }
+
+    @Test
+    void rateRejectedSendHasNoSecondUserOrProcessingMessage() {
+        Fixture fixture = fixture();
+        var created = conversations.create(fixture.projectId(), principal(fixture.owner()), "first");
+        UUID conversationId = created.conversation().id();
+        fakeEmbedding.reset();
+        fakeChat.reset();
+        doThrow(new AiRateLimitExceededException()).when(usageGuard).consume(any());
+
+        assertThatThrownBy(() -> conversations.send(fixture.projectId(), conversationId,
+                principal(fixture.owner()), "blocked"))
+                .isInstanceOf(AiRateLimitExceededException.class);
+        assertThat(count("ai_messages", "conversation_id", conversationId)).isEqualTo(2);
+        assertThat(fakeEmbedding.invocationCount()).isZero();
+        assertThat(fakeChat.invocationCount()).isZero();
+    }
+
+    @Test
+    void rateRejectedGuideHasNoEmbeddingOrChatSideEffects() throws Exception {
+        User user = user(SystemRole.USER);
+        doThrow(new AiRateLimitExceededException()).when(usageGuard).consume(any());
+
+        mvc.perform(post("/api/v1/ai/guide/query")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"blocked\",\"context\":[]}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("AI_RATE_LIMIT_EXCEEDED"));
+
+        assertThat(fakeEmbedding.invocationCount()).isZero();
+        assertThat(fakeChat.invocationCount()).isZero();
+    }
+
+    @Test
+    void rateGuardFailureDoesNotAffectAnAuthenticatedCoreEndpoint() throws Exception {
+        Fixture fixture = fixture();
+        doThrow(new AiUsageGuardUnavailableException()).when(usageGuard).consume(any());
+
+        mvc.perform(get("/api/v1/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(fixture.owner())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(fixture.owner().getId().toString()));
+
+        verify(usageGuard, never()).consume(any());
     }
 
     @Test

@@ -297,8 +297,8 @@ public class DocumentService {
         for (String key : keys) {
             try { storageService.delete(key); }
             catch (RuntimeException cleanupFailure) {
-                LOGGER.error("COMPENSATION FAILURE projectId={} documentId={} storageKey={} rootFailure={}",
-                        projectId, documentId, key, root.getClass().getSimpleName(), cleanupFailure);
+                LOGGER.error("COMPENSATION FAILURE projectId={} documentId={} rootFailure={}",
+                        projectId, documentId, root.getClass().getSimpleName(), cleanupFailure);
             }
         }
     }

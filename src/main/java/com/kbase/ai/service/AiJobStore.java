@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -112,6 +113,14 @@ public class AiJobStore {
 
     public Duration retryBackoff() {
         return properties.getWorker().getRetryBackoff();
+    }
+
+    public Map<String, Long> depthByStatus(Set<AiJobType> allowedTypes) {
+        return repository.countByStatus(allowedTypes);
+    }
+
+    public long staleJobCount(Set<AiJobType> allowedTypes) {
+        return repository.countStale(allowedTypes, clock.instant());
     }
 
     private boolean transition(java.util.function.IntSupplier transition) {

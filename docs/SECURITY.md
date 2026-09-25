@@ -73,3 +73,11 @@ Tệp này định nghĩa các quy tắc bảo mật và an toàn mà agent khô
 - Initial USER và PROCESSING marker được commit trước provider call. Final transaction kiểm tra access/ownership lại; revoke trong hoặc sau M6 generation chặn COMPLETED answer/source. Internal cleanup chỉ ghi safe FAILED code, không cấp lại read access hay lưu generated text.
 - Public source/index DTO không chứa retrieval score, chunk ID, vector/hash, storage key, job payload/lease, raw provider error hoặc permanent URL. Core document authorization vẫn áp dụng khi mở live source.
 - AI rate-limit state nếu dùng Redis là ephemeral guard, không phải durable permission/business state.
+
+### M10 usage guard and leakage hardening
+
+- The AI usage guard is not part of `SecurityFilterChain` and is not a global HTTP limiter. It runs only after capability and project/creator authorization checks on Project Assistant create/send and Guide query.
+- Project Assistant and Guide share one per-authenticated-user Redis budget. Keys contain only the bounded namespace, user ID and time bucket; project ID, conversation ID, email, message text, counters and provider material are excluded. Redis state is ephemeral and never mirrors into PostgreSQL.
+- Guarded AI requests fail closed on Redis state failure with `AI_USAGE_GUARD_UNAVAILABLE`/503. A real exceeded counter maps to `AI_RATE_LIMIT_EXCEEDED`/429. Responses and logs never include raw Redis exceptions, keys, counts, hostnames or credentials; Core routes remain independent.
+- No raw prompt, chunk, answer, vector, hash, storage key, job payload, lease/worker identifier, provider request/response or API key is added to DTOs, OpenAPI descriptions, metrics tags, logs or durable state. Document compensation logging records only safe identifiers/categories.
+- M10 negative tests cover bounded observability tags and sentinels, provider failure mapping, Guide availability, guard unavailable/429 contracts, OpenAPI sensitive-field absence and authorization-before-charge ordering.

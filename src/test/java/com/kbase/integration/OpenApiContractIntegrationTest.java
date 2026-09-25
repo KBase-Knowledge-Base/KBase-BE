@@ -434,12 +434,34 @@ class OpenApiContractIntegrationTest {
                 .isEqualTo("AI - Document Indexing");
         assertThat(textOrEmpty(operation(conversations, "post").get("responses").get("409")
                 .get("description"))).contains("AI_CONVERSATION_LIMIT_REACHED");
+        assertThat(textOrEmpty(operation(conversations, "post").get("responses").get("429")
+                .get("description"))).contains("AI_RATE_LIMIT_EXCEEDED");
+        assertThat(textOrEmpty(operation(conversations, "post").get("responses").get("503")
+                .get("description"))).contains("AI_PROVIDER_UNAVAILABLE", "AI_USAGE_GUARD_UNAVAILABLE");
         assertThat(textOrEmpty(operation(messages, "post").get("responses").get("409")
                 .get("description"))).contains("AI_REQUEST_IN_PROGRESS");
+        assertThat(textOrEmpty(operation(messages, "post").get("responses").get("429")
+                .get("description"))).contains("AI_RATE_LIMIT_EXCEEDED");
         assertThat(textOrEmpty(operation(messages, "post").get("responses").get("503")
-                .get("description"))).contains("AI_PROVIDER_UNAVAILABLE");
+                .get("description"))).contains("AI_PROVIDER_UNAVAILABLE", "AI_USAGE_GUARD_UNAVAILABLE");
+        assertThat(textOrEmpty(operation("/api/v1/ai/guide/query", "post").get("responses").get("429")
+                .get("description"))).contains("AI_RATE_LIMIT_EXCEEDED");
+        assertThat(textOrEmpty(operation("/api/v1/ai/guide/query", "post").get("responses").get("503")
+                .get("description"))).contains("AI_PROVIDER_UNAVAILABLE", "AI_USAGE_GUARD_UNAVAILABLE");
+        for (String unguarded : List.of(
+                "get " + conversations,
+                "get " + conversation,
+                "patch " + conversation,
+                "delete " + conversation,
+                "get " + messages,
+                "get /api/v1/projects/{projectId}/documents/{documentId}/ai-index",
+                "post /api/v1/projects/{projectId}/documents/{documentId}/ai-index/retry")) {
+            String[] parts = unguarded.split(" ", 2);
+            assertThat(operation(parts[1], parts[0]).get("responses").has("429"))
+                    .as("non-interactive AI operation %s must not advertise the usage guard", unguarded)
+                    .isFalse();
+        }
         assertThat(operation(index + "/retry", "post").get("responses").has("202")).isTrue();
-        assertThat(spec.toString()).doesNotContain("AI_RATE_LIMIT_EXCEEDED");
 
         JsonNode createRequest = firstJsonSchema(operation(conversations, "post")
                 .get("requestBody").get("content"));
@@ -469,7 +491,8 @@ class OpenApiContractIntegrationTest {
         String specText = spec.toString();
         for (String code : List.of("VALIDATION_ERROR", "INVALID_OTP", "OTP_EXPIRED", "OTP_ATTEMPTS_EXCEEDED",
                 "OTP_RESEND_COOLDOWN", "OTP_SERVICE_UNAVAILABLE", "EMAIL_SERVICE_UNAVAILABLE",
-                "STORAGE_SERVICE_UNAVAILABLE", "PROJECT_ACCESS_FORBIDDEN", "DOCUMENT_MODIFICATION_FORBIDDEN")) {
+                "STORAGE_SERVICE_UNAVAILABLE", "PROJECT_ACCESS_FORBIDDEN", "DOCUMENT_MODIFICATION_FORBIDDEN",
+                "AI_RATE_LIMIT_EXCEEDED", "AI_USAGE_GUARD_UNAVAILABLE")) {
             assertThat(specText).contains(code);
         }
     }

@@ -89,7 +89,7 @@ kbase:
     chunk-overlap-percent: ${KBASE_AI_CHUNK_OVERLAP_PERCENT:12}
     retrieval-candidate-limit: ${KBASE_AI_RETRIEVAL_CANDIDATE_LIMIT:10}
     retrieval-final-context-limit: ${KBASE_AI_RETRIEVAL_FINAL_CONTEXT_LIMIT:6}
-    retrieval-similarity-threshold: ${KBASE_AI_RETRIEVAL_SIMILARITY_THRESHOLD:}
+    retrieval-similarity-threshold: ${KBASE_AI_RETRIEVAL_SIMILARITY_THRESHOLD:0.70}
     worker:
       poll-interval: ${KBASE_AI_WORKER_POLL_INTERVAL:5s}
       batch-size: ${KBASE_AI_WORKER_BATCH_SIZE:10}
@@ -98,6 +98,8 @@ kbase:
       max-attempts: ${KBASE_AI_WORKER_MAX_ATTEMPTS:3}
     retention: ${KBASE_AI_RETENTION:7d}
     usage-rate-namespace: ${KBASE_AI_USAGE_RATE_NAMESPACE:kbase:ai:rate}
+    usage-max-requests: ${KBASE_AI_USAGE_MAX_REQUESTS:20}
+    usage-window: ${KBASE_AI_USAGE_WINDOW:1m}
   jwt:
     signing-secret: ${KBASE_JWT_SECRET}
     access-token-ttl: ${KBASE_ACCESS_TOKEN_TTL:15m}

@@ -120,4 +120,11 @@ Quy tắc bổ sung:
 - AI errors tiếp tục dùng `ApiErrorResponse` + stable `ErrorCode`.
 - Không public vector, source hash, storage key, AI job payload/lease hoặc raw provider response.
 
-M7 đã triển khai API-AI-001..009; M9 đã thêm API-AI-010, xác minh exact runtime OpenAPI path/method/tag/security/DTO set và đồng bộ `docs/generated/api-schema.md` tại 38 paths/57 operations. Guide query là authenticated và stateless, không nhận `projectId`, chỉ nhận bounded USER/ASSISTANT context, và không tạo conversation/message/source row. Usage/rate 429 vẫn thuộc M10. Conversation GET trả metadata, messages dùng route phân trang; `NO_EVIDENCE` là 2xx và provider failure là safe 503 với USER/FAILED marker vẫn có thể đọc sau đó.
+M7 đã triển khai API-AI-001..009; M9 đã thêm API-AI-010; M10 xác minh exact runtime OpenAPI path/method/tag/security/DTO set và đồng bộ `docs/generated/api-schema.md` tại 38 paths/57 operations/15 tags. Guide query là authenticated và stateless, không nhận `projectId`, chỉ nhận bounded USER/ASSISTANT context, và không tạo conversation/message/source row. M10 bổ sung stable `AI_RATE_LIMIT_EXCEEDED`/429 và `AI_USAGE_GUARD_UNAVAILABLE`/503 cho đúng ba interactive POST operations: Project Assistant create/send và Guide query. Budget dùng chung theo user; conversation reads/rename/delete, document-index retry và background jobs không bị guard. Conversation GET trả metadata, messages dùng route phân trang; `NO_EVIDENCE` là 2xx và provider failure là safe 503 với USER/FAILED marker vẫn có thể đọc sau đó.
+
+## AI v1 – M10 Guard and Contract Rules
+
+- Usage charging occurs only after AI capability availability and the relevant project/creator authorization checks. A rejected request must not create a conversation, USER message or PROCESSING marker.
+- `AI_RATE_LIMIT_EXCEEDED` means the configured counter was exceeded; `AI_USAGE_GUARD_UNAVAILABLE` means Redis rate state was unavailable. Neither response includes Redis keys, counts, hostnames or raw exception text.
+- The guard is an application boundary, not a servlet filter, security-chain dependency or global `/api/v1/**` limiter. Core endpoints remain available when the AI rate Redis state is unavailable.
+- `docs/generated/api-schema.md` follows verified `/v3/api-docs`; API contract changes must update annotations, exact contract tests and the snapshot in one slice. M10 made no database schema change, so `docs/generated/db-schema.md` remains unchanged.

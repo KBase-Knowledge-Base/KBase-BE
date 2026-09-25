@@ -131,3 +131,13 @@ AI v1 target journeys (chưa được coi là verified cho tới M11):
 
 - M7 tạo USER và ASSISTANT PROCESSING trong transaction ngắn trước provider; failure/revoke chuyển marker thành FAILED an toàn trong transaction riêng, giữ câu hỏi đã chấp nhận. V4 partial unique index và durable user-row quota lock bảo vệ concurrency qua nhiều JVM; delete conversation không thể bị late provider completion tái tạo.
 - Grounded answer và citations được commit cùng transaction sau current-access recheck; NO_EVIDENCE là successful completed result. Source snapshot vẫn đọc được khi live document/chunk bị xóa, nhưng `availability=UNAVAILABLE` và không có live document ID. API-AI-008/009 chỉ đọc trạng thái hoặc enqueue retry; không gọi provider đồng bộ.
+
+### M10 usage guard and observability invariants
+
+- The interactive AI budget is cross-instance because Redis owns the fixed-window counter; injected clock buckets make rollover deterministic and do not depend on TTL expiration.
+- Redis Lua increments and first-request TTL assignment are one atomic operation. A later request cannot extend the window; an old bucket cannot affect the next bucket. Redis restart may reset only ephemeral rate state and cannot remove PostgreSQL conversations, messages, jobs or Guide index state.
+- Capability and authorization checks precede charging. A 429 therefore leaves no partial conversation/message state, and Redis failure becomes a guarded-AI-only 503 while Core endpoints remain available.
+- Accepted `NO_EVIDENCE` and provider failures consume one request unit because the policy is request-based; no refund/reconciliation path can create an unbounded provider escape.
+- Telemetry is bounded and best effort. Micrometer recording cannot fail business requests, and job depth/stale/failed signals use finite job-state tags without raw content or provider material. No public metrics endpoint was added in M10.
+
+M10 verification: Redis guard 5/5, observability 3/3, Guide controller 1/1, Project Assistant/API contract focused regression pass, OpenAPI 38/57/15 and final clean verify 371/371. Full provider-backed Docker golden journeys, restart recovery and real Gemini connectivity remain M11 verification scope.

@@ -32,6 +32,7 @@ class GuideRagServiceTest {
         vectors = mock(AiVectorRepository.class);
         chat = new FakeAiChatModel("Grounded answer [SOURCE_1]");
         properties = new AiProperties();
+        properties.setRetrievalSimilarityThreshold(null);
         service = new GuideRagService(new FakeAiEmbeddingModel(), chat, vectors,
                 mock(AiGuideSourceRepository.class), new GuideSourceCatalog(),
                 new ConversationContextPolicy(), properties);

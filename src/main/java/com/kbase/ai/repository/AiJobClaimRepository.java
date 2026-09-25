@@ -8,7 +8,9 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -161,6 +163,45 @@ public class AiJobClaimRepository {
         return jdbcTemplate.update(FAIL_EXHAUSTED_STALE, new MapSqlParameterSource()
                 .addValue("jobTypes", jobTypes)
                 .addValue("now", timestamp(now)));
+    }
+
+    /** Bounded operational depth snapshot; no job identifiers or payloads leave this boundary. */
+    public Map<String, Long> countByStatus(Set<AiJobType> allowedTypes) {
+        List<String> jobTypes = jobTypeNames(allowedTypes);
+        if (jobTypes.isEmpty()) {
+            return Map.of();
+        }
+        return jdbcTemplate.query("""
+                SELECT status, COUNT(*) AS depth
+                  FROM ai_jobs
+                 WHERE job_type IN (:jobTypes)
+                 GROUP BY status
+                """, new MapSqlParameterSource("jobTypes", jobTypes), resultSet -> {
+                    Map<String, Long> counts = new LinkedHashMap<>();
+                    while (resultSet.next()) {
+                        counts.put(resultSet.getString("status"), resultSet.getLong("depth"));
+                    }
+                    return counts;
+                });
+    }
+
+    /** Counts only processing rows whose lease has expired for stale-job telemetry. */
+    public long countStale(Set<AiJobType> allowedTypes, Instant now) {
+        List<String> jobTypes = jobTypeNames(allowedTypes);
+        if (jobTypes.isEmpty()) {
+            return 0L;
+        }
+        Long count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                  FROM ai_jobs
+                 WHERE job_type IN (:jobTypes)
+                   AND status = 'PROCESSING'
+                   AND lease_until IS NOT NULL
+                   AND lease_until <= :now
+                """, new MapSqlParameterSource()
+                .addValue("jobTypes", jobTypes)
+                .addValue("now", timestamp(now)), Long.class);
+        return count == null ? 0L : count;
     }
 
     /** Enqueues one active semantic job while holding a transaction-scoped key lock. */

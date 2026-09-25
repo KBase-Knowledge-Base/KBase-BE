@@ -11,6 +11,7 @@ import com.kbase.ai.dto.response.GuideSourceResponse;
 import com.kbase.ai.entity.AiGuideSource;
 import com.kbase.ai.enums.AiAnswerType;
 import com.kbase.ai.guide.GuideSourceCatalog;
+import com.kbase.ai.observability.AiObservability;
 import com.kbase.ai.provider.error.AiProviderErrorCategory;
 import com.kbase.ai.provider.error.AiProviderException;
 import com.kbase.ai.provider.model.AiChatMessage;
@@ -26,6 +27,7 @@ import com.kbase.ai.repository.AiVectorRepository;
 import com.kbase.ai.repository.GuideChunkMatch;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Strict, stateless Guide RAG. This class has no project repository dependency. */
@@ -46,29 +48,71 @@ public class GuideRagService {
     private final GuideSourceCatalog catalog;
     private final ConversationContextPolicy context;
     private final AiProperties properties;
+    private final AiObservability observability;
 
+    @Autowired
+    public GuideRagService(AiEmbeddingModel embeddings, AiChatModel chat, AiVectorRepository vectors,
+            AiGuideSourceRepository sources, GuideSourceCatalog catalog, ConversationContextPolicy context,
+            AiProperties properties, AiObservability observability) {
+        this.embeddings = embeddings; this.chat = chat; this.vectors = vectors; this.sources = sources;
+        this.catalog = catalog; this.context = context; this.properties = properties;
+        this.observability = observability;
+    }
+
+    /** Compatibility constructor for focused Guide retrieval tests. */
     public GuideRagService(AiEmbeddingModel embeddings, AiChatModel chat, AiVectorRepository vectors,
             AiGuideSourceRepository sources, GuideSourceCatalog catalog, ConversationContextPolicy context,
             AiProperties properties) {
-        this.embeddings = embeddings; this.chat = chat; this.vectors = vectors; this.sources = sources;
-        this.catalog = catalog; this.context = context; this.properties = properties;
+        this(embeddings, chat, vectors, sources, catalog, context, properties, new AiObservability());
     }
 
     public GuideQueryResponse answer(String question, List<AiChatMessage> suppliedContext) {
         List<AiChatMessage> history = context.retain(suppliedContext);
-        AiEmbeddingResult embedded = embeddings.embed(AiEmbeddingRequest.query(context.retrievalQuery(question, history)));
+        long embeddingStartedAt = System.nanoTime();
+        String embeddingOutcome = "SUCCESS";
+        AiEmbeddingResult embedded;
+        try {
+            embedded = embeddings.embed(AiEmbeddingRequest.query(context.retrievalQuery(question, history)));
+        } catch (AiProviderException failure) {
+            embeddingOutcome = failure.category().name();
+            throw failure;
+        } catch (RuntimeException failure) {
+            embeddingOutcome = "INTERNAL";
+            throw failure;
+        } finally {
+            observability.recordProviderCall("EMBEDDING", embeddingOutcome,
+                    System.nanoTime() - embeddingStartedAt);
+        }
         float[] vector = vector(embedded);
         List<GuideChunkMatch> candidates = vectors.findNearestGuideChunks(vector, properties.getRetrievalCandidateLimit());
+        observability.recordRetrievalCandidates(candidates == null ? 0 : candidates.size());
         Double threshold = properties.getRetrievalSimilarityThreshold();
         // Guide grounding is deliberately fail-closed until an effective threshold exists.
         List<GuideChunkMatch> usable = candidates.stream().filter(chunk -> threshold != null
                 && chunk.content() != null && !chunk.content().isBlank()
                 && chunk.similarity() >= threshold)
                 .limit(properties.getRetrievalFinalContextLimit()).toList();
-        if (usable.isEmpty()) return new GuideQueryResponse(NO_EVIDENCE_TEXT, AiAnswerType.NO_EVIDENCE, List.of());
+        if (usable.isEmpty()) {
+            observability.recordNoEvidence("GUIDE_QUERY");
+            return new GuideQueryResponse(NO_EVIDENCE_TEXT, AiAnswerType.NO_EVIDENCE, List.of());
+        }
         List<AiEvidenceBlock> evidence = new ArrayList<>();
         for (int index = 0; index < usable.size(); index++) evidence.add(new AiEvidenceBlock("SOURCE_" + (index + 1), usable.get(index).content()));
-        AiChatResult result = chat.generate(new AiChatRequest(SYSTEM, history, evidence, question));
+        long chatStartedAt = System.nanoTime();
+        String chatOutcome = "SUCCESS";
+        AiChatResult result;
+        try {
+            result = chat.generate(new AiChatRequest(SYSTEM, history, evidence, question));
+        } catch (AiProviderException failure) {
+            chatOutcome = failure.category().name();
+            throw failure;
+        } catch (RuntimeException failure) {
+            chatOutcome = "INTERNAL";
+            throw failure;
+        } finally {
+            observability.recordProviderCall("CHAT", chatOutcome,
+                    System.nanoTime() - chatStartedAt);
+        }
         if (result == null || result.text() == null || result.text().isBlank()) throw invalid();
         Set<Integer> cited = citations(result.text(), usable.size());
         if (cited.isEmpty()) throw invalid();

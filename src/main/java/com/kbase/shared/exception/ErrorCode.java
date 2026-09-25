@@ -111,6 +111,10 @@ public enum ErrorCode {
             "Only a failed document index can be retried."),
     AI_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE,
             "The AI service is temporarily unavailable."),
+    AI_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS,
+            "The AI usage limit has been reached. Please try again later."),
+    AI_USAGE_GUARD_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE,
+            "The AI usage guard is temporarily unavailable."),
 
     // External services and final fallback
     OTP_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE,

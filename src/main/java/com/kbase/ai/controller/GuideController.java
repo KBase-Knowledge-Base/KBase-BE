@@ -5,8 +5,11 @@ import java.util.List;
 import com.kbase.ai.dto.request.GuideContextMessage;
 import com.kbase.ai.dto.request.GuideQueryRequest;
 import com.kbase.ai.dto.response.GuideQueryResponse;
+import com.kbase.ai.observability.AiObservability;
+import com.kbase.ai.provider.error.AiProviderException;
 import com.kbase.ai.provider.model.AiChatMessage;
 import com.kbase.ai.retrieval.GuideRagService;
+import com.kbase.ai.usage.AiUsageGuard;
 import com.kbase.config.OpenApiConfig;
 import com.kbase.security.service.CurrentUserService;
 import com.kbase.shared.exception.BusinessException;
@@ -37,19 +40,43 @@ import org.springframework.web.bind.annotation.RestController;
 public class GuideController {
     private final ObjectProvider<GuideRagService> guide;
     private final CurrentUserService currentUser;
-    public GuideController(ObjectProvider<GuideRagService> guide, CurrentUserService currentUser) { this.guide = guide; this.currentUser = currentUser; }
+    private final AiUsageGuard usageGuard;
+    private final AiObservability observability;
+
+    public GuideController(ObjectProvider<GuideRagService> guide, CurrentUserService currentUser,
+            AiUsageGuard usageGuard, AiObservability observability) {
+        this.guide = guide;
+        this.currentUser = currentUser;
+        this.usageGuard = usageGuard;
+        this.observability = observability;
+    }
 
     @Operation(summary = "Query the stateless KBase Guide", description = "Accepts only bounded USER/ASSISTANT context; no context is persisted. Retrieval uses only approved Guide sources and unsupported questions return NO_EVIDENCE.")
     @ApiResponses({ @ApiResponse(responseCode = "200", description = "GROUNDED or NO_EVIDENCE response"),
             @ApiResponse(responseCode = "400", description = "VALIDATION_ERROR", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponse.class))),
-            @ApiResponse(responseCode = "503", description = "AI_PROVIDER_UNAVAILABLE", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponse.class))) })
+            @ApiResponse(responseCode = "429", description = "AI_RATE_LIMIT_EXCEEDED", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "AI_PROVIDER_UNAVAILABLE or AI_USAGE_GUARD_UNAVAILABLE", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponse.class))) })
     @PostMapping("/query")
     public ResponseEntity<GuideQueryResponse> query(@Valid @RequestBody GuideQueryRequest request) {
-        currentUser.requirePrincipal(); // authenticated even though Guide has no project scope
-        GuideRagService service = guide.getIfAvailable();
-        if (service == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
-        List<AiChatMessage> context = request.context().stream().map(this::context).toList();
-        return ResponseEntity.ok(service.answer(request.message(), context));
+        long startedAt = System.nanoTime();
+        String outcome = "SUCCESS";
+        try {
+            var principal = currentUser.requirePrincipal(); // authenticated even though Guide has no project scope
+            GuideRagService service = guide.getIfAvailable();
+            if (service == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+            usageGuard.consume(principal.getUserId());
+            List<AiChatMessage> context = request.context().stream().map(this::context).toList();
+            return ResponseEntity.ok(service.answer(request.message(), context));
+        } catch (AiProviderException failure) {
+            outcome = "PROVIDER_UNAVAILABLE";
+            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+        } catch (RuntimeException failure) {
+            outcome = AiObservability.requestOutcome(failure);
+            throw failure;
+        } finally {
+            observability.recordInteractiveRequest("GUIDE_QUERY", outcome,
+                    System.nanoTime() - startedAt);
+        }
     }
     private AiChatMessage context(GuideContextMessage turn) { return new AiChatMessage(turn.role(), turn.content()); }
 }

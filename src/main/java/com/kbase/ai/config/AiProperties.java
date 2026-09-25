@@ -48,7 +48,7 @@ public class AiProperties {
     @Positive
     private int retrievalFinalContextLimit = 6;
 
-    private Double retrievalSimilarityThreshold;
+    private Double retrievalSimilarityThreshold = 0.70;
 
     @Valid
     private WorkerProperties worker = new WorkerProperties();
@@ -58,6 +58,12 @@ public class AiProperties {
 
     @NotBlank
     private String usageRateNamespace = "kbase:ai:rate";
+
+    @Positive
+    private int usageMaxRequests = 20;
+
+    @NotNull
+    private Duration usageWindow = Duration.ofMinutes(1);
 
     public boolean isEnabled() {
         return enabled;
@@ -155,10 +161,26 @@ public class AiProperties {
         this.usageRateNamespace = usageRateNamespace;
     }
 
+    public int getUsageMaxRequests() {
+        return usageMaxRequests;
+    }
+
+    public void setUsageMaxRequests(int usageMaxRequests) {
+        this.usageMaxRequests = usageMaxRequests;
+    }
+
+    public Duration getUsageWindow() {
+        return usageWindow;
+    }
+
+    public void setUsageWindow(Duration usageWindow) {
+        this.usageWindow = usageWindow;
+    }
+
     /**
-     * M1 keeps the v1 embedding contract fixed at 768 dimensions. The
-     * threshold remains nullable because M0 intentionally did not choose a
-     * production-optimum value.
+     * M1 keeps the v1 embedding contract fixed at 768 dimensions. M10 selects
+     * a conservative production default, while an explicit null remains a
+     * supported fail-closed override for Guide retrieval.
      */
     @AssertTrue(message = "retrieval-similarity-threshold must be between 0 and 1 when configured")
     public boolean isRetrievalSimilarityThresholdValid() {
@@ -171,6 +193,25 @@ public class AiProperties {
     @AssertTrue(message = "AI retention must be positive")
     public boolean isRetentionPositive() {
         return retention != null && !retention.isZero() && !retention.isNegative();
+    }
+
+    @AssertTrue(message = "AI usage window must be positive and contain at least one millisecond")
+    public boolean isUsageWindowPositive() {
+        return usageWindow != null && !usageWindow.isZero() && !usageWindow.isNegative()
+                && positiveMillis(usageWindow);
+    }
+
+    @AssertTrue(message = "AI usage rate namespace must not be blank")
+    public boolean isUsageRateNamespaceValid() {
+        return usageRateNamespace != null && !usageRateNamespace.isBlank();
+    }
+
+    private static boolean positiveMillis(Duration value) {
+        try {
+            return value.toMillis() > 0;
+        } catch (ArithmeticException exception) {
+            return false;
+        }
     }
 
     public static class GeminiProperties {

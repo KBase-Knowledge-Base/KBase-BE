@@ -167,10 +167,20 @@ AI-specific source: `docs/design-docs/KBase - AI Chatbot Testing Strategy.md`.
 ### AI v1 M7 conversation/API verification
 
 - `ProjectAssistantM7IntegrationTest` dùng real PostgreSQL 17.11/pgvector, real SecurityFilterChain/MockMvc, M6 RAG và deterministic `FakeAiChatModel`/`FakeAiEmbeddingModel`; không có real Gemini credential/network. Test bao phủ create/NO_EVIDENCE, JWT, private MEMBER/OWNER/ADMIN lookup, user-row quota 4→5 race, per-project/per-user quota, hard-delete quota release, one-active send, distinct conversations concurrent, provider failure giữ USER/FAILED, revoke trong và sau M6 trước finalization, delete khi generation chạy, citation availability sau document delete, index status/retry permission và non-FAILED rejection.
-- `OpenApiContractIntegrationTest` assert chính xác 38 paths / 57 operations, 15 tags, M7/M9 methods/error/DTO schemas và sensitive-field absence. `ProjectAssistantTitleTest` kiểm tra Unicode-safe 100-code-point title.
+- `OpenApiContractIntegrationTest` assert chính xác 38 paths / 57 operations, 15 tags, M7/M9 methods plus M10 429/503 annotations, error/DTO schemas và sensitive-field absence. `ProjectAssistantTitleTest` kiểm tra Unicode-safe 100-code-point title.
 - Targeted command `mvn -B -ntp "-Dtest=ProjectAssistantM7IntegrationTest,ProjectAssistantTitleTest,OpenApiContractIntegrationTest" test`: 36/36 PASS, 0 failures/errors/skips. Full M7 clean verify result nằm trong active/completed M7 execution plan.
 
 ### AI v1 M9 verification đã chạy
 
 - `GuideSourcePackagingTest` proves packaged bytes and SHA-256 match exactly the two canonical source files; `GuideMarkdownChunkerTest` proves fenced-code-safe heading paths; `GuideRagServiceTest` proves a null similarity threshold returns deterministic `NO_EVIDENCE` with zero chat calls; `GuideVectorRepositoryIntegrationTest` proves a rogue perfect-vector source is excluded in SQL before ANN candidate limiting.
 - M9 focused Guide tests, M7 regression + Guide startup, and the OpenAPI contract have passed with deterministic fakes/real PostgreSQL where required; the final `mvn -B -ntp clean verify` result is 356/356 with zero failures/errors/skips. No real Gemini credential or public network was used.
+
+### AI v1 M10 verification đã chạy
+
+- `RedisAiUsageGuardIntegrationTest`: 5/5 trên Redis 7.4 Testcontainer, bao phủ atomic fixed-window limit, same-user shared budget/isolation, controllable-clock rollover, first-request TTL semantics và Redis-unavailable → `AI_USAGE_GUARD_UNAVAILABLE`.
+- `AiObservabilityTest`: 3/3 chứng minh counters/timers/summaries/gauges được ghi, tag vocabulary được bound và prompt/content sentinels không xuất hiện trong metric tags hoặc telemetry path.
+- `GuideControllerTest`: 1/1 chứng minh Guide unavailable → stable `AI_PROVIDER_UNAVAILABLE`/503 và guard failure boundary; no real provider call/network.
+- Project Assistant focused regression covers capability/auth/creator preflight before charging, 429 leaves no conversation/message state, 503 guard failure is safe, shared guard injection and provider/NO_EVIDENCE outcomes. `ProjectAssistantM7IntegrationTest` focused set passed 20/20.
+- `OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest`: 22/22; runtime remains exactly 38 paths / 57 operations / 15 tags and documents `AI_RATE_LIMIT_EXCEEDED`/429 plus `AI_USAGE_GUARD_UNAVAILABLE`/503 only on interactive AI POST operations.
+- `RetrievalThresholdEvaluationTest` records deterministic relevant/weak/unrelated score ranges and the M10 v1 selection `0.70`; no real Gemini calibration is claimed.
+- Final `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 371 tests, 0 failures/errors/skips. `docker compose -f docker-compose.yml config --quiet`, `git diff --check` and sensitive-data/scope scans pass. Non-fatal Testcontainers shutdown/placeholder PostgreSQL scheduler warnings do not change the successful Surefire result.

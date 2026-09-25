@@ -1,6 +1,6 @@
 # Active Plans
 
-- **AI v1 active:** `KBase_AI_Chatbot_v1_M10_Usage_Guard_OpenAPI_Observability_Hardening.md` — M0–M9 đã PASS; M10 owns usage/rate guard, observability, contract hardening and documentation synchronization. Frontend và streaming vẫn deferred.
+- **AI v1 active:** `KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md` — M0–M10 đã PASS; M11 owns full Docker/runtime verification, AI journey evidence, consistency audit and the AI v1 freeze report. Frontend và streaming vẫn deferred.
 - Parent roadmap: `../KBase_AI_Chatbot_v1_Implementation_Plan.md`.
 - Core v1 M0–M15 + M16 maintenance đã hoàn thành/frozen; không mở lại Core scope ngoài dependency cần thiết cho AI v1 nếu source docs/active plan không yêu cầu.
 

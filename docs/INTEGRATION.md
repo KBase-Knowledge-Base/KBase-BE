@@ -183,7 +183,7 @@ M6 verification đã chạy:
 - Persistence đã verify trong runtime: `postgres_data`/`minio_data` giữ data qua backend restart và container force-recreate; Redis recreation làm mất pending OTP và resend vẫn hoạt động.
 
 
-## AI v1 Integrations (M9 Guide đã triển khai; M10 usage guard còn deferred)
+## AI v1 Integrations (M10 hardening complete; M11 runtime verification next)
 
 | Nguồn | Đích | Mục đích | Persistence | Boundary |
 |---|---|---|---|---|
@@ -191,7 +191,7 @@ M6 verification đã chạy:
 | AI indexing/retrieval | Gemini embedding | document/query embeddings | External provider | `AiEmbeddingModel -> SpringAiGeminiEmbeddingAdapter` explicit M4 adapter |
 | AI repositories | PostgreSQL + pgvector | chunks/vectors/conversations/jobs/Guide corpus | Durable qua existing PostgreSQL volume | KBase repository + Flyway V4 schema; verified M2 |
 | AI worker | MinIO | đọc binary source để extract/index | Binary vẫn durable trong MinIO | existing `StorageService` only; không import MinIO SDK |
-| AI usage guard (target) | Redis | ephemeral per-user AI rate/cost guard | Ephemeral; không business source of truth | dedicated AI rate adapter/namespace if M0/M10 approves |
+| AI usage guard | Redis | ephemeral per-user interactive AI usage/cost guard | Ephemeral; không business source of truth | `AiUsageGuard -> RedisAiUsageGuard`, namespace `kbase:ai:rate`, atomic Lua counter |
 
 Gemini integration requirements:
 
@@ -219,7 +219,7 @@ M2 verification đã chạy:
 - live catalog xác nhận extension, `vector(768)`, HNSW cosine indexes, relational indexes và FK/delete rules;
 - `AiVectorRepository` giữ project filter và active-version predicate trong SQL; không global-search rồi filter bằng Java.
 
-M4 đã triển khai provider adapter/configuration/error/privacy boundary; M5 dùng embedding port trong worker, M6 dùng query embedding/chat port trong Project RAG, M7 expose private conversation cùng document index REST, và M9 dùng cùng provider-neutral ports cho Guide DOCUMENT indexing/QUERY retrieval. Usage/rate guard vẫn thuộc M10.
+M4 đã triển khai provider adapter/configuration/error/privacy boundary; M5 dùng embedding port trong worker, M6 dùng query embedding/chat port trong Project RAG, M7 expose private conversation cùng document index REST, M9 dùng cùng provider-neutral ports cho Guide DOCUMENT indexing/QUERY retrieval, và M10 thêm guard/observability/contract hardening. M11 vẫn giữ full provider-backed runtime verification.
 
 ## AI v1 M3 Durable Job và Core Lifecycle Hooks
 
@@ -277,3 +277,12 @@ Guide source integration:
 - Guide query SQL joins only Guide tables and applies the immutable source-key allowlist before ANN ordering/limit; it cannot fall back to project chunks;
 - missing Guide similarity threshold fails closed to `NO_EVIDENCE` without a chat call;
 - không package/index toàn bộ internal docs.
+
+## AI v1 M10 usage guard / observability integration
+
+- `RedisAiUsageGuard` dùng fixed one-minute window mặc định, `bucket = floor(epochMillis / windowMillis)`, `kbase:ai:rate:{userId}:{bucket}` và one-shot Lua `INCR`/`PEXPIRE`. Clock injection cho phép rollover test không cần sleep; old bucket expiry không ảnh hưởng correctness.
+- Project Assistant create/send và Guide query share one per-user budget (default 20). Authorization/capability checks precede charging; reads, rename/delete, document-index retry and background jobs do not charge. `NO_EVIDENCE` and provider failures consume one accepted request.
+- Redis errors map to `AI_USAGE_GUARD_UNAVAILABLE`/503 only for guarded AI operations. `AI_RATE_LIMIT_EXCEEDED`/429 is used only for a real exceeded counter. Core endpoint availability and PostgreSQL durable state do not depend on the rate guard.
+- `AiObservability` records bounded Micrometer counters/timers/summaries/gauges for interactive requests, rate outcomes, provider calls, retrieval candidates, no-evidence, job execution/depth and failed/stale signals. It uses finite tags and is best effort; no public metrics endpoint was added.
+- M10 selected retrieval similarity default `0.70` using deterministic fixture score ranges. The configuration remains typed; an explicit blank nullable override continues to fail closed for Guide tests and does not bypass source allowlists.
+- Focused evidence: Redis 5/5, observability 3/3, Guide controller 1/1, Project Assistant/OpenAPI regression pass; final clean verify 371/371. No real Gemini credential or public network was used.
