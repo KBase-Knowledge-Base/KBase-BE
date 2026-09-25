@@ -176,6 +176,20 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- M9: package only the reviewed Guide corpus from its canonical source. -->
+            <resource>
+                <directory>docs/product-specs</directory>
+                <targetPath>kbase-guide</targetPath>
+                <includes>
+                    <include>KBase - Core v1 Specification.md</include>
+                    <include>KBase - AI Chatbot v1 Specification.md</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

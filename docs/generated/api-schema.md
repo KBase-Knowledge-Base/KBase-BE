@@ -1,24 +1,24 @@
 # API Schema
 
-> Trạng thái: **RUNTIME OPENAPI ĐÃ HOẠT ĐỘNG (AI M7)**. springdoc `/v3/api-docs` là contract máy đọc được.
+> Trạng thái: **RUNTIME OPENAPI ĐÃ HOẠT ĐỘNG (AI M9)**. springdoc `/v3/api-docs` là contract máy đọc được.
 > Nguồn sự thật: `springdoc-openapi 3.1.1` sinh từ `AuthController`, `UserController`, `AdminUserController`,
 > `ProjectController`, `AdminProjectController`, `ProjectMemberController`, `InvitationController`,
 > `InvitationAcceptController`, `FolderController`, `CategoryController`, `TagController`, `DocumentController`,
-> `ProjectAssistantController`, `DocumentAiIndexController`
+> `ProjectAssistantController`, `DocumentAiIndexController`, `GuideController`
 > và DTO tương ứng. File này là snapshot Markdown đồng bộ từ runtime; `OpenApiContractIntegrationTest`
 > xác minh security scheme, security requirement theo endpoint, multipart/binary/range schemas,
 > error codes và sự vắng mặt của field nhạy cảm trong spec runtime.
 
 ## Metadata
 
-* Ngày sinh hoặc cập nhật: `2026-09-24` (AI M7 — snapshot đồng bộ thủ công từ runtime OpenAPI đã verify)
+* Ngày sinh hoặc cập nhật: `2026-09-25` (AI M9 — snapshot đồng bộ thủ công từ runtime OpenAPI đã verify)
 * Phiên bản API: `v1` (khớp path `/api/v1`)
 * Base URL development: `http://localhost:8080/api/v1` (port theo `KBASE_SERVER_PORT`)
 * Base URL production: `Chưa cấu hình`
 * Nguồn sinh: `springdoc-openapi-starter-webmvc-ui 3.1.1 trên Spring Boot 4.1.1; spec máy đọc được tại GET /v3/api-docs (JSON) và /v3/api-docs.yaml; Swagger UI tại /swagger-ui.html`
 * Commit tương ứng: `N/A`
 
-## OpenAPI Runtime (AI M7)
+## OpenAPI Runtime (AI M9)
 
 * Endpoint máy đọc được: `GET /v3/api-docs` (OpenAPI 3 JSON), `GET /v3/api-docs.yaml`; Swagger UI: `GET /swagger-ui.html`
 * Security scheme: `bearerAuth` — `type: http`, `scheme: bearer`, `bearerFormat: JWT`; chỉ đại diện cho access token
@@ -28,9 +28,9 @@
   không bao giờ là JSON field hay bearer scheme
 * OTP: chỉ là email verification OTP (Redis-backed, Gmail SMTP, 6 chữ số, TTL 5m, cooldown 60s, tối đa 5 attempts);
   không document như OTP login/MFA/password reset; invitation dùng invitation token riêng
-* Tags (14, theo thứ tự canonical trong `config/OpenApiConfig`): `Authentication`, `Users`, `Admin - Users`, `Projects`,
+* Tags (15, theo thứ tự canonical trong `config/OpenApiConfig`): `Authentication`, `Users`, `Admin - Users`, `Projects`,
   `Admin - Projects`, `Project Members`, `Project Invitations`, `Invitations`, `Folders`, `Categories`, `Tags`, `Documents`,
-  `AI - Project Assistant`, `AI - Document Indexing`
+  `AI - Project Assistant`, `AI - Document Indexing`, `AI - KBase Guide`
 * Role rules trong description: ADMIN endpoints ghi "Requires SystemRole.ADMIN"; project-scoped endpoints ghi
   MEMBER/OWNER/ADMIN; document mutation ghi rule uploader MEMBER vs OWNER/ADMIN
 * Multipart upload: `POST .../documents` với part `file` (string/binary) + part `metadata` JSON tùy chọn
@@ -40,7 +40,7 @@
 * Shared error: mọi error response tham chiếu schema `ApiErrorResponse`; protected operations nhận `401 AUTHENTICATION_REQUIRED`
   qua `OperationCustomizer` dùng chung; OTP/Gmail/Redis/storage error codes document trên đúng endpoint
 * DTO là contract: JPA entity không xuất hiện; `passwordHash`, token hash, `storageKey`, credential không có trong schema
-* AI M7: 37 paths / 56 operations, gồm API-AI-001..009; Guide API-AI-010 và usage/rate 429 chưa triển khai. AI DTO không public score, chunk ID, vector, hash, storage key, job payload hoặc lease.
+* AI M9: 38 paths / 57 operations, gồm API-AI-001..010; Guide API-AI-010 đã triển khai, còn usage/rate 429 thuộc M10. AI DTO không public score, chunk ID, vector, hash, storage key, job payload hoặc lease.
 * Exposure flags: `KBASE_OPENAPI_ENABLED` / `KBASE_SWAGGER_UI_ENABLED` (local/dev mặc định bật; prod mặc định tắt);
   SecurityConfig chỉ permit các docs path khi `kbase.openapi.enabled=true`, không nới `/api/v1/**`
 
@@ -130,8 +130,9 @@ Không ghi secret, private key hoặc credential thật.
 | GET | `/api/v1/projects/{projectId}/ai/conversations/{conversationId}/messages` | Paged messages/sources | Bearer JWT + creator | `page=0`, `size=50` | 200 PageResponse&lt;AiTurnResponse&gt; |
 | GET | `/api/v1/projects/{projectId}/documents/{documentId}/ai-index` | Trạng thái AI index an toàn | Bearer JWT + document read | Không body | 200 DocumentAiIndexResponse |
 | POST | `/api/v1/projects/{projectId}/documents/{documentId}/ai-index/retry` | Retry bất đồng bộ từ FAILED | Bearer JWT + document modify | Không body | 202 DocumentAiIndexResponse |
+| POST | `/api/v1/ai/guide/query` | Query stateless KBase Guide từ approved product specifications | Bearer JWT | GuideQueryRequest | 200 GuideQueryResponse (`GROUNDED`/`NO_EVIDENCE`) |
 
-Đã triển khai: runtime `/v3/api-docs` khớp đúng 37 paths / 56 operations theo `OpenApiContractIntegrationTest` (AI M7). Core baseline trước M7 là 32 paths / 47 operations; M7 thêm 5 paths / 9 operations.
+Đã triển khai: runtime `/v3/api-docs` khớp đúng 38 paths / 57 operations theo `OpenApiContractIntegrationTest` (AI M9). Core baseline trước M7 là 32 paths / 47 operations; M7 thêm 5 paths / 9 operations, M9 thêm 1 path / 1 operation.
 
 ## Chi tiết Endpoint
 
@@ -775,7 +776,13 @@ Create/send nhận `message` bắt buộc, trim-aware nonblank và tối đa `kb
 
 `AiSourceResponse.documentId` chỉ có khi document và chunk còn live. Snapshot metadata vẫn hiển thị sau source deletion nhưng `availability=UNAVAILABLE` và `documentId=null`; Core document route tiếp tục enforce current document authorization khi mở nguồn. Public DTO không có `retrievalScore`, `chunkId`, source hash, vector, storage key hoặc URL lâu dài.
 
-M7 runtime error additions: `AI_CONVERSATION_LIMIT_REACHED` 409, `AI_CONVERSATION_NOT_FOUND` 404, `AI_REQUEST_IN_PROGRESS` 409, `AI_INDEX_RETRY_NOT_ALLOWED` 409, `AI_PROVIDER_UNAVAILABLE` 503. `AI_RATE_LIMIT_EXCEEDED`/429 và Guide endpoint chưa có trong M7 runtime; M10 và M9 sở hữu chúng. `AI_INDEX_NOT_READY` chưa cần cho operation hiện tại.
+M7 runtime error additions: `AI_CONVERSATION_LIMIT_REACHED` 409, `AI_CONVERSATION_NOT_FOUND` 404, `AI_REQUEST_IN_PROGRESS` 409, `AI_INDEX_RETRY_NOT_ALLOWED` 409, `AI_PROVIDER_UNAVAILABLE` 503. `AI_RATE_LIMIT_EXCEEDED`/429 vẫn thuộc M10. `AI_INDEX_NOT_READY` chưa cần cho operation hiện tại.
+
+## AI M9 – KBase Guide API
+
+`POST /api/v1/ai/guide/query` yêu cầu Bearer JWT và là endpoint stateless: không có `projectId`, không đọc project document/vector/conversation, và không tạo Guide conversation/message row. Request là `{ "message": "...", "context": [{"role":"USER|ASSISTANT","content":"..."}] }`; `context` optional, tối đa 8 turns và chỉ có `USER`/`ASSISTANT` (không chấp nhận SYSTEM). Context chỉ hỗ trợ follow-up, không phải evidence.
+
+Response `200 GuideQueryResponse` gồm `answer`, `answerType` (`GROUNDED` hoặc `NO_EVIDENCE`) và `sources[]`. Mỗi source chỉ công khai `sourceKey`, safe `title`, `section`; không trả content hash, vector, job payload, filesystem path hoặc internal documents. `GROUNDED` dùng duy nhất hai product specs đã review; câu hỏi off-topic/không có evidence trả refusal `NO_EVIDENCE` deterministic với sources rỗng, không gọi chat provider. Provider failure dùng `503 AI_PROVIDER_UNAVAILABLE`.
 
 ## Enum và Kiểu Dùng Chung
 

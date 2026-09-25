@@ -183,7 +183,7 @@ M6 verification đã chạy:
 - Persistence đã verify trong runtime: `postgres_data`/`minio_data` giữ data qua backend restart và container force-recreate; Redis recreation làm mất pending OTP và resend vẫn hoạt động.
 
 
-## AI v1 Integrations (M7 conversation/API đã triển khai; Guide còn deferred)
+## AI v1 Integrations (M9 Guide đã triển khai; M10 usage guard còn deferred)
 
 | Nguồn | Đích | Mục đích | Persistence | Boundary |
 |---|---|---|---|---|
@@ -219,7 +219,7 @@ M2 verification đã chạy:
 - live catalog xác nhận extension, `vector(768)`, HNSW cosine indexes, relational indexes và FK/delete rules;
 - `AiVectorRepository` giữ project filter và active-version predicate trong SQL; không global-search rồi filter bằng Java.
 
-M4 đã triển khai provider adapter/configuration/error/privacy boundary; M5 dùng embedding port trong worker, M6 dùng query embedding/chat port trong Project RAG, và M7 expose private conversation cùng document index REST. Usage/rate guard vẫn thuộc M10.
+M4 đã triển khai provider adapter/configuration/error/privacy boundary; M5 dùng embedding port trong worker, M6 dùng query embedding/chat port trong Project RAG, M7 expose private conversation cùng document index REST, và M9 dùng cùng provider-neutral ports cho Guide DOCUMENT indexing/QUERY retrieval. Usage/rate guard vẫn thuộc M10.
 
 ## AI v1 M3 Durable Job và Core Lifecycle Hooks
 
@@ -274,4 +274,6 @@ Guide source integration:
 - runtime không gọi GitHub để đọc docs;
 - Maven/Docker build package exact allowlisted accepted product specs;
 - content hash drives durable `GUIDE_REINDEX`;
+- Guide query SQL joins only Guide tables and applies the immutable source-key allowlist before ANN ordering/limit; it cannot fall back to project chunks;
+- missing Guide similarity threshold fails closed to `NO_EVIDENCE` without a chat call;
 - không package/index toàn bộ internal docs.

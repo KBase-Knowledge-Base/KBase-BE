@@ -81,6 +81,7 @@ class OpenApiContractIntegrationTest {
             "/api/v1/documents/{documentId}",
             "/api/v1/documents/{documentId}/download",
             "/api/v1/documents/{documentId}/preview",
+            "/api/v1/ai/guide/query",
             "/api/v1/projects/{projectId}/ai/conversations",
             "/api/v1/projects/{projectId}/ai/conversations/{conversationId}",
             "/api/v1/projects/{projectId}/ai/conversations/{conversationId}/messages",
@@ -126,7 +127,7 @@ class OpenApiContractIntegrationTest {
                 if (!method.equals("parameters")) operations++;
             }
         }
-        assertThat(operations).isEqualTo(56);
+        assertThat(operations).isEqualTo(57);
     }
 
     @Test
@@ -139,14 +140,14 @@ class OpenApiContractIntegrationTest {
     }
 
     @Test
-    void allFourteenFeatureTagsAreDeclared() {
+    void allFifteenFeatureTagsAreDeclared() {
         List<String> tagNames = new java.util.ArrayList<>();
         spec.get("tags").forEach(tag -> tagNames.add(tag.get("name").asString()));
         assertThat(tagNames).containsExactly(
                 "Authentication", "Users", "Admin - Users", "Projects", "Admin - Projects",
                 "Project Members", "Project Invitations", "Invitations",
                 "Folders", "Categories", "Tags", "Documents",
-                "AI - Project Assistant", "AI - Document Indexing");
+                "AI - Project Assistant", "AI - Document Indexing", "AI - KBase Guide");
     }
 
     @Test
@@ -406,7 +407,9 @@ class OpenApiContractIntegrationTest {
     @Test
     void noUnapprovedAiOrRagEndpointsAreDocumented() {
         for (String path : EXPECTED_PATHS) {
-            assertThat(path).doesNotContain("/chat", "/ask", "/embedding", "/rag", "/semantic", "/guide");
+            if (!path.equals("/api/v1/ai/guide/query")) {
+                assertThat(path).doesNotContain("/chat", "/ask", "/embedding", "/rag", "/semantic", "/guide");
+            }
         }
     }
 

@@ -4,6 +4,8 @@ FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /build
 COPY pom.xml .
 COPY src ./src
+COPY ["docs/product-specs/KBase - Core v1 Specification.md", "./docs/product-specs/KBase - Core v1 Specification.md"]
+COPY ["docs/product-specs/KBase - AI Chatbot v1 Specification.md", "./docs/product-specs/KBase - AI Chatbot v1 Specification.md"]
 RUN mvn -B -ntp -DskipTests clean package
 
 # Runtime stage: JRE only, non-root, no durable local business data.

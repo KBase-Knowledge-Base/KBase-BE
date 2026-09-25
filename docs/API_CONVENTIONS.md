@@ -105,7 +105,7 @@ Không trả:
 - Endpoint hoặc field deprecated phải có hướng thay thế và thời gian loại bỏ nếu có.
 
 
-## AI v1 – M7 Runtime Contract Conventions
+## AI v1 – M9 Runtime Contract Conventions
 
 AI v1 target contract nằm tại `docs/design-docs/KBase - AI Chatbot REST API Specification.md`.
 
@@ -120,4 +120,4 @@ Quy tắc bổ sung:
 - AI errors tiếp tục dùng `ApiErrorResponse` + stable `ErrorCode`.
 - Không public vector, source hash, storage key, AI job payload/lease hoặc raw provider response.
 
-M7 đã triển khai API-AI-001..009, xác minh exact runtime OpenAPI path/method/tag/security/DTO set và đồng bộ `docs/generated/api-schema.md`. Guide API-AI-010 thuộc M9; usage/rate 429 thuộc M10. Conversation GET trả metadata, messages dùng route phân trang; `NO_EVIDENCE` là 2xx và provider failure là safe 503 với USER/FAILED marker vẫn có thể đọc sau đó.
+M7 đã triển khai API-AI-001..009; M9 đã thêm API-AI-010, xác minh exact runtime OpenAPI path/method/tag/security/DTO set và đồng bộ `docs/generated/api-schema.md` tại 38 paths/57 operations. Guide query là authenticated và stateless, không nhận `projectId`, chỉ nhận bounded USER/ASSISTANT context, và không tạo conversation/message/source row. Usage/rate 429 vẫn thuộc M10. Conversation GET trả metadata, messages dùng route phân trang; `NO_EVIDENCE` là 2xx và provider failure là safe 503 với USER/FAILED marker vẫn có thể đọc sau đó.

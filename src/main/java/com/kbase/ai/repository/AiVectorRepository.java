@@ -11,6 +11,7 @@ import java.util.UUID;
 import java.time.Instant;
 import java.sql.Timestamp;
 
+import com.kbase.ai.guide.GuideSourceCatalog;
 import com.pgvector.PGvector;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -84,14 +85,21 @@ public class AiVectorRepository {
               ON s.id = c.guide_source_id
             WHERE s.status = 'READY'
               AND c.index_version = s.active_version
+              AND s.source_key IN (%s)
             ORDER BY c.embedding <=> ?::vector
             LIMIT ?
             """;
 
     private final JdbcTemplate jdbcTemplate;
+    private final List<String> approvedGuideSourceKeys;
 
-    public AiVectorRepository(JdbcTemplate jdbcTemplate) {
+    public AiVectorRepository(JdbcTemplate jdbcTemplate, GuideSourceCatalog guideSources) {
         this.jdbcTemplate = jdbcTemplate;
+        this.approvedGuideSourceKeys = List.copyOf(guideSources.sources().stream()
+                .map(source -> source.sourceKey()).toList());
+        if (approvedGuideSourceKeys.isEmpty()) {
+            throw new IllegalArgumentException("Guide source allowlist must not be empty");
+        }
     }
 
     public void insertDocumentChunk(DocumentAiChunkInsert chunk) {
@@ -186,11 +194,15 @@ public class AiVectorRepository {
         validateVector(queryEmbedding);
         return jdbcTemplate.execute((Connection connection) -> {
             PGvector.registerTypes(connection);
-            try (PreparedStatement statement = connection.prepareStatement(GUIDE_SEARCH)) {
+            try (PreparedStatement statement = connection.prepareStatement(guideSearchSql())) {
                 PGvector queryVector = new PGvector(queryEmbedding);
                 statement.setObject(1, queryVector);
-                statement.setObject(2, queryVector);
-                statement.setInt(3, limit);
+                int parameter = 2;
+                for (String sourceKey : approvedGuideSourceKeys) {
+                    statement.setString(parameter++, sourceKey);
+                }
+                statement.setObject(parameter++, queryVector);
+                statement.setInt(parameter, limit);
                 try (ResultSet resultSet = statement.executeQuery()) {
                     List<GuideChunkMatch> matches = new ArrayList<>();
                     while (resultSet.next()) {
@@ -209,6 +221,12 @@ public class AiVectorRepository {
                 }
             }
         });
+    }
+
+    private String guideSearchSql() {
+        String placeholders = String.join(", ", java.util.Collections.nCopies(
+                approvedGuideSourceKeys.size(), "?"));
+        return GUIDE_SEARCH.formatted(placeholders);
     }
 
     public int deleteDocumentChunksForVersion(UUID documentId, long indexVersion) {

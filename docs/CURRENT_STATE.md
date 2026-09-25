@@ -5,24 +5,24 @@
 
 ## Cập nhật Lần cuối
 
-* Ngày cập nhật: `2026-09-24`
-* Người hoặc agent cập nhật: `Codex - M8 Completion`
+* Ngày cập nhật: `2026-09-25`
+* Người hoặc agent cập nhật: `Codex - M9 Completion`
 * Nhánh hiện tại: `feat-AI` (được tạo trực tiếp từ `dev`)
-* Core v1 frozen và AI M0–M8 evidence được xác nhận trên `feat-AI`. M8 triển khai provider-independent seven-day purge, PostgreSQL lifecycle serialization, rejoin cancellation, project-delete cascade proof và membership-continuity finalization; next active slice là M9 KBase Guide. Guide runtime, usage guard, frontend/streaming và real provider call vẫn chưa có.
-* M8 final gate ngày `2026-09-24`: `mvn -B -ntp clean verify` PASS với `BUILD SUCCESS`, `352` tests, `0` failures, `0` errors, `0` skips; targeted retention/M7/invitation/membership 34/34, Compose config và diff check PASS. V1–V4, generated DB/API và public OpenAPI 37 paths/56 operations không đổi.
+* Core v1 frozen. M9 KBase Guide is complete: immutable two-spec corpus, JAR/Docker resource packaging, SHA-256 lifecycle/reindex, Guide-only vectors, strict grounding and authenticated stateless API-AI-010. No project corpus/conversation is touched. Full gate is 356/356; active handoff is M10 usage guard/observability hardening.
+* M9 final gate ngày `2026-09-25`: `mvn -B -ntp clean verify` PASS với `BUILD SUCCESS`, `356` tests, `0` failures, `0` errors, `0` skips; focused Guide 4/4, including pgvector rogue-perfect-vector allowlist integration, M7 regression + Guide startup 18/18, OpenAPI 20/20, Compose config, JAR/Docker artifact inspection và diff check PASS. V1–V4 và generated DB không đổi; public OpenAPI là 38 paths/57 operations.
 
 ## Trạng thái Tổng quan
 
 | Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
 | ---------------- | ------------- | ----------------------- |
-| Build            | M8 PASS / M9 READY | `mvn -B -ntp clean verify` → `BUILD SUCCESS`, 352/352; compile/package/repackage pass. |
+| Build            | M9 PASS / M10 next | `mvn -B -ntp clean verify` → BUILD SUCCESS, 356/356; focused Guide 4/4, M7 regression + Guide startup 18/18, OpenAPI 20/20, Compose config, JAR/Docker artifact checks and diff check pass. |
 | Frontend         | Không áp dụng | Frontend và streaming tiếp tục deferred khỏi AI v1 backend. |
-| Backend          | Core v1 frozen / M7 private Assistant complete | **Core v1 FROZEN** + M16 maintenance complete. M6 strict RAG được M7 bọc bằng private creator-scoped conversation lifecycle, short transactions, max-five DB quota, active-generation guard và status/retry REST. Guide chưa mở. |
+| Backend          | Core v1 frozen / M9 Guide complete | **Core v1 FROZEN** + M16 maintenance complete. Private Project Assistant giữ nguyên; M9 thêm Guide stateless với corpus hai product-spec đóng gói, GUIDE_REINDEX và strict Guide-only RAG, không đụng project corpus/conversation. |
 | Database         | Core + AI persistence ổn định | Flyway V1–V4 tạo 18 persistent tables (10 Core + 8 AI); pgvector extension, `vector(768)`, HNSW, FK/delete rules và Hibernate validate đã verify trên PostgreSQL 17.11. |
-| API contract     | Core + M7 AI verified | Runtime OpenAPI 37 paths/56 operations (Core trước đó 32/47), 14 tags; API-AI-001..009, bearer/error/DTO schemas và generated API snapshot đồng bộ; Guide API-AI-010 absent. |
-| Integration      | Core + M7 Assistant boundary verified | Real pgvector M6 retrieval plus M7 PostgreSQL quota/active-generation, JWT privacy, revoke-before-finalize, source availability, document status/retry permission pass; Compose config pass; real Gemini intentionally not called. |
-| Unit test        | M7 title and M6 RAG verified | Unicode-safe initial-title test plus M6 strict RAG unit tests; full gate 346/346. |
-| Integration test | M7 PostgreSQL/API verified | `ProjectAssistantM7IntegrationTest` 15/15 with real PostgreSQL/pgvector and SecurityFilterChain, M6 retrieval/citation regression, OpenAPI contract 20/20; full Testcontainers regression pass. |
+| API contract     | Core + M9 AI verified | Runtime OpenAPI 38 paths/57 operations (Core trước đó 32/47), 15 tags; API-AI-001..010, bearer/error/DTO schemas và generated API snapshot đồng bộ. API-AI-010 là authenticated stateless Guide query, không `projectId`. |
+| Integration      | Core + M9 Guide boundary verified | Real pgvector M6 retrieval plus M7 PostgreSQL quota/active-generation vẫn pass; M9 Guide startup uses packaged corpus only, has no project corpus/conversation access, Compose config và Docker JAR artifact pass; real Gemini intentionally not called. |
+| Unit test        | M9 packaging/chunking/grounding verified | `GuideSourcePackagingTest`, `GuideMarkdownChunkerTest`, null-threshold `GuideRagServiceTest` và pgvector `GuideVectorRepositoryIntegrationTest` pass; full gate 356/356. |
+| Integration test | M7/M9 PostgreSQL/API verified | `ProjectAssistantM7IntegrationTest` + Guide AI-enabled startup 18/18 with real PostgreSQL/pgvector and SecurityFilterChain; OpenAPI contract 20/20; full Testcontainers regression pass. |
 | End-to-end test  | Core runtime verified / M7 Testcontainers verified | Core golden journeys M14/M15; M7 API/security tests qua MockMvc + real PostgreSQL, chưa có full AI Compose golden journey hoặc live Gemini smoke (M11). |
 | Security checks  | Core + M7 privacy verified | Current project access trước creator-scoped lookup, MEMBER/OWNER/ADMIN isolation, revoke trong và sau M6 trước finalization, no completed answer/source after revoke, source DTO không cấp permanent access. |
 | Deployment       | Core + M7 configuration verified | Compose giữ service/healthcheck/volumes và pgvector image; M7 không thêm migration/topology, AI disabled vẫn là mặc định. |
@@ -42,7 +42,7 @@ Trạng thái nên dùng:
 
 * Mục tiêu: `Triển khai KBase AI Chatbot v1 backend trên Core v1 đã frozen: Project Assistant private/project-scoped + KBase Guide grounded, không frontend/streaming/Project Chat.`
 * Execution plan: `docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md` (AI master roadmap M0–M11)
-* Active slice: `docs/exec-plans/active/KBase_AI_Chatbot_v1_M9_KBase_Guide.md`
+* Active slice: `docs/exec-plans/active/KBase_AI_Chatbot_v1_M10_Usage_Guard_OpenAPI_Observability_Hardening.md`
 * Product spec active: `docs/product-specs/KBase - AI Chatbot v1 Specification.md`; Core spec vẫn là source of truth cho frozen Core behavior
 * Design sources active: `KBase - AI Chatbot RAG Architecture.md`, `KBase - AI Chatbot Persistence and Vector Search Design.md`, `KBase - AI Chatbot REST API Specification.md`, `KBase - AI Chatbot Testing Strategy.md`
 
@@ -54,7 +54,9 @@ Trạng thái nên dùng:
 * `M4 Gate PASS: explicit Spring AI/Google GenAI Gemini chat/embedding adapters, deterministic query/document preparation, strict vector(768), provider-neutral error translation, request-timeout wiring và privacy/logging guards đã hoàn tất; không gọi real Gemini.`
 * `M5 Gate PASS: exactly seven supported extraction formats, deterministic kbase-lex-v1/chunk-v1 chunking, durable DOCUMENT_INDEX staging/activation, bounded retries, safe failure reasons, internal status/manual retry and delete/stale-lease protection đã hoàn tất; targeted 17/17 và full 307/307.`
 * `M6 Gate PASS: project-scoped semantic retrieval, strict NO_EVIDENCE, grounded prompt/label validation, citation snapshot mapping và membership recheck đã hoàn tất; targeted 33/33, full 329/329.`
-* `M7 Gate PASS: private Project Assistant conversation lifecycle, quota/concurrency, grounded/NO_EVIDENCE/failure states, source reads, document index status/retry và API-AI-001..009 đã verify; targeted 36/36, full 346/346. M8 READY, chưa implement.`
+* `M7 Gate PASS: private Project Assistant conversation lifecycle, quota/concurrency, grounded/NO_EVIDENCE/failure states, source reads, document index status/retry và API-AI-001..009 đã verify; targeted 36/36, full 346/346.`
+* `M8 Gate PASS: provider-independent CONVERSATION_PURGE, retention/deletion/security races đã verify; full 352/352.`
+* `M9 Gate PASS: immutable two-spec packaged Guide corpus, durable GUIDE_REINDEX last-good lifecycle, SQL-bound allowlist retrieval proven against a rogue perfect vector, null-threshold fail-closed strict grounding và stateless API-AI-010 đã verify; full 356/356. M10 usage guard/observability hardening is planned only.`
 
 ## Đã Hoàn thành và Kiểm chứng
 
@@ -306,9 +308,9 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 
 ## Bước Tiếp theo
 
-1. `M9 KBase Guide: triển khai strict stateless grounded Guide theo active M9 plan; không dùng project data hoặc persistent Guide conversation.`
-2. `Giữ Core v1 frozen; M9 dùng M8 retention/M7 privacy và V4 schema làm baseline. Không mở rate guard, frontend hoặc real Gemini automated dependency.`
-3. `Core tech-debt cũ (PATCH null semantics, CI, Gmail production smoke, Redis observability) và M5 worker lease heartbeat vẫn theo tracker; không kéo vào M8 ngoài scope.`
+1. `M10 usage guard, OpenAPI/observability hardening là slice tiếp theo; không làm lại M9 corpus boundary.`
+2. `Giữ Core v1 frozen; không mở frontend hoặc real Gemini automated dependency.`
+3. `Core tech-debt cũ (PATCH null semantics, CI, Gmail production smoke, Redis observability) và M5 worker lease heartbeat vẫn theo tracker.`
 
 
 ## Quy tắc Cập nhật

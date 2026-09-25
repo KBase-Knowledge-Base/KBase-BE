@@ -128,7 +128,7 @@ AI-specific source: `docs/design-docs/KBase - AI Chatbot Testing Strategy.md`.
 - Membership retention dùng controllable clock: immediate deny, rejoin <7d restore, >7d purge, purge race recheck.
 - Worker tests cover `SKIP LOCKED`, duplicate/idempotency, bounded retry, stale lease recovery và deleted-document no-resurrection.
 - Citation tests cover snapshot + live FK deletion + current document authorization.
-- Guide tests prove exact allowlist and zero project-corpus access.
+- Guide tests prove the exact allowlist, zero project-corpus access, and null-threshold fail-closed NO_EVIDENCE without a chat call.
 - Final AI gate vẫn chạy toàn bộ Core regression; không disable Core tests để làm AI pass.
 
 ### AI v1 M3 verification đã chạy
@@ -167,5 +167,10 @@ AI-specific source: `docs/design-docs/KBase - AI Chatbot Testing Strategy.md`.
 ### AI v1 M7 conversation/API verification
 
 - `ProjectAssistantM7IntegrationTest` dùng real PostgreSQL 17.11/pgvector, real SecurityFilterChain/MockMvc, M6 RAG và deterministic `FakeAiChatModel`/`FakeAiEmbeddingModel`; không có real Gemini credential/network. Test bao phủ create/NO_EVIDENCE, JWT, private MEMBER/OWNER/ADMIN lookup, user-row quota 4→5 race, per-project/per-user quota, hard-delete quota release, one-active send, distinct conversations concurrent, provider failure giữ USER/FAILED, revoke trong và sau M6 trước finalization, delete khi generation chạy, citation availability sau document delete, index status/retry permission và non-FAILED rejection.
-- `OpenApiContractIntegrationTest` assert chính xác 37 paths / 56 operations, 14 tags, M7 methods/error/DTO schemas và sensitive-field absence. `ProjectAssistantTitleTest` kiểm tra Unicode-safe 100-code-point title.
+- `OpenApiContractIntegrationTest` assert chính xác 38 paths / 57 operations, 15 tags, M7/M9 methods/error/DTO schemas và sensitive-field absence. `ProjectAssistantTitleTest` kiểm tra Unicode-safe 100-code-point title.
 - Targeted command `mvn -B -ntp "-Dtest=ProjectAssistantM7IntegrationTest,ProjectAssistantTitleTest,OpenApiContractIntegrationTest" test`: 36/36 PASS, 0 failures/errors/skips. Full M7 clean verify result nằm trong active/completed M7 execution plan.
+
+### AI v1 M9 verification đã chạy
+
+- `GuideSourcePackagingTest` proves packaged bytes and SHA-256 match exactly the two canonical source files; `GuideMarkdownChunkerTest` proves fenced-code-safe heading paths; `GuideRagServiceTest` proves a null similarity threshold returns deterministic `NO_EVIDENCE` with zero chat calls; `GuideVectorRepositoryIntegrationTest` proves a rogue perfect-vector source is excluded in SQL before ANN candidate limiting.
+- M9 focused Guide tests, M7 regression + Guide startup, and the OpenAPI contract have passed with deterministic fakes/real PostgreSQL where required; the final `mvn -B -ntp clean verify` result is 356/356 with zero failures/errors/skips. No real Gemini credential or public network was used.

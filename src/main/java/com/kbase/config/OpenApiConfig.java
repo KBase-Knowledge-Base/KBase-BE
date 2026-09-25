@@ -46,6 +46,7 @@ public class OpenApiConfig {
     public static final String TAG_DOCUMENTS = "Documents";
     public static final String TAG_AI_PROJECT_ASSISTANT = "AI - Project Assistant";
     public static final String TAG_AI_DOCUMENT_INDEXING = "AI - Document Indexing";
+    public static final String TAG_AI_GUIDE = "AI - KBase Guide";
 
     @Bean
     public OpenAPI kbaseOpenApi() {
@@ -63,8 +64,8 @@ public class OpenApiConfig {
                                 refresh token travels only in an HttpOnly cookie. Document upload uses multipart \
                                 form data; preview and download stream the private binary through the backend. \
                                 Core document search is metadata-only. AI v1 adds private, non-streaming Project \
-                                Assistant conversations and document indexing status/retry, with current project \
-                                authorization and strict grounded or NO_EVIDENCE answers."""))
+                                Assistant conversations and document indexing status/retry, plus authenticated stateless \
+                                KBase Guide queries grounded only in approved product specifications."""))
                 .components(new Components().addSecuritySchemes(SECURITY_SCHEME_BEARER,
                         new SecurityScheme()
                                 .name(SECURITY_SCHEME_BEARER)
@@ -103,7 +104,9 @@ public class OpenApiConfig {
                 new Tag().name(TAG_AI_PROJECT_ASSISTANT)
                         .description("Private creator-owned project conversations and grounded assistant turns."),
                 new Tag().name(TAG_AI_DOCUMENT_INDEXING)
-                        .description("Document AI index status and asynchronous failed-index retry."));
+                        .description("Document AI index status and asynchronous failed-index retry."),
+                new Tag().name(TAG_AI_GUIDE)
+                        .description("Authenticated stateless product-help queries; no project corpus or persistent Guide history."));
     }
 
     /**
