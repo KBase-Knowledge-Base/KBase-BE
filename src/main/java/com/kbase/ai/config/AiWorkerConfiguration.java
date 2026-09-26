@@ -5,11 +5,14 @@ import java.time.Clock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
-/** Shared clock and scheduling infrastructure for the durable M3 worker boundary. */
+/**
+ * Shared clock and scheduling infrastructure for the durable M3 worker
+ * boundary. The {@code @EnableScheduling} switch itself lives in
+ * {@link AiWorkerSchedulingConfiguration} so the manual Real Gemini smoke can
+ * disable background job execution without touching production defaults.
+ */
 @Configuration(proxyBeanMethods = false)
-@EnableScheduling
 public class AiWorkerConfiguration {
 
     @Bean(name = "aiClock")
