@@ -14,7 +14,8 @@
 * **Core v1 backend: FROZEN** (M15 pass 2026-09-19; M16 post-audit maintenance pass).
 * **AI v1 backend: FROZEN** (M0–M11 PASS; M11 freeze report 2026-09-26).
 * **Post-freeze final codebase audit: PASS** (2026-09-26 — `docs/exec-plans/completed/KBase_Post_Freeze_Final_Codebase_Audit.md`): 4 reviewer findings xác nhận và sửa (storage exception log sanitization, invitation flush-before-mail, profile fail-safe, MinIO 5xx classification), 2 autonomous findings sửa (A-01/A-02 sanitization), full regression PASS.
-* **Final handoff cleanup PASS** (2026-09-26): OpenAPI/Swagger chuyển fail-closed ở base config (no-profile artifact không expose docs — Docker smoke 401; local/test/runtime-test enable tường minh — `ProfileFailSafeTest` 6/6 + smoke runtime-test provider vẫn hoạt động), `AGENTS.md` + harness registry phản ánh frozen baseline, docs baseline-first đồng bộ. Changes của cleanup này đang chờ operator review (chưa commit).
+* **Final handoff cleanup PASS** (2026-09-26): OpenAPI/Swagger chuyển fail-closed ở base config (no-profile artifact không expose docs — Docker smoke 401; local/test/runtime-test enable tường minh — `ProfileFailSafeTest` 6/6 + smoke runtime-test provider vẫn hoạt động), `AGENTS.md` + harness registry phản ánh frozen baseline, docs baseline-first đồng bộ. Đã commit/push tại 18a7cdde (Review cuối).
+* **Real Gemini provider adapter smoke: PASS** (2026-09-26, owner-approved narrow slice `docs/exec-plans/completed/KBase_Real_Gemini_Provider_Smoke.md`): backend khởi động profile `local` với `KBASE_AI_ENABLED=true`, mode `gemini`, key từ .env (không commit); direct chat adapter PASS — `SpringAiGeminiChatAdapter` (chat model runtime candidate `gemini-3.5-flash-lite`) trả "KBASE_GEMINI_OK"; direct embedding adapter PASS — `SpringAiGeminiEmbeddingAdapter` (`gemini-embedding-2`) trả vector **768** allFinite. **Full live RAG golden journey CHƯA chạy** — belongs to a future owner-approved slice. Default chat model trong config vẫn là `gemini-2.5-flash`; việc đổi canonical model là quyết định riêng sau live verification.
 * **Không có active implementation milestone.** Không tạo M12. Phase mới (frontend, real-Gemini rollout, chat recovery policy, CI) đều cần owner approval.
 * Frontend và streaming: deferred, không thuộc phase backend hiện tại.
 
@@ -42,7 +43,7 @@ Bảng tổng quan:
 | --- | --- | --- |
 | `mvn -B -ntp clean verify` (full gate hiện tại, sau final handoff cleanup) | BUILD SUCCESS — **389 tests, 0 failures/errors/skipped** | 2026-09-26 |
 | M11 runtime matrix (security 37/37, retention, restart/recovery, log audit 0 hits) | PASS | 2026-09-26 |
-| Profile fail-safe (`ProfileFailSafeTest` 4/4 + Docker smoke local/runtime-test) | PASS | 2026-09-26 |
+| Profile fail-safe (`ProfileFailSafeTest` 6/6 + Docker smoke local/runtime-test) | PASS | 2026-09-26 |
 | Runtime OpenAPI = 38/57/15; Flyway V1–V4; 18 tables | PASS | 2026-09-26 |
 
 Chi tiết lệnh và bằng chứng từng milestone: xem các freeze report và `docs/DEVELOPMENT.md` (verification records).
@@ -69,7 +70,7 @@ Chi tiết lệnh và bằng chứng từng milestone: xem các freeze report v�
 
 ## Bước Tiếp theo
 
-1. `Không có active milestone: Core v1 và AI v1 đều FROZEN; post-freeze audit + cleanup cuối đã commit tại 9c96a962 (Review và Update cuối cho core).`
+1. `Không có active milestone: Core v1 và AI v1 đều FROZEN; post-freeze audit đã commit tại 9c96a962 (Review và Update cuối cho core) và final handoff cleanup đã commit tại 18a7cdde (Review cuối).`
 2. `Mọi phase mới (frontend, provider rollout, recovery policy, CI) cần owner duyệt plan riêng; không tự tạo M12.`
 3. `Session mới đọc file này + audit report + DEVELOPMENT.md là đủ vận hành; chỉ đọc completed plans khi cần historical context.`
 

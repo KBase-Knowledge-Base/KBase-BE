@@ -1,9 +1,9 @@
 # Active Plans
 
+- **Active implementation plan: NONE.** Real Gemini provider smoke đã PASS và được lưu trữ tại `../completed/KBase_Real_Gemini_Provider_Smoke.md`; slice kế tiếp ("Real Gemini RAG Golden Journey") cần owner approval, không tự tạo.
 - **Core v1: FROZEN** (M15 + M16).
 - **AI v1 backend: FROZEN** (M0–M11 PASS; freeze report `../completed/KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md`).
-- **Post-freeze final codebase audit: PASS** (2026-09-26; report `../completed/KBase_Post_Freeze_Final_Codebase_Audit.md` — handoff reference cho session tiếp theo).
-- **Active implementation plan: NONE.** Không tạo M12; work mới cần owner-approved phase mới.
+- **Post-freeze final codebase audit: PASS** (2026-09-26; report `../completed/KBase_Post_Freeze_Final_Codebase_Audit.md`).
 
 ## Quy tắc
 
