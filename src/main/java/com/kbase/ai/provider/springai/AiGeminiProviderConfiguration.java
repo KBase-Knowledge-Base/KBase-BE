@@ -35,6 +35,8 @@ import io.micrometer.observation.ObservationRegistry;
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "kbase.ai", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "kbase.ai.provider", name = "mode", havingValue = "gemini",
+        matchIfMissing = true)
 public class AiGeminiProviderConfiguration {
 
     @Bean(name = "aiGeminiChatClient", destroyMethod = "close")

@@ -184,3 +184,10 @@ AI-specific source: `docs/design-docs/KBase - AI Chatbot Testing Strategy.md`.
 - `OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest`: 22/22; runtime remains exactly 38 paths / 57 operations / 15 tags and documents `AI_RATE_LIMIT_EXCEEDED`/429 plus `AI_USAGE_GUARD_UNAVAILABLE`/503 only on interactive AI POST operations.
 - `RetrievalThresholdEvaluationTest` records deterministic relevant/weak/unrelated score ranges and the M10 v1 selection `0.70`; no real Gemini calibration is claimed.
 - Final `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 371 tests, 0 failures/errors/skips. `docker compose -f docker-compose.yml config --quiet`, `git diff --check` and sensitive-data/scope scans pass. Non-fatal Testcontainers shutdown/placeholder PostgreSQL scheduler warnings do not change the successful Surefire result.
+
+### AI v1 M11 runtime repair (in progress)
+
+- Post-fix `mvn -B -ntp clean verify` is `BUILD SUCCESS`, 373 tests, 0 failures/errors/skips and jar repackage pass. The runtime repair adds configuration tests proving deterministic mode fails without `runtime-test` + acknowledgement and creates no Spring AI/Google client.
+- Clean isolated Compose with the approved pgvector image, Redis, MinIO and mail double applies Flyway V1–V4, validates Hibernate and serves `/v3/api-docs` 200.
+- Real HTTP verification proves supported Markdown upload reaches `READY`, Project Assistant returns grounded + one source and strict no-evidence + zero sources, and Guide does the same against packaged allowlisted corpus.
+- The deterministic unavailable override returns AI 503 while authenticated Core project list remains 200. Remaining failure variants, security/retention/restart and final audit remain M11 work; no real Gemini credential or public network was used.

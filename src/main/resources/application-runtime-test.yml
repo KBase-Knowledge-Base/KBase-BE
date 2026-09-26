@@ -1,0 +1,6 @@
+# The profile is deliberately inert by itself. Docker runtime verification must
+# also set KBASE_AI_PROVIDER_MODE=deterministic and the acknowledgement flag.
+spring:
+  config:
+    activate:
+      on-profile: runtime-test

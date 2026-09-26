@@ -1,0 +1,29 @@
+# M11 deterministic Docker verification only. Combine with the base Compose
+# file (and mail-test only when registration is part of the journey):
+#   docker compose -p kbase-m11 -f docker-compose.yml -f docker-compose.ai-runtime-test.yml up -d --build
+# This profile does not contact Gemini and must never be used for deployment.
+services:
+  # Pin the tested database image rather than inheriting a developer's
+  # potentially stale Core-only KBASE_POSTGRES_IMAGE override from .env.
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg17-bookworm
+
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: runtime-test
+      KBASE_AI_ENABLED: "true"
+      KBASE_AI_PROVIDER_MODE: deterministic
+      KBASE_AI_DETERMINISTIC_RUNTIME_TEST_ACKNOWLEDGED: "true"
+      KBASE_AI_DETERMINISTIC_FAILURE_MODE: none
+      KBASE_AI_WORKER_POLL_INTERVAL: 1s
+      KBASE_AI_WORKER_LEASE_TIMEOUT: 10s
+      KBASE_AI_WORKER_RETRY_BACKOFF: 1s
+      KBASE_AI_USAGE_MAX_REQUESTS: "100"
+      KBASE_STORAGE_AUTO_CREATE: "true"
+      KBASE_STORAGE_INITIALIZE_ON_STARTUP: "true"
+      # The optional mail double is part of the M11 verification path, never
+      # the product topology or a real Gmail delivery claim.
+      KBASE_GMAIL_SMTP_HOST: mail-test
+      KBASE_GMAIL_SMTP_PORT: "1025"
+      KBASE_GMAIL_SMTP_AUTH: "false"
+      KBASE_GMAIL_SMTP_STARTTLS: "false"

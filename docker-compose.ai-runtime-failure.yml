@@ -1,0 +1,7 @@
+# M11 failure-isolation companion for docker-compose.ai-runtime-test.yml.
+# It intentionally fails only KBase AI port calls with a safe UNAVAILABLE
+# category; Core services and storage stay on their normal runtime path.
+services:
+  backend:
+    environment:
+      KBASE_AI_DETERMINISTIC_FAILURE_MODE: unavailable

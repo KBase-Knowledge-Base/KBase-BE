@@ -1,6 +1,6 @@
 # KBase AI Chatbot v1 – M11 Full Runtime Verification / AI v1 Freeze
 
-**Status:** ACTIVE – planning-only handoff; M11 implementation has not started
+**Status:** ACTIVE – IN PROGRESS (deterministic Docker path repaired 2026-09-25; AI v1 is not frozen)
 **Parent plan:** `../KBase_AI_Chatbot_v1_Implementation_Plan.md` (§20)  
 **Depends on:** Completed AI M0–M10; Core v1 remains frozen
 
@@ -18,6 +18,22 @@ M10 Gate is PASS on `2026-09-25`:
 - `docker compose -f docker-compose.yml config --quiet` and `git diff --check` pass;
 - no Flyway migration or `docs/generated/db-schema.md` change;
 - no real Gemini credential or public Gemini network was used.
+
+## M11 preflight result (2026-09-25)
+
+The entry build and configuration checks passed, but the mandatory deterministic Docker provider gate is blocked:
+
+- `mvn -B -ntp clean verify` completed with `BUILD SUCCESS`, `371` tests, `0` failures, `0` errors, `0` skipped, and Spring Boot jar repackage success. Non-fatal Testcontainers/scheduler teardown connection warnings occurred after test contexts were shutting down.
+- `docker compose -f docker-compose.yml config --quiet` and `docker compose -f docker-compose.yml -f docker-compose.mail-test.yml config --quiet` passed. `git diff --check` passed and the initial/final worktree status is clean apart from the documentation changes recorded by this plan.
+- The executable jar contains `AiGeminiProviderConfiguration` and the Spring AI Gemini adapters, but no `FakeAiChatModel` or `FakeAiEmbeddingModel` classes. Those fakes are under `src/test/java` only.
+- `application-test.yml` has no deterministic provider binding. Docker passes `KBASE_AI_ENABLED` and `KBASE_AI_GEMINI_API_KEY`; when AI is enabled, `AiGeminiProviderConfiguration` requires the key and constructs Google GenAI clients.
+- No already-approved, explicit opt-in Docker test profile, packaged deterministic adapter, or other source-backed provider injection path was found.
+
+The provider-backed Docker startup and all dependent runtime journeys were intentionally not started. No real Gemini key, public Gemini network, fake key, DNS interception, production fake, destructive Docker reset, or production-default change was used. The exact blocker is:
+
+`BLOCKED_RUNTIME_PROVIDER_TEST_PATH_MISSING`
+
+This historical preflight finding kept M11 active and prevented an AI v1 freeze claim.
 
 The worktree contains intentional M10 implementation and documentation changes. Preserve them; do not reset, commit, push, merge, rebase, cherry-pick, or change branches during this handoff.
 
@@ -80,7 +96,9 @@ Verify the complete boundary matrix in runtime evidence:
 With a controllable clock or the repository's approved test-time path, verify removal/rejoin and purge behavior:
 
 - retention eligibility and `CONVERSATION_PURGE` behavior are deterministic;
-- removed users cannot regain access to retained private conversation data merely by rejoining;
+- rejoining before `purgeAfter` restores access to the retained conversation under the authoritative M8 retention rule;
+- rejoining after completed purge does not resurrect history;
+- an in-flight request invalidated by membership revocation remains invalid even if the user rejoins before provider finalization;
 - purge removes the intended conversation/message/source data and leaves unrelated project/core data intact;
 - the evidence distinguishes provider-independent purge from live provider behavior.
 
@@ -129,16 +147,22 @@ Populate this table during M11 execution; do not mark an item PASS without runna
 
 | Item | Required evidence | Status |
 |---|---|---|
-| AI-VERIFY-01 | Clean Maven build and exact totals | NOT STARTED |
-| AI-VERIFY-02 | Fresh Compose startup, Flyway V1–V4, Hibernate validation, health/log evidence | NOT STARTED |
-| AI-VERIFY-03 | Project Assistant upload/index/grounded/no-evidence HTTP journey | NOT STARTED |
-| AI-VERIFY-04 | Provider/Redis failure isolation plus Core health | NOT STARTED |
-| AI-VERIFY-05 | Cross-project, private conversation, prompt-injection, and source-authz evidence | NOT STARTED |
-| AI-VERIFY-06 | Remove/rejoin and retention/purge evidence | NOT STARTED |
-| AI-VERIFY-07 | Guide approved/unsupported question evidence | NOT STARTED |
-| AI-VERIFY-08 | Restart/stale-job resume and persistence/ephemerality evidence | NOT STARTED |
-| AI-VERIFY-09 | Docs/code/Flyway/OpenAPI/generated snapshot consistency audit | NOT STARTED |
-| AI-VERIFY-10 | Completed freeze report and synchronized living docs | NOT STARTED |
+| AI-VERIFY-01 | Clean Maven build and exact totals | PASS — post-fix `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 373 tests, 0 failures/errors/skips, jar repackage pass; teardown scheduler/Testcontainers connection warnings remain non-fatal |
+| AI-VERIFY-02 | Fresh Compose startup, Flyway V1–V4, Hibernate validation, health/log evidence | PASS — clean isolated `kbase-m11runtime` Compose with mail double, pinned `pgvector/pgvector:0.8.6-pg17-bookworm`, profile `runtime-test`; Flyway V1–V4 and Hibernate validation completed; `/v3/api-docs` 200 |
+| AI-VERIFY-03 | Project Assistant upload/index/grounded/no-evidence HTTP journey | PASS — real HTTP: Markdown upload with declared `text/markdown` → `READY` → `GROUNDED` with 1 source; unrelated question → `NO_EVIDENCE` with 0 sources |
+| AI-VERIFY-04 | Provider/Redis failure isolation plus Core health | PARTIAL — deterministic `UNAVAILABLE` produces Guide 503 while authenticated Core project list remains 200; indexing retry, chat failure, Redis-unavailable and leak scans remain required |
+| AI-VERIFY-05 | Cross-project, private conversation, prompt-injection, and source-authz evidence | NOT RUN — prior M6/M7 integration evidence is not substituted for Docker runtime evidence |
+| AI-VERIFY-06 | Remove/rejoin and retention/purge evidence | NOT RUN — requires the approved controllable-time runtime path |
+| AI-VERIFY-07 | Guide approved/unsupported question evidence | PASS — authenticated real HTTP query against packaged corpus: documented permission question → `GROUNDED` with 1 source; unrelated question → `NO_EVIDENCE` with 0 sources |
+| AI-VERIFY-08 | Restart/stale-job resume and persistence/ephemerality evidence | NOT RUN — clean runtime is available; stale-job/restart evidence remains required; known chat abrupt-death limitation remains open |
+| AI-VERIFY-09 | Docs/code/Flyway/OpenAPI/generated snapshot consistency audit | IN PROGRESS — source/config mismatch in local Core-only `.env` was isolated from M11 by an explicit pinned pgvector test override; generated snapshots still require final audit |
+| AI-VERIFY-10 | Completed freeze report and synchronized living docs | NOT RUN — completion gate is not met and the plan remains active |
+
+## M11 execution log
+
+The blocker was repaired with a packaged deterministic port adapter that requires all of: `kbase.ai.enabled=true`, explicit `kbase.ai.provider.mode=deterministic`, Spring profile `runtime-test`, and an acknowledgement flag. Gemini remains the default provider mode; no credential or public network is used. The local `.env` PostgreSQL image was corrected from Core-only `postgres:17-alpine` to the approved pgvector image; the M11 Compose override pins that same image for reproducibility. A companion failure override induces only safe provider unavailability.
+
+The generated snapshots were inspected without modification: `docs/generated/db-schema.md` records 18 persistent tables and `docs/generated/api-schema.md` records 38 paths / 57 operations / 15 tags; Flyway source remains V1–V4. M11 is no longer blocked by provider injection, but it is not complete: AI-VERIFY-04 remaining cases and AI-VERIFY-05/06/08/09 must be executed before any freeze claim or M12.
 
 ## Completion gate
 

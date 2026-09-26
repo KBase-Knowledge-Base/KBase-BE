@@ -82,8 +82,14 @@ kbase:
       embedding-model: ${KBASE_AI_GEMINI_EMBEDDING_MODEL:gemini-embedding-2}
       embedding-dimensions: ${KBASE_AI_GEMINI_EMBEDDING_DIMENSIONS:768}
     provider:
+      # Gemini is production-default. `deterministic` is rejected unless the
+      # explicitly acknowledged runtime-test profile is active.
+      mode: ${KBASE_AI_PROVIDER_MODE:gemini}
       connect-timeout: ${KBASE_AI_PROVIDER_CONNECT_TIMEOUT:10s}
       request-timeout: ${KBASE_AI_PROVIDER_REQUEST_TIMEOUT:60s}
+      deterministic:
+        runtime-test-acknowledged: ${KBASE_AI_DETERMINISTIC_RUNTIME_TEST_ACKNOWLEDGED:false}
+        failure-mode: ${KBASE_AI_DETERMINISTIC_FAILURE_MODE:none}
     max-message-chars: ${KBASE_AI_MAX_MESSAGE_CHARS:8000}
     chunk-target-tokens: ${KBASE_AI_CHUNK_TARGET_TOKENS:700}
     chunk-overlap-percent: ${KBASE_AI_CHUNK_OVERLAP_PERCENT:12}
