@@ -37,3 +37,13 @@
 ## Final result
 
 **PASS.** Manual Real Gemini smoke giờ là operator-only verification có isolation cơ học; automated gate vẫn 0 Gemini call và 0 skipped. **Full Real Gemini RAG Golden Journey has NOT been executed** — pending owner approval.
+
+## Post-completion continuation — isolation precedence fix (2026-09-27, baseline 978d37dc)
+
+Review v2 tìm ra F-01 MEDIUM còn lại: isolation property trước đó được đặt qua `SpringApplicationBuilder.properties(...)` — lớp DefaultProperties có precedence THẤP HƠN OS environment, nên env `KBASE_AI_WORKER_SCHEDULING_ENABLED=true` có thể override smoke isolation trước khi assertion chạy.
+
+- **Fix:** isolation override chuyển sang command-line argument (`run("--kbase.ai.worker.scheduling-enabled=false")`) — highest-precedence property source của Spring Boot; harness assert effective value == false TRƯỚC mọi provider call.
+- **Automated precedence evidence:** `AiWorkerSchedulingPrecedenceTest` 2/2 — (control) hostile env var thật sự enable scheduling khi không có override; (fix) command-line false thắng hostile env var, processor bean absent. Không Gemini network.
+- **Real re-smoke với hostile env:** đặt `KBASE_AI_WORKER_SCHEDULING_ENABLED=true` trong environment → runtime vẫn báo effectiveSchedulingEnabled=false, backgroundSchedulingActive=false, CHAT_OK "KBASE_GEMINI_OK" (gemini-3.5-flash-lite), EMBED_OK 768 allFinite (gemini-embedding-2), RESULT=PASS; DB postcondition 0 job executed. Tổng: 2 explicit provider invocations.
+- **Docs:** QUALITY_SCORE current rows → `current full gate: 400/400` (historical 387/389 benchmark giữ nguyên); CURRENT_STATE next-step viết lại state-first.
+- **Final regression:** `mvn -B -ntp clean verify` BUILD SUCCESS **400 tests, 0 failures/errors/skipped** (398 + 2 precedence tests); compose config PASS; diff-check PASS; secret audit 0 hits.

@@ -22,13 +22,16 @@ import org.springframework.context.ConfigurableApplicationContext;
  * {@code @Test} methods, so {@code mvn clean verify} cannot run it and the
  * offline suite keeps 0 skipped.
  *
- * <p>Isolation contract (mechanical, not timing-based): the smoke boots with
- * {@code kbase.ai.worker.scheduling-enabled=false}, which removes the Spring
- * scheduling infrastructure from this context, so {@code AiJobScheduler}
- * cannot claim pending DOCUMENT_INDEX/GUIDE_REINDEX jobs and no background
- * provider traffic exists. Guide startup synchronization only reconciles
- * packaged-corpus hashes and enqueues intent — it never embeds inline. The
- * only provider calls are the two explicit adapter invocations below.
+ * <p>Isolation contract (mechanical, not timing-based): the smoke passes
+ * {@code --kbase.ai.worker.scheduling-enabled=false} as a command-line
+ * argument — Spring Boot's highest-precedence property source — so operator
+ * environment variables cannot override the smoke-only disable. The harness
+ * asserts the effective value and the absence of the scheduling
+ * infrastructure before any provider call, so {@code AiJobScheduler} cannot
+ * claim pending DOCUMENT_INDEX/GUIDE_REINDEX jobs and no background provider
+ * traffic exists. Guide startup synchronization only reconciles packaged-
+ * corpus hashes and enqueues intent — it never embeds inline. The only
+ * provider calls are the two explicit adapter invocations below.
  *
  * <p>Preflight runs BEFORE any provider call: the context must resolve exactly
  * the approved candidate configuration, otherwise the harness exits with
@@ -86,23 +89,37 @@ public final class RealGeminiAdapterManualSmoke {
     }
 
     public static void main(String[] args) {
+        // Mechanical background isolation via COMMAND-LINE arguments: Spring
+        // Boot resolves command-line args as the highest-precedence property
+        // source, so an operator environment variable such as
+        // KBASE_AI_WORKER_SCHEDULING_ENABLED=true cannot override it (unlike
+        // the previous DefaultProperties layer, which sat BELOW the OS
+        // environment). The effective value is asserted before any provider
+        // call, so isolation is deterministic, not timing-based.
         ConfigurableApplicationContext context = new SpringApplicationBuilder(KBaseApplication.class)
                 .web(WebApplicationType.SERVLET)
                 .profiles("local")
-                .properties(
-                        "server.port=18085",
-                        // Mechanical background isolation: no scheduler, no job
-                        // claims, no indirect provider traffic in this context.
-                        "kbase.ai.worker.scheduling-enabled=false")
-                .run();
+                .run(
+                        "--server.port=18085",
+                        "--kbase.ai.worker.scheduling-enabled=false");
         try {
             var environment = context.getEnvironment();
             String providerMode = environment.getProperty("kbase.ai.provider.mode");
             String chatModel = environment.getProperty("kbase.ai.gemini.chat-model");
             String embeddingModel = environment.getProperty("kbase.ai.gemini.embedding-model");
             String dimensionsProperty = environment.getProperty("kbase.ai.gemini.embedding-dimensions");
+            String effectiveScheduling = environment.getProperty("kbase.ai.worker.scheduling-enabled");
 
-            // --- Preflight: fail BEFORE any provider invocation on config drift ---
+            // --- Isolation preflight: the override must be effective ---
+            System.out.println("[smoke] effectiveSchedulingEnabled=" + effectiveScheduling
+                    + " (must be false regardless of external environment)");
+            if (!"false".equals(effectiveScheduling)) {
+                System.out.println("[smoke] RESULT=FAIL (isolation override was not effective; "
+                        + "no provider request was sent)");
+                System.exit(1);
+            }
+
+            // --- Candidate preflight: fail BEFORE any provider invocation on config drift ---
             List<String> violations = candidateViolations(
                     providerMode, chatModel, embeddingModel, dimensionsProperty);
             System.out.println("[smoke] preflight provider.mode=" + providerMode

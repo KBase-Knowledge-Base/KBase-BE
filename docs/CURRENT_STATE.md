@@ -16,7 +16,7 @@
 * **Post-freeze final codebase audit: PASS** (2026-09-26 — `docs/exec-plans/completed/KBase_Post_Freeze_Final_Codebase_Audit.md`): 4 reviewer findings xác nhận và sửa (storage exception log sanitization, invitation flush-before-mail, profile fail-safe, MinIO 5xx classification), 2 autonomous findings sửa (A-01/A-02 sanitization), full regression PASS.
 * **Final handoff cleanup PASS** (2026-09-26): OpenAPI/Swagger chuyển fail-closed ở base config (no-profile artifact không expose docs — Docker smoke 401; local/test/runtime-test enable tường minh — `ProfileFailSafeTest` 6/6 + smoke runtime-test provider vẫn hoạt động), `AGENTS.md` + harness registry phản ánh frozen baseline, docs baseline-first đồng bộ. Đã commit/push tại 18a7cdde (Review cuối).
 * **Real Gemini provider adapter smoke: PASS** (2026-09-26, owner-approved narrow slice `docs/exec-plans/completed/KBase_Real_Gemini_Provider_Smoke.md`): backend khởi động profile `local` với `KBASE_AI_ENABLED=true`, mode `gemini`, key từ .env (không commit); direct chat adapter PASS — `SpringAiGeminiChatAdapter` (chat model runtime candidate `gemini-3.5-flash-lite`) trả "KBASE_GEMINI_OK"; direct embedding adapter PASS — `SpringAiGeminiEmbeddingAdapter` (`gemini-embedding-2`) trả vector **768** allFinite. **Full live RAG golden journey CHƯA chạy** — belongs to a future owner-approved slice. Default chat model trong config vẫn là `gemini-2.5-flash`; việc đổi canonical model là quyết định riêng sau live verification.
-* **Real Gemini smoke hardening: PASS** (2026-09-26 — `docs/exec-plans/completed/KBase_Real_Gemini_Provider_Smoke_Hardening.md`): manual smoke giờ mechanically isolate background AI scheduling (`kbase.ai.worker.scheduling-enabled=false`, production default giữ nguyên) + preflight fail-before-provider-call theo candidate được duyệt; full gate **398 tests, 0 failures/errors/skipped**.
+* **Real Gemini smoke hardening: PASS** (2026-09-26 — `docs/exec-plans/completed/KBase_Real_Gemini_Provider_Smoke_Hardening.md`): manual smoke giờ mechanically isolate background AI scheduling (`kbase.ai.worker.scheduling-enabled=false`, production default giữ nguyên) + preflight fail-before-provider-call theo candidate được duyệt; full gate **400 tests, 0 failures/errors/skipped**.
 * **Không có active implementation milestone.** Không tạo M12. Phase mới (frontend, real-Gemini rollout, chat recovery policy, CI) đều cần owner approval.
 * Frontend và streaming: deferred, không thuộc phase backend hiện tại.
 
@@ -24,7 +24,7 @@ Bảng tổng quan:
 
 | Khu vực          | Trạng thái    | Ghi chú |
 | ---------------- | ------------- | ------- |
-| Build            | FROZEN baseline | Full gate hiện tại: `mvn -B -ntp clean verify` BUILD SUCCESS, **398 tests / 0 failures / 0 errors / 0 skipped**; Compose base + mọi verification override validate. |
+| Build            | FROZEN baseline | Full gate hiện tại: `mvn -B -ntp clean verify` BUILD SUCCESS, **400 tests / 0 failures / 0 errors / 0 skipped**; Compose base + mọi verification override validate. |
 | Backend          | Core + AI FROZEN | Project Assistant (private creator conversations), Guide (2 packaged specs), document indexing/semantic retrieval, durable job engine, usage guard — toàn bộ frozen behavior. |
 | Database         | Ổn định | Flyway V1–V4, 18 persistent tables, pgvector `vector(768)`, HNSW cosine indexes, Hibernate validate. |
 | API contract     | Ổn định | Runtime OpenAPI 38 paths / 57 operations / 15 tags; API-AI-001..010; generated snapshots đồng bộ. |
@@ -71,9 +71,9 @@ Chi tiết lệnh và bằng chứng từng milestone: xem các freeze report v�
 
 ## Bước Tiếp theo
 
-1. `Không có active milestone: Core v1 và AI v1 đều FROZEN; post-freeze audit đã commit tại 9c96a962 (Review và Update cuối cho core) và final handoff cleanup đã commit tại 18a7cdde (Review cuối).`
-2. `Mọi phase mới (frontend, provider rollout, recovery policy, CI) cần owner duyệt plan riêng; không tự tạo M12.`
-3. `Session mới đọc file này + audit report + DEVELOPMENT.md là đủ vận hành; chỉ đọc completed plans khi cần historical context.`
+1. `Current state: Core v1 + AI v1 backend FROZEN; Real Gemini provider adapter smoke + isolation hardening PASS (2 explicit live adapter requests; background scheduling mechanically disabled trong smoke context).`
+2. `Active implementation plan: NONE. Slice kế tiếp được đề xuất: Real Gemini RAG Golden Journey — cần owner approval; không tự tạo M12.`
+3. `Session mới đọc file này + completed smoke/hardening reports + DEVELOPMENT.md là đủ vận hành; commit chronology (9c96a962, 18a7cdde, 978d37dc) chỉ là historical context khi cần đối chiếu.`
 
 ## Quy tắc Cập nhật
 
