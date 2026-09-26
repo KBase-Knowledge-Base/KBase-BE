@@ -5,11 +5,12 @@
 
 ## Cập nhật Lần cuối
 
-* Ngày cập nhật: `2026-09-25`
-* Người hoặc agent cập nhật: `Codex - M11 Runtime Repair`
+* Ngày cập nhật: `2026-09-26`
+* Người hoặc agent cập nhật: `Codex - M11 Remaining Gate Fix`
 * Nhánh hiện tại: `feat-AI` (được tạo trực tiếp từ `dev`)
 * Core v1 frozen. AI M10 is complete: Redis-backed per-user interactive AI usage guard, stable 429/503 contracts, retrieval threshold `0.70`, bounded Micrometer observability, exact OpenAPI hardening, generated API synchronization and sensitive-data audit. No project corpus/conversation boundary was widened; M11 remains the active slice for full runtime verification/freeze.
 * M11 runtime repair ngày `2026-09-25`: packaged deterministic adapter now requires explicit `deterministic` mode + `runtime-test` profile + acknowledgement while Gemini remains the default. Post-fix `mvn -B -ntp clean verify` PASS 373/373 with jar repackage. Clean isolated Docker startup applied Flyway V1–V4 and Hibernate validation; real HTTP Project Assistant upload/index/grounded/no-evidence and Guide grounded/no-evidence journeys pass; deterministic provider unavailability gives AI 503 while Core project list remains 200. No real Gemini credential/network was used. M11 is active, not frozen: the remaining security, retention, restart/recovery, Redis-failure and final consistency evidence is still required.
+* M11 continuation ngày `2026-09-26`: Docker đã được khôi phục. Fresh `mvn -B -ntp clean verify` PASS 377/377; deterministic provider now isolates chat versus embedding failures and has a bounded deterministic-chat delay for the revoke/rejoin race; Compose passes the documented worker retry backoff. Isolated real HTTP proof now covers chat failure lifecycle, document-index embedding retry exhaustion, Redis guard outage/Core isolation, runtime shared rate limit and a zero-hit log sentinel scan. Security, retention, restart/recovery and final consistency evidence remain; AI v1 is unfrozen.
 
 ## Trạng thái Tổng quan
 
@@ -184,7 +185,7 @@ Trạng thái nên dùng:
 
 | Blocker | Ảnh hưởng | Hướng xử lý | Trạng thái |
 | ------- | --------- | ----------- | ---------- |
-| (không có blocker Core v1) | — | — | — |
+| (không có blocker môi trường hiện tại) | — | Continue M11 security, retention, restart/recovery and consistency matrix | — |
 
 Blocker cũ "Archive không có Git metadata" đã được xử lý: repository hiện có Git history đầy đủ trên nhánh `dev` (commits theo milestone M0–M15); không còn cản trở đối chiếu.
 
@@ -315,13 +316,13 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
   * `OpenAPI Markdown snapshot (docs/generated/api-schema.md) vẫn được đồng bộ thủ công từ runtime /v3/api-docs; contract tests chặn drift ở mức security/multipart/binary/error-code nhưng chi tiết field-level trong Markdown phụ thuộc kỷ luật sync cùng thay đổi API.`
   * `Gmail SMTP delivery thật (manual smoke với credential thật) chưa chạy; automated path dùng mail double.`
   * `Google GenAI 1.65.0 trên selected Spring AI client path chỉ cung cấp request timeout qua HttpOptions, chưa có independent connect-timeout surface; typed connect-timeout vẫn được giữ cho future transport customization và không được claim là active.`
-  * `M11 runtime preflight xác nhận deterministic provider gap: FakeAiChatModel/FakeAiEmbeddingModel chỉ ở src/test, production Docker jar dùng AiGeminiProviderConfiguration và yêu cầu KBASE_AI_GEMINI_API_KEY khi bật. Không dùng fake key hoặc real Gemini để vượt gate.`
+  * `M11 runtime provider injection đã được repaired: packaged deterministic adapter chỉ activate khi AI enabled + mode deterministic + runtime-test profile + acknowledgement. Ngày 2026-09-26 bổ sung failure isolation per port, bounded chat-delay seam và runtime evidence cho chat/index/Redis/rate failure isolation; không dùng provider credential hoặc public Gemini.`
   * `M7 chưa có durable chat-generation job hoặc startup recovery: JVM chết sau TX1 có thể để lại ASSISTANT PROCESSING. Ordinary request/provider failures đã chuyển FAILED; abrupt-death recovery được ghi trong tech-debt tracker cho M10 hardening hoặc slice được duyệt.`
   * `Core v1 đã FROZEN ngày 2026-09-19 (M15 pass). Mọi thay đổi kế tiếp cần phase/plan mới được duyệt.`
 
 ## Bước Tiếp theo
 
-1. `M11 Full Runtime Verification / AI v1 Freeze vẫn ACTIVE; tiếp tục AI-VERIFY-04 remaining cases và AI-VERIFY-05/06/08/09 trước freeze claim.`
+1. `M11 Full Runtime Verification / AI v1 Freeze vẫn ACTIVE; tiếp tục AI-VERIFY-05/06/08/09 trước freeze claim.`
 2. `Giữ Core v1 frozen; không mở frontend, không gọi real Gemini automated dependency và không tạo M12.`
 3. `Core tech-debt cũ (PATCH null semantics, CI, Gmail production smoke, Redis OTP observability) và AI worker/chat recovery limitations vẫn theo tracker.`
 

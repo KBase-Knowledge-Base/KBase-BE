@@ -1,0 +1,7 @@
+# M11 verification-only override. It lowers only the ephemeral per-user
+# interactive AI budget to prove shared Project Assistant/Guide rate handling.
+# Never use this deployment configuration.
+services:
+  backend:
+    environment:
+      KBASE_AI_USAGE_MAX_REQUESTS: "2"

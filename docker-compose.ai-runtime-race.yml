@@ -1,0 +1,6 @@
+# M11 verification-only override. It delays only deterministic chat generation
+# so the HTTP verifier can poll for PROCESSING before revoke/rejoin; never deploy.
+services:
+  backend:
+    environment:
+      KBASE_AI_DETERMINISTIC_CHAT_DELAY: 8s

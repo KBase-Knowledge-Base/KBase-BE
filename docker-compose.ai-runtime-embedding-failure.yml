@@ -1,0 +1,6 @@
+# M11 verification-only override. Combine with docker-compose.ai-runtime-test.yml
+# to fail document/query embeddings without changing chat behavior; never deploy.
+services:
+  backend:
+    environment:
+      KBASE_AI_DETERMINISTIC_FAILURE_MODE: embedding_unavailable

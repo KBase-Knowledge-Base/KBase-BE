@@ -25,8 +25,10 @@ class AiPropertiesBindingTest {
             assertThat(properties.getGemini().getChatModel()).isEqualTo("gemini-2.5-flash");
             assertThat(properties.getGemini().getEmbeddingModel()).isEqualTo("gemini-embedding-2");
             assertThat(properties.getGemini().getEmbeddingDimensions()).isEqualTo(768);
+            assertThat(properties.getProvider().getMode()).isEqualTo(AiProperties.ProviderMode.GEMINI);
             assertThat(properties.getProvider().getConnectTimeout()).isEqualTo(Duration.ofSeconds(10));
             assertThat(properties.getProvider().getRequestTimeout()).isEqualTo(Duration.ofSeconds(60));
+            assertThat(properties.getProvider().getDeterministic().getChatDelay()).isZero();
             assertThat(properties.getMaxMessageChars()).isEqualTo(8_000);
             assertThat(properties.getChunkTargetTokens()).isEqualTo(700);
             assertThat(properties.getChunkOverlapPercent()).isEqualTo(12);
@@ -56,6 +58,7 @@ class AiPropertiesBindingTest {
                         "kbase.ai.gemini.embedding-dimensions=768",
                         "kbase.ai.provider.connect-timeout=11s",
                         "kbase.ai.provider.request-timeout=61s",
+                        "kbase.ai.provider.deterministic.chat-delay=8s",
                         "kbase.ai.max-message-chars=9000",
                         "kbase.ai.chunk-target-tokens=701",
                         "kbase.ai.chunk-overlap-percent=13",
@@ -79,6 +82,8 @@ class AiPropertiesBindingTest {
                     assertThat(properties.getGemini().getChatModel()).isEqualTo("test-chat");
                     assertThat(properties.getProvider().getConnectTimeout()).isEqualTo(Duration.ofSeconds(11));
                     assertThat(properties.getProvider().getRequestTimeout()).isEqualTo(Duration.ofSeconds(61));
+                    assertThat(properties.getProvider().getDeterministic().getChatDelay())
+                            .isEqualTo(Duration.ofSeconds(8));
                     assertThat(properties.getMaxMessageChars()).isEqualTo(9_000);
                     assertThat(properties.getChunkTargetTokens()).isEqualTo(701);
                     assertThat(properties.getChunkOverlapPercent()).isEqualTo(13);
@@ -116,6 +121,13 @@ class AiPropertiesBindingTest {
                         "kbase.ai.usage-max-requests=0",
                         "kbase.ai.usage-window=0s",
                         "kbase.ai.usage-rate-namespace= ")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void rejectsUnboundedDeterministicChatDelay() {
+        contextRunner
+                .withPropertyValues("kbase.ai.provider.deterministic.chat-delay=31s")
                 .run(context -> assertThat(context).hasFailed());
     }
 

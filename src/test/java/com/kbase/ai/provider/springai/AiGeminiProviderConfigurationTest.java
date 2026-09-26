@@ -2,6 +2,7 @@ package com.kbase.ai.provider.springai;
 
 import com.kbase.ai.config.AiProperties;
 import com.kbase.ai.provider.deterministic.DeterministicRuntimeProviderConfiguration;
+import com.kbase.ai.provider.error.AiProviderException;
 import com.kbase.ai.provider.model.AiChatRequest;
 import com.kbase.ai.provider.model.AiEvidenceBlock;
 import com.kbase.ai.provider.port.AiChatModel;
@@ -19,6 +20,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(OutputCaptureExtension.class)
 class AiGeminiProviderConfigurationTest {
@@ -83,6 +85,20 @@ class AiGeminiProviderConfigurationTest {
     }
 
     @Test
+    void runtimeTestProfileFailsWithoutDeterministicAcknowledgement() {
+        contextRunner
+                .withInitializer(context -> context.getEnvironment().setActiveProfiles("runtime-test"))
+                .withPropertyValues(
+                        "kbase.ai.enabled=true",
+                        "kbase.ai.provider.mode=deterministic")
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure()).hasStackTraceContaining(
+                            "requires the runtime-test profile and explicit acknowledgement");
+                });
+    }
+
+    @Test
     void acknowledgedRuntimeTestProfileUsesNetworkFreeDeterministicPorts() {
         contextRunner
                 .withInitializer(context -> context.getEnvironment().setActiveProfiles("runtime-test"))
@@ -114,6 +130,54 @@ class AiGeminiProviderConfigurationTest {
                             java.util.List.of(new AiEvidenceBlock("SOURCE_1", "runtime marker")),
                             "runtime marker")).text()).contains("[SOURCE_1]");
                 });
+    }
+
+    @Test
+    void chatFailureLeavesEmbeddingsAvailableAndFailsOnlyChat() {
+        deterministicContext("chat_unavailable", context -> {
+            AiEmbeddingModel embeddings = context.getBean(AiEmbeddingModel.class);
+            assertThat(embeddings.embed(com.kbase.ai.provider.model.AiEmbeddingRequest.query("retrieval works"))
+                    .vector()).hasSize(768);
+
+            AiChatModel chat = context.getBean(AiChatModel.class);
+            assertThatThrownBy(() -> chat.generate(groundedRequest()))
+                    .isInstanceOf(AiProviderException.class);
+        });
+    }
+
+    @Test
+    void embeddingFailureLeavesChatAvailableAndFailsOnlyEmbedding() {
+        deterministicContext("embedding_unavailable", context -> {
+            AiEmbeddingModel embeddings = context.getBean(AiEmbeddingModel.class);
+            assertThatThrownBy(() -> embeddings.embed(
+                    com.kbase.ai.provider.model.AiEmbeddingRequest.query("index fails")))
+                    .isInstanceOf(AiProviderException.class);
+
+            AiChatModel chat = context.getBean(AiChatModel.class);
+            assertThat(chat.generate(groundedRequest()).text()).contains("[SOURCE_1]");
+        });
+    }
+
+    private void deterministicContext(
+            String failureMode,
+            java.util.function.Consumer<org.springframework.boot.test.context.assertj.AssertableApplicationContext> assertion) {
+        contextRunner
+                .withInitializer(context -> context.getEnvironment().setActiveProfiles("runtime-test"))
+                .withPropertyValues(
+                        "kbase.ai.enabled=true",
+                        "kbase.ai.provider.mode=deterministic",
+                        "kbase.ai.provider.deterministic.runtime-test-acknowledged=true",
+                        "kbase.ai.provider.deterministic.failure-mode=" + failureMode)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertion.accept(context);
+                });
+    }
+
+    private static AiChatRequest groundedRequest() {
+        return new AiChatRequest("system", java.util.List.of(),
+                java.util.List.of(new AiEvidenceBlock("SOURCE_1", "authorized evidence")),
+                "question");
     }
 
     @Configuration(proxyBeanMethods = false)

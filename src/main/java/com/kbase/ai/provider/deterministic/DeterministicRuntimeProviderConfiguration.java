@@ -44,7 +44,8 @@ public class DeterministicRuntimeProviderConfiguration implements EnvironmentAwa
     AiChatModel deterministicRuntimeChatModel(AiProperties properties) {
         verifyRuntimeTestOnly(properties);
         return request -> {
-            failWhenConfigured(properties);
+            delayChat(properties);
+            failChatWhenConfigured(properties);
             AiChatRequest checked = require(request);
             if (checked.evidence().isEmpty()) {
                 throw new AiProviderException(AiProviderErrorCategory.INVALID_RESPONSE);
@@ -59,7 +60,7 @@ public class DeterministicRuntimeProviderConfiguration implements EnvironmentAwa
     AiEmbeddingModel deterministicRuntimeEmbeddingModel(AiProperties properties) {
         verifyRuntimeTestOnly(properties);
         return request -> {
-            failWhenConfigured(properties);
+            failEmbeddingWhenConfigured(properties);
             return new AiEmbeddingResult(vectorFor(require(request).content()), "deterministic-runtime");
         };
     }
@@ -73,13 +74,38 @@ public class DeterministicRuntimeProviderConfiguration implements EnvironmentAwa
         }
     }
 
-    private static void failWhenConfigured(AiProperties properties) {
+    private static void failChatWhenConfigured(AiProperties properties) {
         DeterministicFailureMode mode = properties.getProvider().getDeterministic().getFailureMode();
-        if (mode == DeterministicFailureMode.UNAVAILABLE) {
+        if (mode == DeterministicFailureMode.UNAVAILABLE
+                || mode == DeterministicFailureMode.CHAT_UNAVAILABLE) {
             throw new AiProviderException(AiProviderErrorCategory.UNAVAILABLE);
         }
-        if (mode == DeterministicFailureMode.TIMEOUT) {
+        if (mode == DeterministicFailureMode.TIMEOUT
+                || mode == DeterministicFailureMode.CHAT_TIMEOUT) {
             throw new AiProviderException(AiProviderErrorCategory.TIMEOUT);
+        }
+    }
+
+    private static void failEmbeddingWhenConfigured(AiProperties properties) {
+        DeterministicFailureMode mode = properties.getProvider().getDeterministic().getFailureMode();
+        if (mode == DeterministicFailureMode.UNAVAILABLE
+                || mode == DeterministicFailureMode.EMBEDDING_UNAVAILABLE) {
+            throw new AiProviderException(AiProviderErrorCategory.UNAVAILABLE);
+        }
+        if (mode == DeterministicFailureMode.TIMEOUT
+                || mode == DeterministicFailureMode.EMBEDDING_TIMEOUT) {
+            throw new AiProviderException(AiProviderErrorCategory.TIMEOUT);
+        }
+    }
+
+    private static void delayChat(AiProperties properties) {
+        long delayMillis = properties.getProvider().getDeterministic().getChatDelay().toMillis();
+        if (delayMillis <= 0) return;
+        try {
+            Thread.sleep(delayMillis);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AiProviderException(AiProviderErrorCategory.UNAVAILABLE);
         }
     }
 

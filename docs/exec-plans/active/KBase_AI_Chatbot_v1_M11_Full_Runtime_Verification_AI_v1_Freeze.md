@@ -1,6 +1,6 @@
 # KBase AI Chatbot v1 – M11 Full Runtime Verification / AI v1 Freeze
 
-**Status:** ACTIVE – IN PROGRESS (deterministic Docker path repaired 2026-09-25; AI v1 is not frozen)
+**Status:** ACTIVE – IN PROGRESS (2026-09-26; AI v1 is not frozen)
 **Parent plan:** `../KBase_AI_Chatbot_v1_Implementation_Plan.md` (§20)  
 **Depends on:** Completed AI M0–M10; Core v1 remains frozen
 
@@ -150,7 +150,7 @@ Populate this table during M11 execution; do not mark an item PASS without runna
 | AI-VERIFY-01 | Clean Maven build and exact totals | PASS — post-fix `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 373 tests, 0 failures/errors/skips, jar repackage pass; teardown scheduler/Testcontainers connection warnings remain non-fatal |
 | AI-VERIFY-02 | Fresh Compose startup, Flyway V1–V4, Hibernate validation, health/log evidence | PASS — clean isolated `kbase-m11runtime` Compose with mail double, pinned `pgvector/pgvector:0.8.6-pg17-bookworm`, profile `runtime-test`; Flyway V1–V4 and Hibernate validation completed; `/v3/api-docs` 200 |
 | AI-VERIFY-03 | Project Assistant upload/index/grounded/no-evidence HTTP journey | PASS — real HTTP: Markdown upload with declared `text/markdown` → `READY` → `GROUNDED` with 1 source; unrelated question → `NO_EVIDENCE` with 0 sources |
-| AI-VERIFY-04 | Provider/Redis failure isolation plus Core health | PARTIAL — deterministic `UNAVAILABLE` produces Guide 503 while authenticated Core project list remains 200; indexing retry, chat failure, Redis-unavailable and leak scans remain required |
+| AI-VERIFY-04 | Provider/Redis failure isolation plus Core health | PARTIAL — isolated Docker HTTP proves chat-only 503 after successful retrieval with USER retained/ASSISTANT FAILED, embedding-only upload retry exhaustion, Redis guard 503/Core 200 isolation and shared runtime rate limit; comprehensive retained-log scan across all scenarios remains required |
 | AI-VERIFY-05 | Cross-project, private conversation, prompt-injection, and source-authz evidence | NOT RUN — prior M6/M7 integration evidence is not substituted for Docker runtime evidence |
 | AI-VERIFY-06 | Remove/rejoin and retention/purge evidence | NOT RUN — requires the approved controllable-time runtime path |
 | AI-VERIFY-07 | Guide approved/unsupported question evidence | PASS — authenticated real HTTP query against packaged corpus: documented permission question → `GROUNDED` with 1 source; unrelated question → `NO_EVIDENCE` with 0 sources |
@@ -163,6 +163,24 @@ Populate this table during M11 execution; do not mark an item PASS without runna
 The blocker was repaired with a packaged deterministic port adapter that requires all of: `kbase.ai.enabled=true`, explicit `kbase.ai.provider.mode=deterministic`, Spring profile `runtime-test`, and an acknowledgement flag. Gemini remains the default provider mode; no credential or public network is used. The local `.env` PostgreSQL image was corrected from Core-only `postgres:17-alpine` to the approved pgvector image; the M11 Compose override pins that same image for reproducibility. A companion failure override induces only safe provider unavailability.
 
 The generated snapshots were inspected without modification: `docs/generated/db-schema.md` records 18 persistent tables and `docs/generated/api-schema.md` records 38 paths / 57 operations / 15 tags; Flyway source remains V1–V4. M11 is no longer blocked by provider injection, but it is not complete: AI-VERIFY-04 remaining cases and AI-VERIFY-05/06/08/09 must be executed before any freeze claim or M12.
+
+### Continuation attempt — 2026-09-26
+
+- The verification-only deterministic provider now isolates `CHAT_UNAVAILABLE`/`CHAT_TIMEOUT` from `EMBEDDING_UNAVAILABLE`/`EMBEDDING_TIMEOUT`; legacy `UNAVAILABLE`/`TIMEOUT` still affect both ports. The bounded `kbase.ai.provider.deterministic.chat-delay` (0–30 seconds, default `0s`) delays only deterministic chat and is unavailable unless the existing AI-enabled + `runtime-test` + explicit-acknowledgement guards have already activated the provider.
+- Focused configuration/provider verification passed: `mvn -B -ntp "-Dtest=AiGeminiProviderConfigurationTest,AiPropertiesBindingTest" test` → 14 tests, 0 failures, 0 errors, 0 skipped. It proves profile/acknowledgement rejection, network-free deterministic ports without Google model beans, operation-specific failures, Gemini default wiring, and the delay bound.
+- Added minimal M11-only Compose companions for chat failure, embedding failure, delayed-chat race and worker-paused restart preparation. Base Compose now passes `KBASE_AI_WORKER_RETRY_BACKOFF` unchanged at its production default `30s`, plus the inert deterministic delay default. Base, mail-test and every new override combination passed `docker compose ... config --quiet`; `git diff --check` passed.
+- Required fresh baseline `mvn -B -ntp clean verify` could not complete in this local session because the Docker Desktop Linux engine was unavailable (`npipe:////./pipe/dockerDesktopLinuxEngine` did not exist). Surefire ran 249 tests before 24 Testcontainers integration tests failed solely with `Previous attempts to find a Docker environment failed`; there were no assertion failures. This is an environment blocker, not a failing build or M11 product defect. No Docker runtime, database fixture, destructive cleanup, Gemini credential or public provider call was attempted.
+- Continue only after Docker Engine is running: re-run the clean baseline first, then use an isolated Compose project for AI-VERIFY-04 remaining cases, AI-VERIFY-05/06/08 and the final AI-VERIFY-09 runtime audit. AI-VERIFY-04 remains PARTIAL; AI-VERIFY-05/06/08/10 remain NOT RUN and AI v1 remains NOT FROZEN.
+
+### Runtime continuation — Docker restored 2026-09-26
+
+- Docker Desktop Linux engine was restored without touching the existing `kbase` Compose project. Fresh `mvn -B -ntp clean verify` passed with **377 tests, 0 failures, 0 errors, 0 skipped** and Spring Boot jar repackage. Surefire emitted known post-Testcontainers-teardown connection-refused warnings after successful tests.
+- Isolated project `kbase-m11fix` used alternate host ports, `pgvector/pgvector:0.8.6-pg17-bookworm`, MinIO, Redis, Mailpit and the explicit runtime-test deterministic provider. Authenticated HTTP fixture upload reached `READY` in two polls.
+- `CHAT_UNAVAILABLE` returned `503 AI_PROVIDER_UNAVAILABLE` for Project Assistant only after its query embedding/retrieval path. Database postcondition: `USER:COMPLETED`, `ASSISTANT:FAILED:AI_PROVIDER_UNAVAILABLE`, and zero citation rows.
+- `EMBEDDING_UNAVAILABLE` still accepted the Core Markdown upload (`201`), exhausted the configured three `DOCUMENT_INDEX` attempts, and ended `FAILED:3:AI_PROVIDER_UNAVAILABLE` / visible `FAILED + AI_SERVICE_ERROR`. Core metadata list and binary download both remained `200`.
+- With only isolated Redis stopped, a guarded Project Assistant create returned `503 AI_USAGE_GUARD_UNAVAILABLE`; authenticated Core project list remained `200` and `ai_messages` count was unchanged. Redis was restarted; only its expected ephemeral rate state was reset.
+- Runtime rate override `max=2` proved an accepted Guide request and an accepted Project Assistant request share one owner budget; the next Guide request returned `429 AI_RATE_LIMIT_EXCEEDED`; another authenticated user remained `GROUNDED`. A backend log scan for synthetic question/answer/provider/storage/lease/JWT/password sentinels returned **0** matches.
+- These results materially advance AI-VERIFY-04; its comprehensive retained-log scan across every scenario is still required. AI-VERIFY-05/06/08 and the remaining AI-VERIFY-09 runtime audit are also required. Do not freeze AI v1.
 
 ## Completion gate
 

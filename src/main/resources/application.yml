@@ -90,6 +90,7 @@ kbase:
       deterministic:
         runtime-test-acknowledged: ${KBASE_AI_DETERMINISTIC_RUNTIME_TEST_ACKNOWLEDGED:false}
         failure-mode: ${KBASE_AI_DETERMINISTIC_FAILURE_MODE:none}
+        chat-delay: ${KBASE_AI_DETERMINISTIC_CHAT_DELAY:0s}
     max-message-chars: ${KBASE_AI_MAX_MESSAGE_CHARS:8000}
     chunk-target-tokens: ${KBASE_AI_CHUNK_TARGET_TOKENS:700}
     chunk-overlap-percent: ${KBASE_AI_CHUNK_OVERLAP_PERCENT:12}

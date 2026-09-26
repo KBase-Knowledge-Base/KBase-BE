@@ -335,6 +335,14 @@ public class AiProperties {
         @NotNull
         private DeterministicFailureMode failureMode = DeterministicFailureMode.NONE;
 
+        /**
+         * Verification-only latency seam for proving membership revocation while
+         * a deterministic chat turn is in flight. It is rejected outside the
+         * explicitly acknowledged runtime-test provider configuration.
+         */
+        @NotNull
+        private Duration chatDelay = Duration.ZERO;
+
         public boolean isRuntimeTestAcknowledged() {
             return runtimeTestAcknowledged;
         }
@@ -350,12 +358,30 @@ public class AiProperties {
         public void setFailureMode(DeterministicFailureMode failureMode) {
             this.failureMode = failureMode;
         }
+
+        public Duration getChatDelay() {
+            return chatDelay;
+        }
+
+        public void setChatDelay(Duration chatDelay) {
+            this.chatDelay = chatDelay;
+        }
+
+        @AssertTrue(message = "deterministic chat delay must be between zero and 30 seconds")
+        public boolean isChatDelayBounded() {
+            return chatDelay != null && !chatDelay.isNegative()
+                    && chatDelay.compareTo(Duration.ofSeconds(30)) <= 0;
+        }
     }
 
     public enum DeterministicFailureMode {
         NONE,
         UNAVAILABLE,
-        TIMEOUT
+        TIMEOUT,
+        CHAT_UNAVAILABLE,
+        CHAT_TIMEOUT,
+        EMBEDDING_UNAVAILABLE,
+        EMBEDDING_TIMEOUT
     }
 
     public static class WorkerProperties {
