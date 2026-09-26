@@ -33,12 +33,15 @@ import io.minio.errors.ServerException;
 import io.minio.messages.DeleteRequest;
 import io.minio.messages.DeleteResult;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /** MinIO-only implementation of the vendor-neutral {@link StorageService} port. */
 @Service
 public class MinioStorageService implements StorageService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(MinioStorageService.class);
     private static final Set<String> NOT_FOUND_CODES = Set.of("NOSUCHKEY", "NOSUCHOBJECT");
 
     private final MinioClient minioClient;
@@ -116,7 +119,7 @@ public class MinioStorageService implements StorageService {
                 .map(MinioStorageService::requireKey)
                 .map(DeleteRequest.Object::new)
                 .toList();
-        List<Throwable> failures = new ArrayList<>();
+        List<String> rejectedFailureTypes = new ArrayList<>();
         try {
             Iterable<Result<DeleteResult.Error>> results = minioClient.removeObjects(
                     RemoveObjectsArgs.builder().bucket(properties.getBucket()).objects(objects).build());
@@ -124,20 +127,21 @@ public class MinioStorageService implements StorageService {
                 try {
                     DeleteResult.Error error = result.get();
                     if (error != null) {
-                        failures.add(new IllegalStateException("Storage batch delete rejected an object."));
+                        rejectedFailureTypes.add("batch-delete-rejection");
                     }
                 } catch (Exception exception) {
-                    failures.add(exception);
+                    rejectedFailureTypes.add(safeExceptionType(exception));
                 }
             }
         } catch (Exception exception) {
             throw deleteFailure(exception);
         }
-        if (!failures.isEmpty()) {
-            StorageDeleteException exception = new StorageDeleteException(
-                    "One or more storage objects could not be deleted.", failures.getFirst());
-            failures.stream().skip(1).forEach(exception::addSuppressed);
-            throw exception;
+        if (!rejectedFailureTypes.isEmpty()) {
+            // Per-object batch errors expose only S3 error codes, never an HTTP
+            // status, so they stay generic delete failures by contract.
+            LOGGER.error("Storage batch delete rejected objects count={} failureTypes={}",
+                    rejectedFailureTypes.size(), rejectedFailureTypes);
+            throw new StorageDeleteException("One or more storage objects could not be deleted.", null);
         }
     }
 
@@ -165,25 +169,49 @@ public class MinioStorageService implements StorageService {
         }
     }
 
+    /**
+     * Classifies and sanitizes a raw provider failure. The MinIO SDK exception
+     * message carries the bucket/object path, so — mirroring the SMTP
+     * provider boundary — only the safe exception TYPE is logged and the raw
+     * cause is never retained on the thrown {@link StorageException}.
+     */
     private StorageException uploadFailure(Exception exception) {
         if (isUnavailable(exception)) {
-            return new StorageUnavailableException("Storage service is unavailable.", exception);
+            return sanitizedFailure(true, "upload", exception);
         }
-        return new StorageUploadException("Storage upload failed.", exception);
+        return sanitizedFailure(false, "upload", exception);
     }
 
     private StorageException readFailure(Exception exception) {
         if (isNotFound(exception)) {
-            return new StorageObjectNotFoundException("Stored object was not found.", exception);
+            return sanitizedNotFound(exception);
         }
-        return new StorageUnavailableException("Storage service is unavailable.", exception);
+        return sanitizedFailure(true, "read", exception);
     }
 
     private StorageException deleteFailure(Exception exception) {
         if (isUnavailable(exception)) {
-            return new StorageUnavailableException("Storage service is unavailable.", exception);
+            return sanitizedFailure(true, "delete", exception);
         }
-        return new StorageDeleteException("Storage delete failed.", exception);
+        return sanitizedFailure(false, "delete", exception);
+    }
+
+    private static StorageException sanitizedFailure(boolean unavailable, String operation,
+            Exception exception) {
+        LOGGER.error("Storage {} failed via provider type={} unavailable={}",
+                operation, safeExceptionType(exception), unavailable);
+        return unavailable
+                ? new StorageUnavailableException("Storage service is unavailable.", null)
+                : operation.equals("upload")
+                        ? new StorageUploadException("Storage upload failed.", null)
+                        : new StorageDeleteException("Storage delete failed.", null);
+
+    }
+
+    private static StorageException sanitizedNotFound(Exception exception) {
+        LOGGER.error("Storage read failed via provider type={} notFound=true",
+                safeExceptionType(exception));
+        return new StorageObjectNotFoundException("Stored object was not found.", null);
     }
 
     private static boolean isNotFound(Exception exception) {
@@ -196,10 +224,21 @@ public class MinioStorageService implements StorageService {
     }
 
     private static boolean isUnavailable(Exception exception) {
+        if (exception instanceof ErrorResponseException errorResponseException
+                && errorResponseException.response() != null) {
+            // A real S3/MinIO error response carries the factual HTTP status;
+            // only 5xx is an availability failure. Client errors (4xx) stay
+            // generic operation failures.
+            return errorResponseException.response().code() >= 500;
+        }
         return exception instanceof ServerException
                 || exception instanceof java.io.IOException
                 || exception instanceof java.net.ConnectException
                 || exception instanceof java.net.SocketTimeoutException;
+    }
+
+    private static String safeExceptionType(Throwable exception) {
+        return exception == null ? "unknown" : exception.getClass().getName();
     }
 
     private static String requireKey(String storageKey) {

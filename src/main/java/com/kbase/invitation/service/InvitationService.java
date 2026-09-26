@@ -134,7 +134,12 @@ public class InvitationService {
         }
 
         String rawToken = invitationTokens.generate();
-        ProjectInvitation invitation = invitationRepository.save(new ProjectInvitation(
+        // saveAndFlush forces the partial unique index (one PENDING row per
+        // project+email) to reject a concurrent duplicate BEFORE the external
+        // mail side effect; the constraint violation then rolls this loser
+        // transaction back before any recipient email is sent. A later SMTP
+        // failure still rolls the row back, preserving the accepted contract.
+        ProjectInvitation invitation = invitationRepository.saveAndFlush(new ProjectInvitation(
                 project,
                 inviter,
                 email,

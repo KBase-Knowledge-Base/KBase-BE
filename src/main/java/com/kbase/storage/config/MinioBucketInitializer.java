@@ -51,7 +51,11 @@ public class MinioBucketInitializer implements ApplicationRunner {
         } catch (StorageUnavailableException exception) {
             throw exception;
         } catch (Exception exception) {
-            throw new StorageUnavailableException("Configured storage bucket is unavailable.", exception);
+            // Startup-failure logging prints the whole cause chain; discard the
+            // raw provider cause so its bucket/endpoint details stay out of logs.
+            throw new StorageUnavailableException(
+                    "Configured storage bucket is unavailable. (" + exception.getClass().getSimpleName() + ")",
+                    null);
         }
     }
 }

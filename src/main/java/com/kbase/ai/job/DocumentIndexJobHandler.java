@@ -216,7 +216,10 @@ public final class DocumentIndexJobHandler implements AiJobHandler {
         } catch (DocumentExtractionException | DocumentProcessingException exception) {
             throw exception;
         } catch (IOException exception) {
-            throw new StorageUnavailableException("Storage service is unavailable.", exception);
+            // Provider stream errors can embed the object URL in their message;
+            // keep the category and drop the raw cause like the storage adapter.
+            throw new StorageUnavailableException(
+                    "Storage service is unavailable. (" + exception.getClass().getSimpleName() + ")", null);
         }
     }
 

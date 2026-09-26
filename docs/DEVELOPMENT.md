@@ -30,6 +30,8 @@ AI v1 M11 runtime repair ngày `2026-09-25` thêm deterministic provider adapter
 
 AI v1 M11 – Full Runtime Verification / AI v1 Freeze đã hoàn tất ngày `2026-09-26` và **AI v1 backend FROZEN**: final gate 377/377; M11 runtime matrix (security 37/37, retention +P7D/restore/runtime-purge/race, restart/recovery resume+stale-reclaim+persistence+abrupt-chat-death classification với verified creator-DELETE workaround, comprehensive log audit 0 hits/518 dòng/9 scenario, config/DB/OpenAPI consistency audits) đã chạy qua isolated Compose project `kbase-m11fix` với real HTTP boundary và isolated DB postconditions. Không code change, không schema/API/generated-snapshot change, không real Gemini credential/network. Chi tiết: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md`.
 
+Post-Freeze Final Codebase Audit đã PASS ngày `2026-09-26` (bảo trì sau freeze, không phải milestone): fix F-01 storage/provider exception log sanitization (raw cause bị loại khỏi StorageException/BucketInitializer/JobHandler theo precedent SMTP L-07; log chỉ safe exception type), F-02 invitation create `saveAndFlush` trước mail (unique-index reject trước side effect, concurrency regression proven fail-without-fix), F-03 bỏ `spring.profiles.default=local` (compose = `local` tường minh, prod = `prod`, artifact không profile fail-fast; `ProfileFailSafeTest` + Docker smoke), F-04 MinIO `ErrorResponseException` 5xx → `STORAGE_SERVICE_UNAVAILABLE` 503 cho upload/delete. Full gate sau audit **387/387**; OpenAPI 38/57/15 + Flyway V1–V4 + 18 tables không đổi. Chi tiết: `docs/exec-plans/completed/KBase_Post_Freeze_Final_Codebase_Audit.md`.
+
 M2 – PostgreSQL / Flyway Schema đã hoàn tất ngày `2026-09-17`: 3 Flyway migrations tạo 10 persistent tables với đầy đủ constraint, partial/expression unique index và query index theo Physical Database Design; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; Hibernate `ddl-auto=validate` pass.
 
 M3 – JPA Entities & Repositories đã hoàn tất ngày `2026-09-17`: 10 entity persistent, 5 enum, `DocumentTagId`, 10 feature-local repository, projection/query/fetch graph/lock và document specification đã được implement; mapping integration test 11/11 pass trên PostgreSQL 17 Testcontainer với Flyway từ database rỗng và Hibernate `ddl-auto=validate`. Không có OTP entity/repository.
@@ -109,7 +111,7 @@ Các command product đã tồn tại và đã chạy:
 ```text
 BUILD_COMMAND=mvn -B -ntp clean verify
 UNIT_TEST_COMMAND=mvn -B -ntp test
-HOST_RUN_COMMAND=mvn spring-boot:run (profile `local` tự đọc `.env` ở repo root qua `spring.config.import: optional:file:.env[.properties]` trong `application-local.yml`; yêu cầu deps đã chạy: `docker compose up -d postgres minio redis`; backend host dùng đúng `KBASE_POSTGRES_PORT` trong `.env` — hiện `5433` vì 5432 bị PostgreSQL native trên máy chiếm)
+HOST_RUN_COMMAND=SPRING_PROFILES_ACTIVE=local mvn spring-boot:run (profile `local` phải được chọn tường minh từ khi `spring.profiles.default` bị bỏ ở post-freeze audit 2026-09-26; profile này tự đọc `.env` ở repo root qua `spring.config.import: optional:file:.env[.properties]` trong `application-local.yml`; yêu cầu deps đã chạy: `docker compose up -d postgres minio redis`; backend host dùng đúng `KBASE_POSTGRES_PORT` trong `.env` — hiện `5433` vì 5432 bị PostgreSQL native trên máy chiếm)
 DEPENDENCY_TREE_COMMAND=mvn -B -ntp dependency:tree "-DoutputFile=target/dependency-tree.txt" "-DoutputType=text"
 COMPOSE_CONFIG_COMMAND=docker compose -f docker-compose.yml config --quiet
 M5_REDIS_TEST_COMMAND=mvn -B -ntp "-Dtest=RedisOtpStoreIntegrationTest" test
@@ -151,7 +153,7 @@ M1 đã tạo Compose skeleton cho dependency local; M14 đã hoàn tất backen
 Hai đường chạy backend local đã được xác minh (2026-09-19):
 
 1. **Container (chuẩn)**: `docker compose up -d --build` — full topology, backend phục vụ tại 8080.
-2. **Host Maven**: `mvn spring-boot:run` — profile `local` tự nạp `.env` (git-ignored) qua `spring.config.import`; không cần export biến thủ công. Yêu cầu deps Compose đang chạy; lưu ý Compose `postgres` map host port theo `KBASE_POSTGRES_PORT` trong `.env` (`5433` trên máy hiện tại vì PostgreSQL native chiếm `5432`), và muốn chạy host `mvn` thì phải `docker compose stop backend` trước để nhả 8080.
+2. **Host Maven**: `SPRING_PROFILES_ACTIVE=local mvn spring-boot:run` — profile `local` được chọn tường minh (post-freeze audit 2026-09-26 bỏ `spring.profiles.default`; chạy `mvn spring-boot:run` không profile sẽ fail-fast vì thiếu biến bắt buộc thay vì âm thầm dùng cấu hình local không an toàn). Profile `local` tự nạp `.env` (git-ignored) qua `spring.config.import`; không cần export biến thủ công khác. Yêu cầu deps Compose đang chạy; lưu ý Compose `postgres` map host port theo `KBASE_POSTGRES_PORT` trong `.env` (`5433` trên máy hiện tại vì PostgreSQL native chiếm `5432`), và muốn chạy host `mvn` thì phải `docker compose stop backend` trước để nhả 8080.
 
 ```text
 BUILD_BACKEND_IMAGE=docker compose build backend

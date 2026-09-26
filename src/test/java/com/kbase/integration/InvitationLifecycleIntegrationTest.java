@@ -586,4 +586,92 @@ class InvitationLifecycleIntegrationTest {
             executor.shutdownNow();
         }
     }
+
+    @Test
+    void concurrentCreateOfSamePendingInvitationFlushesConstraintBeforeMail() throws Exception {
+        VerifiedUser owner = newVerifiedUser();
+        UUID projectId = createProject(owner.token());
+        String invitedEmail = uniqueEmail();
+
+        CustomUserPrincipal ownerPrincipal = new CustomUserPrincipal(
+                owner.user().getId(), owner.user().getEmail(),
+                SystemRole.USER, UserStatus.ACTIVE, true);
+
+        // Deterministic race: the winning transaction parks inside its mail
+        // call (uncommitted) so the loser's exists-check runs against hidden
+        // state and its flush must reject on the partial unique index BEFORE
+        // any second mail side effect.
+        CountDownLatch winnerMailEntered = new CountDownLatch(1);
+        CountDownLatch winnerMailRelease = new CountDownLatch(1);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            winnerMailEntered.countDown();
+            winnerMailRelease.await(10, java.util.concurrent.TimeUnit.SECONDS);
+            return null;
+        }).when(mailService).sendProjectInvitation(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any());
+
+        int threads = 2;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        try {
+            CountDownLatch start = new CountDownLatch(1);
+            List<Future<java.util.Optional<String>>> outcomes = new java.util.ArrayList<>();
+            for (int index = 0; index < threads; index++) {
+                outcomes.add(executor.submit(() -> {
+                    start.await();
+                    try {
+                        invitationService.createInvitation(projectId,
+                                new com.kbase.invitation.dto.request.CreateInvitationRequest(invitedEmail),
+                                ownerPrincipal);
+                        return java.util.Optional.<String>empty();
+                    } catch (com.kbase.shared.exception.BusinessException exception) {
+                        return java.util.Optional.of(exception.getErrorCode().name());
+                    } catch (org.springframework.dao.DataIntegrityViolationException exception) {
+                        return java.util.Optional.of("DATA_INTEGRITY_VIOLATION");
+                    }
+                }));
+            }
+            start.countDown();
+
+            // The winner is parked inside mail with its row uncommitted; only
+            // now can the loser's flush be waiting on the unique index.
+            assertThat(winnerMailEntered.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            winnerMailRelease.countDown();
+
+            int successes = 0;
+            var conflicts = new java.util.ArrayList<String>();
+            for (Future<java.util.Optional<String>> outcome : outcomes) {
+                var result = outcome.get(30, java.util.concurrent.TimeUnit.SECONDS);
+                if (result.isEmpty()) {
+                    successes++;
+                } else {
+                    conflicts.add(result.get());
+                }
+            }
+
+            assertThat(successes).isEqualTo(1);
+            assertThat(conflicts).hasSize(1);
+            assertThat(conflicts.getFirst()).isIn("INVITATION_ALREADY_PENDING", "DATA_INTEGRITY_VIOLATION");
+
+            // Exactly one committed PENDING row and exactly one invitation mail:
+            // the loser transaction failed at flush before sending anything.
+            long pendingRows = jdbcTemplate.queryForObject(
+                    "SELECT count(*) FROM project_invitations WHERE project_id = ? AND email = ? AND status = 'PENDING'",
+                    Long.class, projectId, invitedEmail);
+            assertThat(pendingRows).isEqualTo(1);
+            org.mockito.Mockito.verify(mailService, org.mockito.Mockito.times(1))
+                    .sendProjectInvitation(
+                            org.mockito.ArgumentMatchers.eq(invitedEmail),
+                            org.mockito.ArgumentMatchers.anyString(),
+                            org.mockito.ArgumentMatchers.anyString(),
+                            org.mockito.ArgumentMatchers.anyString(),
+                            org.mockito.ArgumentMatchers.any());
+        } finally {
+            winnerMailRelease.countDown();
+            executor.shutdownNow();
+        }
+    }
 }

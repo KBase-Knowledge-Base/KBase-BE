@@ -6,331 +6,71 @@
 ## Cập nhật Lần cuối
 
 * Ngày cập nhật: `2026-09-26`
-* Người hoặc agent cập nhật: `Codex - M11 Runtime Verification Completion / AI v1 Freeze`
+* Người hoặc agent cập nhật: `Post-Freeze Final Codebase Audit & Handoff`
 * Nhánh hiện tại: `feat-AI` (được tạo trực tiếp từ `dev`)
-* **Core v1 frozen (M15) và AI v1 backend FROZEN (M11, 2026-09-26).** M11 full runtime verification hoàn tất: security matrix 37/37, retention matrix (+P7D schedule, rejoin restore, runtime purge, in-flight revoke→rejoin race), restart/recovery (pending job resume, stale reclaim, persistence/ephemerality, abrupt chat JVM death classified với verified workaround), comprehensive retained-log audit 0 sensitive hits trên 518 dòng/9 scenario, và consistency audit config/DB/OpenAPI khớp source of truth. Final `mvn -B -ntp clean verify` 377/377. Không có code change trong M11 completion; frontend vẫn deferred; không tạo M12.
-* M11 continuation ngày `2026-09-26`: Docker đã được khôi phục. Fresh `mvn -B -ntp clean verify` PASS 377/377; deterministic provider now isolates chat versus embedding failures and has a bounded deterministic-chat delay for the revoke/rejoin race; Compose passes the documented worker retry backoff. Isolated real HTTP proof now covers chat failure lifecycle, document-index embedding retry exhaustion, Redis guard outage/Core isolation, runtime shared rate limit and a zero-hit log sentinel scan. Security, retention, restart/recovery and final consistency evidence remain; AI v1 is unfrozen. *(historical pre-freeze record — trạng thái này đã được M11 completion thay thế cùng ngày; giữ để đối chiếu)*
 
 ## Trạng thái Tổng quan
 
-| Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
-| ---------------- | ------------- | ----------------------- |
-| Build            | AI v1 FROZEN — M11 AI-VERIFY-01..10 PASS | Final gate `mvn -B -ntp clean verify` → BUILD SUCCESS, 377/377, jar repackage; Compose base, mail-double và mọi M11 verification override validate. |
-| Frontend         | Không áp dụng | Frontend và streaming tiếp tục deferred khỏi AI v1 backend. |
-| Backend          | Core v1 + AI v1 FROZEN | **Core v1 FROZEN (M15)** + **AI v1 backend FROZEN (M11, 2026-09-26)**. Project Assistant/Guide boundaries giữ nguyên; M11 chỉ verification + evidence-led correction, không mở product boundary. |
-| Database         | Core + AI persistence ổn định | Flyway V1–V4 tạo 18 persistent tables (10 Core + 8 AI); pgvector extension, `vector(768)`, HNSW cosine indexes, FK/delete rules và Hibernate validate re-verified trên isolated runtime 2026-09-26; `docs/generated/db-schema.md` khớp, không rewrite. |
-| API contract     | Core + AI verified frozen | Runtime OpenAPI 38 paths/57 operations, 15 tags; API-AI-001..010, 429/503 error contract chính xác trên 3 AI interactive operations, bearer 51 operations, `NO_EVIDENCE` documented successful outcome, generated API snapshot đồng bộ. |
-| Integration      | AI v1 runtime verified / frozen | Security/retention/restart journeys chạy qua real containerized HTTP boundary với isolated DB postconditions; no real Gemini credential/network used. |
-| Unit test        | M11 baseline verified | Full suite 377/377 gồm Redis guard 5/5, OpenAPI 22/22, deterministic configuration 14/14. |
-| Integration test | Core + AI PostgreSQL/Redis/MinIO verified | Testcontainers suites pass trong full gate; M11 runtime journeys bổ sung evidence ở tầng Docker runtime. |
-| End-to-end test  | AI v1 runtime matrix verified | Security 37/37, retention (schedule/restore/purge/race), restart/recovery (resume/stale/persistence/crash classification) — tất cả qua real Docker runtime 2026-09-26. |
-| Security checks  | Core + AI privacy verified runtime | Cross-project vector trap, creator-private conversations (MEMBER/OWNER/ADMIN/former/foreign), prompt injection, deleted-source lifecycle, source authorization sau revoke, Guide isolation — runtime-level evidence 2026-09-26; log audit 0 sensitive hits. |
-| Deployment       | Core + AI verification profile verified / frozen | Gemini disabled-by-default; explicit test-only mode pinned pgvector + mail double; không phải deployment/provider-connectivity claim; connect-timeout SDK limitation vẫn tracked. |
-
-Trạng thái nên dùng:
-
-* `Ổn định`
-* `Đang thực hiện`
-* `Bị chặn`
-* `Có lỗi`
-* `Chưa đánh giá`
-* `Không áp dụng`
-
-## Công việc Đang Hoạt động
-
-### Ưu tiên Hiện tại
-
-* Mục tiêu: `Không có active implementation milestone. AI v1 backend FROZEN 2026-09-26 (M0–M11 PASS); Core v1 frozen. Bất kỳ phase mới nào (frontend, provider rollout, recovery policy) cần owner approval.`
-* Execution plan: `docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md` (AI master roadmap M0–M11 — hoàn tất)
-* Freeze report: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md`
-* Product spec active: `docs/product-specs/KBase - AI Chatbot v1 Specification.md`; Core spec vẫn là source of truth cho frozen Core behavior
-* Design sources active: `KBase - AI Chatbot RAG Architecture.md`, `KBase - AI Chatbot Persistence and Vector Search Design.md`, `KBase - AI Chatbot REST API Specification.md`, `KBase - AI Chatbot Testing Strategy.md`
-
-### Bước Đang Thực hiện
-
-*(Các bullet dưới đây là bản ghi milestone lịch sử theo thứ tự thời gian; mục M11 Gate PASS 2026-09-26 là trạng thái hiện tại — không còn bước nào đang thực hiện.)*
-
-* `M1 Gate PASS: dependencies, typed config, KBase provider ports, deterministic fakes và pgvector-capable local/test foundation đã hoàn tất. Không triển khai RAG behavior, AI schema hoặc endpoint trong M1.`
-* `M2 Gate PASS: Flyway V4 AI persistence schema, pgvector repositories, JPA mappings, SQL project isolation, FK/delete rules, quota lock và active-generation guard đã được live-verified; không mở worker/provider/public API.`
-* `M3 Gate PASS: durable job claiming/lease/retry, bounded scheduler, document AI intent/delete safety và membership retention hooks đã hoàn tất; không mở provider, extraction, retrieval, public API hoặc destructive purge.`
-* `M4 Gate PASS: explicit Spring AI/Google GenAI Gemini chat/embedding adapters, deterministic query/document preparation, strict vector(768), provider-neutral error translation, request-timeout wiring và privacy/logging guards đã hoàn tất; không gọi real Gemini.`
-* `M5 Gate PASS: exactly seven supported extraction formats, deterministic kbase-lex-v1/chunk-v1 chunking, durable DOCUMENT_INDEX staging/activation, bounded retries, safe failure reasons, internal status/manual retry and delete/stale-lease protection đã hoàn tất; targeted 17/17 và full 307/307.`
-* `M6 Gate PASS: project-scoped semantic retrieval, strict NO_EVIDENCE, grounded prompt/label validation, citation snapshot mapping và membership recheck đã hoàn tất; targeted 33/33, full 329/329.`
-* `M7 Gate PASS: private Project Assistant conversation lifecycle, quota/concurrency, grounded/NO_EVIDENCE/failure states, source reads, document index status/retry và API-AI-001..009 đã verify; targeted 36/36, full 346/346.`
-* `M8 Gate PASS: provider-independent CONVERSATION_PURGE, retention/deletion/security races đã verify; full 352/352.`
-* `M9 Gate PASS: immutable two-spec packaged Guide corpus, durable GUIDE_REINDEX last-good lifecycle, SQL-bound allowlist retrieval proven against a rogue perfect vector, null-threshold fail-closed strict grounding và stateless API-AI-010 đã verify.`
-* `M10 Gate PASS: usage guard, observability, OpenAPI hardening, generated API synchronization and leakage audit completed; full 371/371. (M10-era handoff: M11 since completed — see below.)`
-
-* `M11 runtime repair ngày 2026-09-25 (historical pre-freeze record): deterministic Docker provider path, clean V1–V4 startup, Project Assistant/Guide grounded + NO_EVIDENCE và AI-provider 503/Core 200 isolation đã có evidence. Tại thời điểm đó M11 còn ACTIVE và security, retention, restart/recovery, Redis failure, final audit chưa hoàn tất; trạng thái này đã được M11 Gate PASS 2026-09-26 thay thế.`
-
-* `M11 Gate PASS ngày 2026-09-26: AI-VERIFY-01..10 PASS → AI v1 backend FROZEN.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md` (freeze report + verification record); security matrix 37/37; retention 15/15+10/11+16/16; restart/recovery 6/6+9/9+persistence+7/7; log audit 0 hits/518 dòng; config/DB/OpenAPI audit khớp; final gate 377/377.
-
-* `M10 Gate PASS ngày 2026-09-25: AI-HARD-01..06 đã hoàn tất. Redis fixed-window guard dùng atomic Lua counter theo user với shared Project Assistant/Guide budget; guarded operations trả stable `AI_RATE_LIMIT_EXCEEDED`/429 hoặc Redis-failure `AI_USAGE_GUARD_UNAVAILABLE`/503. M10 chọn retrieval threshold `0.70`, thêm bounded Micrometer metrics/job signals, exact OpenAPI annotations/tests, generated API snapshot sync và sensitive-data/log audit. Full gate 371/371; runtime OpenAPI 38/57/15; V1–V4 và generated DB không đổi.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M10_Usage_Guard_OpenAPI_Observability_Hardening.md`, `src/main/java/com/kbase/ai/usage/`, `src/main/java/com/kbase/ai/observability/`, `src/test/java/com/kbase/integration/RedisAiUsageGuardIntegrationTest.java`, `src/test/java/com/kbase/integration/OpenApiContractIntegrationTest.java`, `docs/generated/api-schema.md`
-
-## Đã Hoàn thành và Kiểm chứng
-
-* `Bộ KBase Core v1 design documents đã được đồng bộ vào harness và được dùng làm source-of-truth cho Implementation Plan.`
-
-  * Bằng chứng: `docs/product-specs/KBase - Core v1 Specification.md`, `docs/design-docs/index.md`, `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md`
-
-* `Phạm vi implementation hiện tại được khóa là backend-first; frontend optional được hoãn.`
-
-  * Bằng chứng: `ARCHITECTURE.md`, `docs/PRODUCT_SENSE.md`
-
-* `M0 – Preflight & Execution Baseline đã pass toàn bộ M0 Gate.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M0_Preflight.md`, `.harness/source-doc-registry.json`, `docs/DEVELOPMENT.md`
-
-* `M1 – Project Bootstrap + Local Runtime Skeleton đã pass toàn bộ M1 Gate.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M1_Bootstrap.md`, `pom.xml`, `docker-compose.yml`, `docs/DEVELOPMENT.md`
-
-* `M2 – PostgreSQL / Flyway Schema đã pass toàn bộ M2 Gate: 3 Flyway migrations tạo 10 persistent tables (có users.email_verified_at, không OTP table) với đầy đủ constraint/partial/expression/query index; Flyway apply thành công từ database rỗng trên PostgreSQL 17 Testcontainer; Hibernate ddl-auto=validate pass; FlywayMigrationIntegrityTest 12/12 pass.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M2_PostgreSQL_Flyway.md`, `src/main/resources/db/migration/`, `src/test/java/com/kbase/integration/FlywayMigrationIntegrityTest.java`, `docs/generated/db-schema.md`
-
-* `M3 – JPA Entities & Repositories đã pass toàn bộ M3 Gate: 10 entity persistent, 5 enum, composite-key DocumentTag, 10 feature-local repository, query/projection/fetch graph/lock và project-scoped document specification; Hibernate validate và repository/mapping integration 11/11 pass trên PostgreSQL 17 Testcontainer.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M3_JPA.md`, `src/main/java/com/kbase/`, `src/test/java/com/kbase/integration/JpaMappingRepositoryIntegrationTest.java`, `docs/design-docs/KBase - Core v1 JPA Entity Mapping Repository Design.md`
-
-* `M4 – Shared Error / Request Infrastructure đã pass toàn bộ M4 Gate: centralized ErrorCode và exception hierarchy, ApiErrorResponse, RequestIdFilter/MDC, GlobalExceptionHandler, constraint-name translation và error contract tests.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M4_Shared_Error_Request.md`, `src/main/java/com/kbase/shared/exception/`, `src/main/java/com/kbase/shared/response/`, `src/test/java/com/kbase/shared/exception/`, `src/test/java/com/kbase/integration/ConstraintViolationTranslationIntegrationTest.java`
-
-* `M5 – Redis OTP + Gmail Mail Infrastructure đã pass toàn bộ M5 Gate: OtpStore/RedisOtpStore, OtpService với HMAC-SHA-256 và SecureRandom, MailService/SmtpMailService, typed Redis/SMTP config và hai safe templates.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M5_Redis_OTP_Gmail_Mail.md`, `src/test/java/com/kbase/auth/service/OtpServiceTest.java`, `src/test/java/com/kbase/integration/RedisOtpStoreIntegrationTest.java`, `src/test/java/com/kbase/mail/service/SmtpMailServiceTest.java`
-
-* `M6 – Spring Security + Authentication đã pass toàn bộ M6 Gate: SecurityConfig stateless với public auth endpoints + ADMIN route, JwtService HS256 (sub=userId, systemRole, iat, exp, jti), JwtAuthenticationFilter load User từ DB mỗi request, RestAuthenticationEntryPoint/AccessDeniedHandler với ApiErrorResponse, RefreshSessionService PostgreSQL hash-only, EmailVerificationService phối hợp Redis OTP + Gmail, AuthService và 6 auth endpoints; AuthenticationSecurityIntegrationTest 14/14 trên PostgreSQL/Redis Testcontainers; unit 32/32; full suite 104/104 qua mvn test và mvn clean verify.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M6_Spring_Security_Authentication.md`, `src/main/java/com/kbase/security/`, `src/main/java/com/kbase/auth/`, `src/test/java/com/kbase/integration/AuthenticationSecurityIntegrationTest.java`, `docs/generated/api-schema.md`
-
-* `M7 – User / Project / Membership đã pass toàn bộ M7 Gate: UserService (me/profile/password + admin list/get/status/delete theo dependency rules), ProjectService (create Project+OWNER trong một transaction, list membership-only kể cả ADMIN, get/update với currentUserRole nullable cho ADMIN non-member, admin listing), ProjectAuthorizationService (requireProjectAccess/requireOwner + ADMIN override, không fake ProjectMember), ProjectMemberService (list/remove/leave; OWNER bất khả xâm, documents remain), shared PageResponse/PaginationParser; UserProjectMembershipIntegrationTest 6/6 trên PostgreSQL Testcontainer với real filter chain; unit 20/20; full suite 130/130 qua mvn test và mvn clean verify. Project hard delete (DELETE /projects/{projectId}) cố ý deferred sang M11 sau MinIO.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M7_User_Project_Membership.md`, `src/main/java/com/kbase/user/`, `src/main/java/com/kbase/project/`, `src/test/java/com/kbase/integration/UserProjectMembershipIntegrationTest.java`, `docs/generated/api-schema.md`
-
-* `M8 – Invitation Lifecycle đã pass toàn bộ M8 Gate: InvitationService với create/list/resend/cancel/accept; secure invitation token riêng (32-byte SecureRandom, SHA-256 hash-only trong project_invitations, không OTP); MailService.sendProjectInvitation cho create/resend với rollback khi mail fail; resend thay token + reset expiry; cancel PENDING→CANCELLED không physical delete; accept authenticated với PESSIMISTIC_WRITE tạo ProjectMember(MEMBER) + ACCEPTED + acceptedAt; concurrency test 2 thread chỉ 1 accept thắng; InvitationLifecycleIntegrationTest 5/5 trên PostgreSQL Testcontainer; unit 8/8; full suite 143/143 qua mvn test và mvn clean verify.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M8_Invitation_Lifecycle.md`, `src/main/java/com/kbase/invitation/`, `src/test/java/com/kbase/integration/InvitationLifecycleIntegrationTest.java`, `docs/generated/api-schema.md`
-
-* `M9 – Folder / Category / Tag đã pass toàn bộ M9 Gate: project-scoped folder hierarchy, category và tag; OWNER/ADMIN quản lý folder/category; MEMBER chỉ đọc folder/category; MEMBER được tạo tag; OWNER/ADMIN rename/delete tag; case-insensitive uniqueness; ancestor-walk cycle prevention; folder non-empty/category in-use protection; tag delete chỉ cascade DocumentTag. OrganizationIntegrationTest 6/6, unit 12/12, cross-project/migration regression 23/23; full suite 161/161 qua mvn test và mvn clean verify.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M9_Folder_Category_Tag.md`, `src/main/java/com/kbase/folder/`, `src/main/java/com/kbase/category/`, `src/main/java/com/kbase/tag/`, `src/test/java/com/kbase/integration/OrganizationIntegrationTest.java`, `docs/generated/api-schema.md`
-
-* `M10 – MinIO Storage Infrastructure đã pass toàn bộ M10 Gate: vendor-neutral streaming StorageService, singleton MinioClient configuration, local conditional bucket initializer, typed internal storage exception translation, backend-owned key format và batch-delete per-object result handling. MinIO Testcontainer chứng minh upload/full read/range read/stat/single+batch delete và bucket không versioning-enabled. Unit/config 7/7, MinIO integration 2/2, full suite 169/169 qua mvn test và mvn clean verify.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M10_MinIO_Storage_Infrastructure.md`, `src/main/java/com/kbase/storage/`, `src/test/java/com/kbase/storage/`, `src/test/java/com/kbase/integration/MinioStorageIntegrationTest.java`, `docker-compose.yml`
-
-* `M11 – Document Lifecycle + Project Hard Delete đã pass toàn bộ M11 Gate: single/batch upload qua StorageService với validation/same-project metadata, compensation khi DB persistence fail, document metadata/get/update/download/preview MP4 range, storage-first document hard delete và OWNER/ADMIN project storage-first hard delete. MEMBER đọc mọi document khi còn membership nhưng chỉ modify/delete document của chính mình; OWNER/ADMIN manage toàn bộ; former member mất quyền dù uploadedBy vẫn là User cũ. API matrix 3/3 và lifecycle 1/1 chạy với PostgreSQL+MinIO Testcontainers; full suite 184/184 qua mvn test và mvn clean verify.`
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M11_Document_Lifecycle_Project_Hard_Delete.md`, `src/main/java/com/kbase/document/`, `src/test/java/com/kbase/integration/DocumentApiIntegrationTest.java`, `src/test/java/com/kbase/integration/DocumentLifecycleStorageIntegrationTest.java`, `docs/generated/api-schema.md`
-
-* M12 – Document Search / Pagination / Sorting đã pass toàn bộ M12 Gate: `GET /api/v1/projects/{projectId}/documents` dùng `DocumentSearchCriteria` và `DocumentSearchService`, chỉ search metadata `displayName`, `originalFilename`, `description`, category/tag name; tất cả filter, combined filter, pagination baseline, sort ASC/DESC/whitelist, non-member denial, MEMBER/OWNER/ADMIN access và Project A/B isolation được chứng minh qua PostgreSQL Testcontainer real filter chain. Tag predicates dùng `EXISTS` nên không duplicate document rows; full suite 188/188 qua mvn test và mvn clean verify.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M12_Document_Search.md`, `src/main/java/com/kbase/document/service/DocumentSearchService.java`, `src/test/java/com/kbase/integration/DocumentSearchIntegrationTest.java`, `docs/generated/api-schema.md`
-
-* M13 – OpenAPI / Swagger đã pass toàn bộ M13 Gate: `config/OpenApiConfig` với metadata "KBase Core API v1", security scheme `bearerAuth` (HTTP bearer JWT), 12 tags canonical và shared 401 customizer dùng `ApiErrorResponse`; 12 controllers / 47 operations được annotate (auth public endpoints không Bearer-required, protected endpoints có security requirement đúng, ADMIN ghi SystemRole.ADMIN, project/document permission rules rõ ràng; con số operations đã được đếm lại trên runtime spec trong M15: 47, không phải 48 như bản ghi M13 ban đầu); multipart `file`/`files` binary + `metadata` JSON, download/preview binary, preview `Range`/`206`/`416` được document đúng; OTP chỉ là email verification OTP, refresh token chỉ là HttpOnly cookie, invitation giữ token riêng; Swagger UI bật local/dev và prod mặc định tắt qua `kbase.openapi.*` không nới `/api/v1/**`; `OpenApiContractIntegrationTest` 19/19 + `OpenApiDisabledIntegrationTest` 2/2; full suite 209/209 qua `mvn test` và `mvn clean verify`.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M13_OpenAPI_Swagger.md`, `src/main/java/com/kbase/config/OpenApiConfig.java`, `src/test/java/com/kbase/integration/OpenApiContractIntegrationTest.java`, `docs/generated/api-schema.md`
-
-* M14 – Full Docker Runtime Verification đã pass toàn bộ M14 Gate: `Dockerfile` multi-stage non-root stateless + `docker-compose.yml` đủ backend/postgres/minio/redis với healthcheck-gated startup; clean startup từ rỗng với Flyway V1–V3 + Hibernate validate trong container; auth journey (register → Redis OTP state → email qua mail double → verify → login/refresh/logout), core flows (project/organization/upload/download checksum khớp/preview 206+416/search/invitation/MEMBER permissions/hard delete storage-first) chạy qua containerized backend; `postgres_data`/`minio_data` giữ data qua backend restart và force-recreate, Redis recreation mất OTP pending và resend hoạt động; log runtime không leak secret. M14 tìm và fix một bug M11: OWNER-path project hard delete `TransientPropertyValueException` (Hibernate 7.4) → `ProjectRepository.deleteProjectCascade` + regression test OWNER-path; loại generated-password log bằng exclude `UserDetailsServiceAutoConfiguration`; full suite 210/210.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M14_Docker_Runtime.md`, `Dockerfile`, `docker-compose.yml`, `src/test/java/com/kbase/integration/DocumentApiIntegrationTest.java`, `docs/DEVELOPMENT.md` (M14 verification record)
-
-* M15 – Full Verification / Core v1 Freeze đã pass toàn bộ M15 Gate ngày `2026-09-19`; **Core v1 FROZEN**. Full release gate `mvn -B -ntp clean verify` 210/210 (VERIFY-01..05/11); Docker runtime re-verification từ volume rỗng với mail double (VERIFY-08): Flyway V1–V3 + Hibernate validate trong container, đúng 10 persistent tables + `email_verified_at` + không OTP table, toàn bộ golden journeys qua containerized backend (auth + OTP Redis lifecycle, organization, upload/download checksum, preview 206/416, search matrix, invitation + MEMBER permissions, remove-member, hard delete storage-first OWNER-path), persistence qua restart + force-recreate + Redis recreation (OTP loss acceptable, resend OK), log leak scan 0 hits; VERIFY-09: runtime `/v3/api-docs` = 32 paths / 47 operations khớp contract test + SD-04, không forbidden endpoint; VERIFY-10: static architecture scans clean; VERIFY-07: leakage review pass. M15 tìm và sửa một documentation miscount (48→47 operations trong bản ghi M13) — không có code change.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M15_Full_Verification_Freeze.md` (Core v1 Freeze Report), `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md` §31, `docs/generated/api-schema.md`
-
-* M16 – Post-Audit Fixes đã pass ngày `2026-09-19` (maintenance slice được owner duyệt sau Full Codebase Audit): fix MEDIUM M-01 (invitation accept-expired giờ persist `EXPIRED` qua `InvitationExpiredException` + `@Transactional(noRollbackFor=...)` khớp design §40; regression test assert DB status + khả năng tạo invitation thay thế) và 7 LOW: L-01 batch upload compensation xóa mỗi key đúng 1 lần (unit test verify count), L-03 runtime OpenAPI description search 400 khớp code, L-04 xóa `JwtProperties.algorithm` unused knob + javadoc `findAllByStatusAndExpiresAtBefore`, L-05 LIKE wildcard escape cho `q` ở documents/my-projects/tags/admin-users (search literal; regression test `%`/`_` qua HTTP), L-06 folder move lock pessimistic cả moved folder + target parent theo UUID order + concurrency test 2 thread ngược chiều (1 thắng, 1 `FOLDER_CYCLE_DETECTED`, không tạo cycle), L-07 SMTP failure log sanitized (chỉ exception type) + negative test, L-08 hygiene (xóa file rỗng `Trạng`, cập nhật `index.md` root, bỏ `KBASE_MAIL_TEST_ENABLED` khỏi `.env.example`). Full gate `mvn -B -ntp clean verify` 213/213. KHÔNG fix: L-02 (PATCH document null semantics — cần product decision) và các INFO item (known limitations/phase mới) — đã phản hồi owner và ghi tech-debt tracker.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_Core_v1_M16_Post_Audit_Fixes.md`, full gate log 213/213 trong phiên, `docs/exec-plans/tech-debt-tracker.md`
-
-* `M0 – AI Preflight & Technical Compatibility đã PASS ngày 2026-09-22`: Core baseline re-run pass 213/213 và Compose config pass; Spring AI BOM 2.0.1 + Google GenAI starters, `gemini-2.5-flash`, `gemini-embedding-2`/768, pgvector PostgreSQL 17 image/JDBC strategy và Tika 3.3.2 parser scope đã được khóa; deterministic fake contracts và AI config provisional baseline đã ghi; harness SD-14..SD-19 revalidated. Không có AI runtime/schema/API change.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M0_Preflight_and_Technical_Compatibility.md`, Spring AI options probe, pgvector Docker probe (`PGVECTOR_PROBE_PASS`), Tika dependency probe, `.harness/source-doc-registry.json`
-
-* `M1 – AI Runtime Foundation & Provider Ports đã PASS ngày 2026-09-22`: dependencies resolve, AI config bind với disabled-by-default/API key optional, KBase-owned chat/embedding ports không rò vendor types, deterministic fakes pass, pgvector PostgreSQL 17.11 compatibility pass và Core regression pass 228/228. Không có AI migration, entity, endpoint, RAG behavior, provider adapter/call hoặc generated DB/API change.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M1_Runtime_Foundation_and_Provider_Ports.md`, `src/main/java/com/kbase/ai/`, `src/test/java/com/kbase/ai/`, `src/test/java/com/kbase/integration/PgVectorCompatibilityIntegrationTest.java`
-
-* `M2 – AI pgvector / Persistence Schema đã PASS ngày 2026-09-22`: Flyway V4 additive migration tạo pgvector extension và 8 AI tables; composite same-project FK, cascade/`SET NULL` lifecycle, status vocabulary, relational/HNSW indexes và active-generation partial unique guard đã được kiểm tra trên live catalog. JPA mappings/repositories, JSONB job mapping, KBase-owned vector JDBC boundary với project/active-version SQL predicates và user-row quota lock đã được verify. Không có public API, worker, provider call hoặc RAG behavior.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M2_PgVector_AI_Persistence_Schema.md`, `src/main/resources/db/migration/V4__create_ai_persistence_schema.sql`, `src/test/java/com/kbase/integration/FlywayMigrationIntegrityTest.java`, `src/test/java/com/kbase/integration/FlywayAiUpgradeIntegrationTest.java`, `src/test/java/com/kbase/integration/AiPersistenceIntegrationTest.java`, `docs/generated/db-schema.md`
-
-* `M3 – Durable Job Engine & Core Lifecycle Hooks đã PASS ngày 2026-09-22`: PostgreSQL `SKIP LOCKED` claim/lease/retry/stale recovery, bounded handler registry/scheduler, supported/unsupported document indexing intent, delete-race no-resurrection và membership `CONVERSATION_PURGE` retention hooks đã được verify. Full gate 268/268; không có migration/API/provider/extraction/RAG/destructive purge change.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M3_Durable_Job_Engine_Core_Lifecycle.md`, `src/main/java/com/kbase/ai/repository/AiJobClaimRepository.java`, `src/main/java/com/kbase/ai/service/`, `src/test/java/com/kbase/integration/AiJobEngineIntegrationTest.java`, `src/test/java/com/kbase/integration/DocumentAiIntentIntegrationTest.java`, `src/test/java/com/kbase/integration/DocumentAiRollbackIntegrationTest.java`, `src/test/java/com/kbase/integration/AiConversationRetentionIntegrationTest.java`, `src/test/java/com/kbase/integration/AiRetentionTransactionIntegrationTest.java`
-
-* `M4 – Gemini Provider Adapters đã PASS ngày 2026-09-22`: explicit disabled-by-default Spring AI/Google GenAI adapters, deterministic chat/embedding mapping, strict 768 validation, provider-neutral error categories, request-timeout wiring và privacy guards; targeted 22/22, full gate 290/290; không gọi real Gemini.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M4_Gemini_Provider_Adapters.md`, `src/main/java/com/kbase/ai/provider/springai/`, `src/test/java/com/kbase/ai/provider/springai/`
-
-* `M5 – Content Extraction / Chunking / Document Indexing đã PASS ngày 2026-09-23`: exactly PDF/DOC/DOCX/PPT/PPTX/MD/TXT, KBase-owned deterministic `kbase-lex-v1`/`chunk-v1`, Tika adapter with proven location metadata, durable `DOCUMENT_INDEX` worker via `StorageService` + `AiEmbeddingModel`, staging/atomic activation, last-good preservation, bounded safe retries/failures, manual retry/status application boundary và delete/stale-lease protection; targeted 17/17, full gate 307/307.
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M5_Content_Extraction_Chunking_Document_Indexing.md`, `src/main/java/com/kbase/ai/extraction/`, `src/main/java/com/kbase/ai/job/DocumentIndexJobHandler.java`, `src/test/java/com/kbase/ai/extraction/DocumentExtractionAndChunkingTest.java`, `src/test/java/com/kbase/ai/job/DocumentIndexJobHandlerTest.java`, `src/test/java/com/kbase/integration/DocumentAiIndexPersistenceIntegrationTest.java`
-
-* `M6 – Semantic Retrieval / Grounding / Citations đã PASS ngày 2026-09-23`: project authorization trước QUERY embedding, SQL project/READY/active/current-document filter, deterministic threshold/dedup/adjacent merge/final bound, strict NO_EVIDENCE zero-chat, untrusted prompt/history separation, exact source-label validation, citation snapshots và pre/post-chat authorization rechecks. Targeted 33/33; full gate 329/329; không real Gemini key/network, conversation/API/Guide runtime hay migration.
-
-* `M7 – Project Assistant Conversations & REST API đã PASS ngày 2026-09-24`: API-AI-001..009 với private creator lookup, atomic max-five, one-active generation, USER/ASSISTANT lifecycle, grounded/NO_EVIDENCE source persistence, revoke-before-finalization và document index status/retry. Real PostgreSQL/JWT targeted 36/36, full gate 346/346, runtime OpenAPI 37 paths/56 operations, generated API synchronized; V1–V4/generated DB không đổi. Guide/rate guard/destructive purge chưa triển khai; abrupt JVM death có thể để lại PROCESSING marker (tech debt tracker).
-
-  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M6_Semantic_Retrieval_Grounding_Citations.md`, `src/main/java/com/kbase/ai/retrieval/`, `src/main/java/com/kbase/ai/repository/AiVectorRepository.java`, `src/test/java/com/kbase/ai/retrieval/`, `src/test/java/com/kbase/integration/AiPersistenceIntegrationTest.java`
-
-## Đã Hoàn thành nhưng Chưa Kiểm chứng
-
-* `Gmail SMTP delivery thật (manual smoke với App Password thật) chưa chạy — automated verification dùng mail double; thuộc optional production smoke.`
-* `Frontend vẫn deferred; không có hạng mục M14 còn thiếu xác minh trong backend.`
-* `Real Gemini API credential/network smoke chưa chạy — đây là chủ ý và không thuộc M0 release gate; M1+ automated tests phải dùng deterministic fakes.`
-* `M5 chưa chạy live Gemini hoặc full Compose indexing journey với provider thật; targeted/provider-neutral verification là bằng chứng được yêu cầu. Worker lease hiện không heartbeat trong khi extraction/embedding dài; limitation đã ghi trong M5 plan và technical-debt tracker.`
+* **Core v1 backend: FROZEN** (M15 pass 2026-09-19; M16 post-audit maintenance pass).
+* **AI v1 backend: FROZEN** (M0–M11 PASS; M11 freeze report 2026-09-26).
+* **Post-freeze final codebase audit: PASS** (2026-09-26 — `docs/exec-plans/completed/KBase_Post_Freeze_Final_Codebase_Audit.md`): 4 reviewer findings xác nhận và sửa (storage exception log sanitization, invitation flush-before-mail, profile fail-safe, MinIO 5xx classification), 2 autonomous findings sửa (A-01/A-02 sanitization), full regression PASS.
+* **Không có active implementation milestone.** Không tạo M12. Phase mới (frontend, real-Gemini rollout, chat recovery policy, CI) đều cần owner approval.
+* Frontend và streaming: deferred, không thuộc phase backend hiện tại.
+
+Bảng tổng quan:
+
+| Khu vực          | Trạng thái    | Ghi chú |
+| ---------------- | ------------- | ------- |
+| Build            | FROZEN baseline | Full gate sau audit: `mvn -B -ntp clean verify` BUILD SUCCESS (xem số test chính xác trong audit report); Compose base + mọi verification override validate. |
+| Backend          | Core + AI FROZEN | Project Assistant (private creator conversations), Guide (2 packaged specs), document indexing/semantic retrieval, durable job engine, usage guard — toàn bộ frozen behavior. |
+| Database         | Ổn định | Flyway V1–V4, 18 persistent tables, pgvector `vector(768)`, HNSW cosine indexes, Hibernate validate. |
+| API contract     | Ổn định | Runtime OpenAPI 38 paths / 57 operations / 15 tags; API-AI-001..010; generated snapshots đồng bộ. |
+| Security         | Verified runtime | Security matrix 37/37 (M11): cross-project isolation, creator privacy, prompt injection, source authz, Guide isolation; profile fail-safe thêm sau audit. |
+| Reliability      | Verified runtime | Retention (+P7D, purge, race), restart/recovery (stale reclaim, persistence), failure isolation, 0-hit log audit (M11). |
+| Deployment       | Ổn định | Explicit profile contract: compose = `local` tường minh, production = `prod`, artifact không profile fail-fast. |
+
+## Kiến trúc & Capability hiện tại (tóm tắt)
+
+* Core v1: auth (JWT + Redis OTP email verification + refresh session), user/project/membership, invitation lifecycle, folder/category/tag, document lifecycle + MinIO storage, metadata search, OpenAPI, Docker runtime.
+* AI v1: document AI indexing (7 format allowlist, deterministic chunking `kbase-lex-v1`/`chunk-v1`, durable `DOCUMENT_INDEX` jobs), project-scoped semantic retrieval với strict `NO_EVIDENCE`, private Project Assistant conversations (max-5 quota, one-active generation), stateless Guide trên 2 packaged specs, Redis per-user usage guard (shared budget, 429/503 contract), Micrometer observability bounded.
+* Provider: Gemini là production default mode (disabled-by-default, không dùng credential trong automated gate); deterministic runtime-test provider chỉ cho verification (profile + acknowledgement guarded).
+
+## Verification hiện tại
+
+| Kiểm tra | Kết quả | Thời điểm |
+| --- | --- | --- |
+| `mvn -B -ntp clean verify` (post-audit full gate) | BUILD SUCCESS — tổng số test chính xác trong audit report | 2026-09-26 |
+| M11 runtime matrix (security 37/37, retention, restart/recovery, log audit 0 hits) | PASS | 2026-09-26 |
+| Profile fail-safe (`ProfileFailSafeTest` 4/4 + Docker smoke local/runtime-test) | PASS | 2026-09-26 |
+| Runtime OpenAPI = 38/57/15; Flyway V1–V4; 18 tables | PASS | 2026-09-26 |
+
+Chi tiết lệnh và bằng chứng từng milestone: xem các freeze report và `docs/DEVELOPMENT.md` (verification records).
+
+## Tài liệu tham chiếu chính (thay cho chronology M0–M11)
+
+* Core v1 freeze report: `docs/exec-plans/completed/KBase_Core_v1_M15_Full_Verification_Freeze.md`
+* AI v1 freeze report: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md`
+* Post-freeze final audit report: `docs/exec-plans/completed/KBase_Post_Freeze_Final_Codebase_Audit.md`
+* Lịch sử M0–M11 (historical evidence only): `docs/exec-plans/completed/`
+* Product specs: `docs/product-specs/`; design docs: `docs/design-docs/`; generated snapshots: `docs/generated/`
 
 ## Blocker Hiện tại
 
 | Blocker | Ảnh hưởng | Hướng xử lý | Trạng thái |
 | ------- | --------- | ----------- | ---------- |
-| (không có blocker hiện tại) | — | Không có active milestone; phase mới cần owner approval | — |
-
-Blocker cũ "Archive không có Git metadata" đã được xử lý: repository hiện có Git history đầy đủ trên nhánh `dev` (commits theo milestone M0–M15); không còn cản trở đối chiếu.
-
-## Thay đổi Quan trọng Gần đây
-
-* `Core v1 dùng email verification OTP lưu short-lived state trong Redis; login chỉ cho phép email đã verify.`
-* `Gmail SMTP là mail provider cho OTP verification và project invitation.`
-* `PostgreSQL và MinIO local Docker dùng named volume; Redis OTP là ephemeral và không cần durable volume.`
-* `Frontend được hoãn; harness hiện được tối ưu cho backend implementation trước.`
-* `M0 đã khóa Java 21, Spring Boot 4.1.1 và dependency/implementation baseline; registry SD-01..SD-13 đã được tạo.`
-* `M1 đã tạo Maven backend foundation, typed configuration, profiles và Compose dependency skeleton; frontend vẫn deferred.`
-* `M2 đã tạo 3 Flyway migrations làm schema source-of-truth (V1 core tables, V2 partial/expression unique indexes, V3 query indexes) và migration integrity test trên PostgreSQL Testcontainer; Hibernate giữ ddl-auto=validate.`
-* `M3 đã map 10 bảng vào JPA với quan hệ LAZY, enum STRING, explicit DocumentTag và scalar FK/read-only association views cho Hibernate 7; không thay đổi schema hoặc API.`
-* `M4 đã thêm centralized error/request baseline: ErrorCode, exception hierarchy, ApiErrorResponse, RequestIdFilter/MDC, GlobalExceptionHandler và PostgreSQL constraint translation.`
-* `M5 đã thêm Redis OTP và Gmail mail infrastructure: Redis protected state/TTL/attempt/cooldown/replacement, OtpService, MailService/SmtpMailService, typed SMTP/Redis settings và safe templates.`
-* `M6 đã thêm Spring Security + authentication: SecurityConfig stateless (public auth + ADMIN route), JwtService/JwtAuthenticationFilter (DB user lookup mỗi request), security 401/403 handlers, RefreshSessionService (PostgreSQL SHA-256 hash), EmailVerificationService (Redis OTP + Gmail), AuthService và AuthController cho register/verify-email/resend/login/refresh/logout; test starters webmvc-test/security-test được thêm ở test scope.`
-* `M7 đã thêm User/Project/Membership domain: current-user + admin-user APIs (password change revoke sessions, delete theo dependency rules USER_OWNS_PROJECT → USER_HAS_DEPENDENCIES), ProjectAuthorizationService làm điểm vào authorization duy nhất, project create (Project + OWNER membership trong một transaction)/list membership-only/get/update/admin listing, membership list/remove/leave (OWNER bất khả xâm, documents remain); shared PageResponse/PaginationParser với sort whitelist.`
-* `M8 đã thêm invitation lifecycle: OWNER/ADMIN tạo invitation qua MailService.sendProjectInvitation với secure token riêng (không OTP); PostgreSQL chỉ lưu SHA-256 token hash; một PENDING per project+email; resend thay token + reset expiry; cancel CANCELLED không physical delete; accept authenticated với PESSIMISTIC_WRITE tạo MEMBER + ACCEPTED + acceptedAt; mail fail khi create rollback invitation; KBASE_INVITATION_ACCEPT_URL cấu hình invitation link.`
-* `M9 đã thêm folder/category/tag organization APIs: 12 project-scoped endpoints, service-owned authorization, nested folder hierarchy với ancestor walk chống cycle, case-insensitive uniqueness, child/document non-empty folder delete, category in-use protection và DocumentTag-only tag delete; không đổi Flyway schema.`
-* `M10 đã thêm storage infrastructure không public API: StorageService/MinioStorageService stream binary sau boundary adapter; StorageKeyFactory tạo projects/{projectId}/documents/{documentId}.{extension}; local-only auto-create/validation, production-safe defaults, range read và checked batch deletion; không đổi Flyway/API/auth/organization behavior.`
-* `M11 đã thêm DocumentController/DocumentService/DocumentAuthorizationService và project hard delete; binary luôn qua StorageService, response không expose storageKey, rename/move không đổi key và preview/download streaming không buffer whole file.`
-* `M12 đã thêm project-scoped metadata search endpoint/service/criteria; `DocumentSpecification` bắt buộc project predicate và tag `EXISTS`, `PaginationParser` canonicalize sort whitelist trước persistence, không thêm content/full-text/vector/semantic/AI/RAG search.`
-* `M13 đã bật OpenAPI runtime qua springdoc 3.1.1: OpenApiConfig (metadata, bearerAuth, 12 tags canonical, 401 customizer), 12 controllers / 47 operations annotated với security requirements và permission rules, multipart/binary/Range documentation, Swagger UI flags per environment; không đổi runtime API contract.`
-* `M14 đã Dockerize runtime: Dockerfile multi-stage, Compose backend service với healthcheck gating, env-driven secrets (`.env` git-ignored); fix bug M11 OWNER-path project hard delete bằng bulk cascade delete + regression test; loại generated-password log.`
-* `M15 đã freeze Core v1: full verification matrix (210/210 + Docker runtime re-verification) pass; sửa một documentation miscount 48→47 operations trong bản ghi M13; không có code change; không mở AI/RAG/frontend.`
-* `M16 post-audit fixes: invitation EXPIRED giờ persist khi accept hết hạn (resend trên invitation EXPIRED trả 409 INVITATION_NOT_PENDING; recovery = tạo invitation mới vì partial unique index được giải phóng); search `q` trở thành literal matching (%, _, \ được escape) ở documents/projects/tags/admin-users; folder move dùng pessimistic lock 2 rows theo UUID order chống race cycle; batch upload cleanup idempotent-per-key; SMTP failure log chỉ exception type.`
-* `M0 AI Preflight (2026-09-22) đã khóa Spring AI 2.0.1 + Google GenAI starters, chat `gemini-2.5-flash`, embedding `gemini-embedding-2`/768 với task-prefix do adapter sở hữu, pgvector `0.8.6-pg17-bookworm` + `com.pgvector:pgvector:0.1.6`, Tika parser modules 3.3.2, config provisional và deterministic fake contracts; M0 decision log vẫn là authority.`
-* `M1 AI Runtime Foundation (2026-09-22) đã hoàn tất: typed config, disabled startup, KBase-owned provider ports, deterministic fakes, shared pgvector Testcontainers image và Compose passthrough đều được verify; active slice chuyển sang M2 persistence schema.`
-* `M2 AI Persistence (2026-09-22) đã hoàn tất: Flyway V4, 8 AI tables, pgvector/HNSW, JPA repositories, SQL project isolation, FK/delete/status guards và concurrent quota lock đã verify; active slice chuyển sang M3 durable jobs.`
-* `M3 AI Durable Jobs (2026-09-22) đã hoàn tất: PostgreSQL claim/lease/retry/stale recovery + advisory-lock active dedup, bounded scheduler registry, document upload intent/delete safety và membership retention `+P7D`/rejoin cancellation đã verify; active slice chuyển sang M4 provider adapters.`
-* `M4 AI Provider Adapters (2026-09-22) đã hoàn tất: explicit disabled-by-default Gemini/Spring AI configuration, chat/embedding adapters, deterministic preparation, strict 768 validation, provider-neutral error taxonomy, request-timeout wiring và privacy/logging negative tests; active slice chuyển sang M5 extraction/chunking/indexing.`
-* `M5 AI Content Extraction / Chunking / Document Indexing (2026-09-23) đã hoàn tất: Tika extraction đúng allowlist 7 format, proven source locations, deterministic kbase-lex-v1/chunk-v1, StorageService-only bounded/hash-checked source reads, 768-vector embedding, staging/atomic activation, retry/failure categories, status/manual retry và PostgreSQL delete/stale-lease races; active slice chuyển sang M6 retrieval/grounding/citations planning-only.`
-* `M6 AI Semantic Retrieval / Grounding / Citations (2026-09-23) đã hoàn tất: internal Project RAG, SQL project/READY/active/current-document retrieval, deterministic bounded evidence, NO_EVIDENCE zero chat, prompt/label validation, citation snapshots và current-access rechecks; active slice chuyển sang M7 Project Assistant conversations/REST API planning-only.`
-* `Enable host-run path (owner yêu cầu, 2026-09-19): `application-local.yml` thêm `spring.config.import: optional:file:.env[.properties]` để `mvn spring-boot:run` tự đọc `.env` (container/prod/test không bị ảnh hưởng — no-op khi không có file, prod/test không load import này); `.env` thêm `KBASE_POSTGRES_PORT=5433` vì PostgreSQL native trên máy chiếm 5432 (Compose map `${KBASE_POSTGRES_PORT:-5432}:5432` — không đổi docker-compose.yml). Cả hai đường chạy đã verify: container `docker compose up -d --build` phục vụ 8080, host `mvn spring-boot:run` Started + api-docs 200 (đã ghi vào DEVELOPMENT.md).`
-
-Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhiệm lưu thay đổi code chi tiết.
-
-## Verification Gần nhất
-
-| Lệnh hoặc kiểm tra | Kết quả       | Thời điểm | Ghi chú |
-| ------------------ | ------------- | --------- | ------- |
-| `mvn -B -ntp clean verify` (M10 final) | Đạt | 2026-09-25 | `BUILD SUCCESS`; 371 tests, 0 failures/errors/skips. Non-fatal Testcontainers shutdown and test-profile placeholder PostgreSQL scheduler warnings appeared after/around context teardown; Surefire completed successfully. |
-| `mvn -B -ntp "-Dtest=RedisAiUsageGuardIntegrationTest" test` | Đạt | 2026-09-25 | 5/5 trên Redis 7.4 Testcontainer: atomic fixed-window limit, user isolation/shared budget, clock rollover và unavailable mapping. |
-| `mvn -B -ntp "-Dtest=AiObservabilityTest,GuideControllerTest,ProjectAssistantM7IntegrationTest,OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest" test` | Đạt | 2026-09-25 | Focused M10 regression: bounded Micrometer facade, Guide 503/guard boundary, Project Assistant guard ordering/contracts và exact OpenAPI 38 paths/57 operations/15 tags. |
-| `docker compose -f docker-compose.yml config --quiet` + `git diff --check` (M10) | Đạt | 2026-09-25 | Compose config hợp lệ; không có whitespace error; không đổi V1–V4 hoặc generated DB schema. |
-| M10 sensitive-data/scope audit | Đạt | 2026-09-25 | Source/log scan không tìm thấy raw prompt/chunk/answer/vector/hash/storage key/job payload/lease/worker ID/Redis key-count/provider material/credential emission; no real Gemini credential/network used. |
-| `mvn -B -ntp "-Dtest=ProjectAssistantM7IntegrationTest,ProjectAssistantTitleTest,OpenApiContractIntegrationTest" test` (M7 targeted) | Đạt | 2026-09-24 | 36/36: real PostgreSQL 17.11/pgvector, JWT/private conversation/quota/send/revoke/source/index API, exact 37 paths/56 operations |
-| `mvn -B -ntp clean verify` (M7 final rerun) | Đạt | 2026-09-24 | `BUILD SUCCESS`; 346 tests, 0 failures/errors/skips; compile/package/repackage pass. Initial run failed stale M5 assertion; updated to stable ErrorCode, targeted 38/38 then full rerun pass. |
-| `docker compose -f docker-compose.yml config --quiet` + `git diff --check` (M7) | Đạt | 2026-09-24 | Compose config và whitespace check exit 0; V1–V4/generated DB unchanged, API snapshot synchronized. |
-| `mvn -B -ntp "-Dtest=EvidenceSelectorTest,SourceLabelAndCitationTest,ConversationContextPolicyTest,ProjectRagServiceTest,AiPersistenceIntegrationTest" test` (M6 targeted) | Đạt | 2026-09-23 | 33/33: 17 M6 unit tests + 16 real PostgreSQL/pgvector integration tests (gồm 5 M6 cases) |
-| `mvn -B -ntp clean verify` (M6 final) | Đạt | 2026-09-23 | `BUILD SUCCESS`; 329 tests, 0 failures/errors/skips; compile/package/repackage pass |
-| `docker compose -f docker-compose.yml config --quiet` (M6) | Đạt | 2026-09-23 | Compose config exit 0; no topology/migration/API change |
-| `git diff --check` (M6) | Đạt | 2026-09-23 | Exit 0; final working-tree review không có whitespace error, no staged changes |
-| `mvn -B -ntp "-Dtest=AiGeminiProviderConfigurationTest,AiProviderErrorTranslatorTest,AiProviderPrivacyTest,SpringAiGeminiChatAdapterTest,SpringAiGeminiEmbeddingAdapterTest" test` (M4 targeted) | Đạt | 2026-09-22 | 22/22: disabled/enabled configuration, safe key validation/no network, chat mapping/evidence isolation, query/document preparation, strict 768/non-finite rejection, error categories và privacy negative tests |
-| `mvn -B -ntp clean verify` (M4 final) | Đạt | 2026-09-22 | `BUILD SUCCESS`; 290 tests, 0 failures/errors/skips; compile/package/repackage pass; shutdown Hikari/Testcontainers warnings không làm fail suite |
-| `mvn -B -ntp "-Dtest=DocumentExtractionAndChunkingTest,DocumentIndexJobHandlerTest,DocumentAiIndexApplicationServiceTest,DocumentAiIndexPersistenceIntegrationTest" test` (M5 targeted) | Đạt | 2026-09-23 | 17 tests, 0 failures/errors/skips; extraction/chunking, safe terminal behavior, handler retry/embedding, status/manual retry và PostgreSQL staging/activation/delete races |
-| `mvn -B -ntp clean verify` (M5 final) | Đạt | 2026-09-23 | `BUILD SUCCESS`; 307 tests, 0 failures/errors/skips; compile/package/repackage pass; shutdown-only connection warnings appeared after successful test result |
-| `docker compose -f docker-compose.yml config --quiet` + `git diff --check` (M5 final) | Đạt | 2026-09-23 | Compose config hợp lệ, không có whitespace error; no service/migration/API generated-doc change |
-| `docker compose -f docker-compose.yml config --quiet` + `git diff --check` (M4) | Đạt | 2026-09-22 | Compose hợp lệ và không có whitespace error; không đổi topology, migration hoặc generated DB/API docs |
-| `mvn -B -ntp "-Dtest=PgVectorCompatibilityIntegrationTest" test` (M1 final) | Đạt | 2026-09-22 | 1/1 trên pgvector 0.8.6 / PostgreSQL 17.11: extension, `vector(768)`, JDBC `PGvector` binding, cosine ordering và HNSW `vector_cosine_ops` pass |
-| M1 AI targeted suite | Đạt | 2026-09-22 | 15/15: `AiPropertiesBindingTest`, `AiProviderModelTest`, `FakeAiChatModelTest`, `FakeAiEmbeddingModelTest`, `KBaseApplicationContextSmokeTest`; disabled path không tạo Spring AI chat/embedding model bean |
-| `mvn -B -ntp clean verify` (M1 final) | Đạt | 2026-09-22 | `BUILD SUCCESS`; 228 tests, 0 failures/errors/skips; jar/package và Spring Boot repackage pass |
-| `mvn -B -ntp "-Dtest=FlywayMigrationIntegrityTest,JpaMappingRepositoryIntegrationTest,FlywayAiUpgradeIntegrationTest,AiPersistenceIntegrationTest" test` (M2 targeted) | Đạt | 2026-09-22 | 36 tests, 0 failures/errors/skips: integrity 13/13, mapping 11/11, upgrade 1/1, AI persistence 11/11 |
-| `mvn -B -ntp clean verify` (M2 gate, trước bổ sung regression assertions) | Đạt | 2026-09-22 | `BUILD SUCCESS`; 238 tests, 0 failures/errors/skips; package/repackage pass |
-| `docker compose -f docker-compose.yml config --quiet` + `git diff --check` (M2) | Đạt | 2026-09-22 | Compose exit 0; diff check không có whitespace error |
-| `mvn -B -ntp dependency:tree "-DoutputFile=target/dependency-tree-m1-01.txt" "-DoutputType=text"` | Đạt | 2026-09-22 | Spring AI BOM 2.0.1, Google GenAI starters, transitive Google GenAI 1.65.0 và pgvector JDBC 0.1.6 resolve |
-| `docker compose -f docker-compose.yml config --quiet` (M1 final) | Đạt | 2026-09-22 | Compose hợp lệ; pgvector default, named volume/healthcheck và AI environment passthrough resolve |
-| M3 targeted suites | Đạt | 2026-09-22 | `AiJobEngineIntegrationTest` 9/9, `AiJobSchedulerTest` 5/5, `DocumentAiIntentIntegrationTest` 6/6, `DocumentAiRollbackIntegrationTest` 2/2, `AiConversationRetentionIntegrationTest` 4/4, `AiRetentionTransactionIntegrationTest` 1/1 trên PostgreSQL 17.11/pgvector Testcontainers |
-| `mvn -B -ntp test` (M3 final) | Đạt | 2026-09-22 | `BUILD SUCCESS`; 268 tests, 0 failures/errors/skips |
-| `mvn -B -ntp clean verify` (M3 final) | Đạt | 2026-09-22 | `BUILD SUCCESS`; 268 tests, 0 failures/errors/skips; compile/package/repackage pass |
-| M3 scope/gate audit | Đạt | 2026-09-22 | Compose config + `git diff --check` pass; V4/generated docs unchanged; no provider/network/extraction/RAG/API/purge behavior or MinIO SDK import in AI code |
-| `mvn -B -ntp clean verify` (AI M0 baseline) | Đạt | 2026-09-22 | `BUILD SUCCESS`; 213 tests, 0 failures/errors/skips trên `feat-AI` |
-| `docker compose -f docker-compose.yml config --quiet` (AI M0 baseline) | Đạt | 2026-09-22 | Compose hiện tại hợp lệ; không thay đổi topology trong M0 |
-| Spring AI/Gemini options probe | Đạt | 2026-09-22 | Spring AI 2.0.1 compile/probe giữ `gemini-embedding-2` và `dimensions=768`; không gọi API thật |
-| pgvector Docker compatibility probe | Đạt | 2026-09-22 | `pgvector/pgvector:0.8.6-pg17-bookworm`; extension, `vector(768)`, cosine ordering và HNSW `vector_cosine_ops` pass; temporary container đã xóa |
-| Tika dependency-resolution probe | Đạt | 2026-09-22 | Tika 3.3.2 core + PDF/Microsoft/text parser modules resolve; chưa có extraction implementation |
-| Harness/source registry revalidation | Đạt | 2026-09-22 | 19 docs, SD-14..SD-19/path/precedence/scope guard pass; không stale current blocker |
-| `mvn -B -ntp clean verify` (M16 final) | Đạt | 2026-09-19 | BUILD SUCCESS; 213 tests, 0 failures/errors/skips (210 baseline + 3 regression: batch cleanup, wildcard-literal search, folder-move concurrency) |
-| Targeted M16 suites | Đạt | 2026-09-19 | Unit 48/48 (Invitation/Document/SmtpMail/ConfigBinding/Folder/Tag/Project/JwtService/User/ContextSmoke); Integration 26/26 (InvitationLifecycle 5/5 gồm assert DB EXPIRED + tạo invitation thay thế, DocumentSearch 3/3 gồm literal wildcard, Organization 7/7 gồm concurrentOppositeFolderMovesCreateNoCycle, JpaMapping 11/11) |
-| `mvn -B -ntp clean verify` (M15 final) | Đạt | 2026-09-19 | BUILD SUCCESS; 210 tests, 0 failures/errors/skips; M15 release gate VERIFY-01/02/03/04/05/11 |
-| Docker runtime verification (M15) | Đạt | 2026-09-19 | Clean startup từ volume rỗng (compose config base+mail-test OK; healthcheck-gated); Flyway V1–V3 + Hibernate validate trong container; 10 tables + `email_verified_at` + không OTP table; auth journey (Redis OTP key/TTL/HMAC + mail double + verify + login/refresh/logout + refresh-sau-logout 401); core flows (project OWNER, folder/category/tag, upload PDF/MP4/MD 201 không expose storageKey, download MD5 khớp, preview inline 200, MP4 206/416, search q/filter/combined/sort/whitelist 400/clamp 100); invitation accept MEMBER; MEMBER matrix + admin 403 + anonymous 401; remove-member access loss + documents remain; document + OWNER-path project hard delete storage-first, bucket rỗng, cascade đủ |
-| Persistence (M15) | Đạt | 2026-09-19 | backend restart: Flyway "Schema is up to date", download checksum khớp; postgres/minio force-recreate giữ volume: data + Flyway history + object download MD5 khớp; Redis recreate: OTP state mất, stale verify 400 OTP_EXPIRED, resend 204, verify + login 200 |
-| Log leak scan + JWT probes (M15) | Đạt | 2026-09-19 | `docker compose logs backend`: 0 hits cho password/JWT/refresh token/OTP/invitation token/App Password/MinIO secret/storageKey/SQL; tampered + garbage JWT → 401 |
-| Static audits (M15) | Đạt | 2026-09-19 | VERIFY-09/10 + consistency audit: runtime spec 32 paths/47 operations = contract test = SD-04; error catalog ↔ ErrorCode 68 codes; compose ↔ DEPLOYMENT; db-schema ↔ migrations; architecture scans clean |
-| Docker runtime smoke (M14) | Đạt | 2026-09-18 | Clean build + startup từ rỗng; Flyway V1–V3 + Hibernate validate trong container; auth journey + core flows + hard delete storage-first qua containerized backend; persistence `postgres_data`/`minio_data` qua backend restart + force-recreate; Redis ephemeral + resend; log leak scan 0 hits |
-| `mvn -B -ntp "-Dtest=ProjectServiceTest,DocumentApiIntegrationTest" test` (sau fix M14) | Đạt | 2026-09-18 | 10/10 gồm regression OWNER-path project delete trên PostgreSQL+MinIO Testcontainers |
-
-| `mvn -B -ntp "-Dtest=OpenApiContractIntegrationTest,OpenApiDisabledIntegrationTest" test` | Đạt | 2026-09-18 | 21/21; spec 32 paths/47 operations (đếm lại trên runtime trong M15), bearerAuth, public/protected/ADMIN requirements, multipart/binary/Range, ApiErrorResponse, sensitive-field absence, AI-free, disabled-flags 401 |
-| `mvn -B -ntp test` (M13 final) | Đạt | 2026-09-18 | Full suite 209 tests, 0 failures/errors/skips |
-| `mvn -B -ntp clean verify` (M13 final) | Đạt | 2026-09-18 | BUILD SUCCESS; 209 tests; compile/package/repackage pass; M13 Gate pass |
-
-| `mvn -B -ntp clean verify` (M12 final) | Đạt | 2026-09-18 | 188 tests, 0 failures/errors/skips; compile/package/repackage pass; M12 Gate pass |
-
-| Lệnh hoặc kiểm tra | Kết quả       | Thời điểm | Ghi chú |
-| ------------------ | ------------- | --------- | ------- |
-| `mvn -B -ntp test` (baseline M7 trước khi sửa mã) | Đạt | 2026-09-18 | 130 tests, 0 failures — M7 Gate xác nhận pass, không blocker |
-| `mvn -B -ntp "-Dtest=InvitationServiceTest" test` | Đạt | 2026-09-18 | M8 unit 8/8: create hash-only + mail link, member/pending conflicts, mail fail propagate, resend replace+reset, cancel không physical delete, accept full error matrix (not found/not pending/expired→EXPIRED/mismatch) |
-| `mvn -B -ntp "-Dtest=InvitationLifecycleIntegrationTest" test` | Đạt | 2026-09-18 | 5/5 trên PostgreSQL 17 Testcontainer với real SecurityFilterChain: OWNER 201 PENDING + mail URL chứa token + body/DB không lộ token/hash, MEMBER 403, ADMIN override 201, member/duplicate 409, resend token cũ vô hiệu + reset expiry, cancel CANCELLED còn row, expired/mismatch/double-accept đúng contract, mail fail 503 + rollback, concurrency 2 thread chỉ 1 accept thắng |
-| `mvn -B -ntp "-Dtest=UserServiceTest,ProjectAuthorizationServiceTest,ProjectServiceTest,ProjectMemberServiceTest" test` | Đạt | 2026-09-18 | M7 unit 20/20: user profile/password/status/delete dependency order, authorization contracts (404/403, ADMIN override role null), create OWNER atomically, remove/leave matrix |
-| `mvn -B -ntp "-Dtest=UserProjectMembershipIntegrationTest" test` | Đạt | 2026-09-18 | 6/6 trên PostgreSQL 17 Testcontainer với real SecurityFilterChain: creator OWNER single trong cùng tx, GET /projects membership-only + role filter, non-member 403, MEMBER đọc không sửa được, OWNER/ADMIN update, ADMIN override currentUserRole null, remove/leave rules + documents remain + uploadedBy vẫn là User, me/profile/password (revoke session), admin users (q/pagination/INVALID_USER_STATUS/disable revoke/delete order), admin projects không fake role |
-| `mvn -B -ntp test` (M8 final) | Đạt | 2026-09-18 | Full suite 143 tests, 0 failures, 0 errors, 0 skipped |
-| `mvn -B -ntp clean verify` (M8 final) | Đạt | 2026-09-18 | Full suite 143 tests, 0 failures, 0 errors, 0 skipped; compile/package và Spring Boot jar repackage pass |
-| Static M8 scope/leakage review | Đạt | 2026-09-18 | Invitation không dùng OTP (chỉ javadoc ghi rõ); không log/expose raw token/hash; cancel không physical delete; không controller→repository; không cascade project knowledge khi xóa user; không đổi auth/OTP/Redis/Gmail flow M5–M7; response không expose passwordHash |
-| `mvn -B -ntp "-Dtest=FolderServiceTest,CategoryServiceTest,TagServiceTest" test` | Đạt | 2026-09-18 | M9 unit 12/12: authorization, case-insensitive duplicate, parent isolation, cycle prevention, non-empty folder, category in-use/delete và MEMBER tag create/mutation rules |
-| `mvn -B -ntp "-Dtest=OrganizationIntegrationTest" test` | Đạt | 2026-09-18 | 6/6 trên PostgreSQL 17 + Redis Testcontainers với real SecurityFilterChain; list matrix, folder/category/tag permissions, uniqueness, cross-project parent, self/descendant cycle, non-empty/in-use delete và DocumentTag-only cascade |
-| `mvn -B -ntp "-Dtest=FlywayMigrationIntegrityTest,JpaMappingRepositoryIntegrationTest" test` | Đạt | 2026-09-18 | 23/23; PostgreSQL/JPA same-project composite FK, self-parent CHECK, indexes và mapping regression vẫn pass |
-| `mvn -B -ntp test` (M9 final) | Đạt | 2026-09-18 | Full suite 161 tests, 0 failures, 0 errors, 0 skipped |
-| `mvn -B -ntp clean verify` (M9 final) | Đạt | 2026-09-18 | BUILD SUCCESS; 161 tests pass, compile/package và Spring Boot jar repackage pass |
-| Static M9 scope/leakage review | Đạt | 2026-09-18 | Không frontend/M10/M11, không migration, không controller→repository, không weakening same-project constraints, không đổi auth/project/membership/invitation; document upload/lifecycle chưa implement |
-| `mvn -B -ntp "-Dtest=StorageKeyFactoryTest,MinioStorageServiceTest,ConfigurationPropertiesBindingTest" test` | Đạt | 2026-09-18 | M10 unit/config 7/7: port không rò MinIO SDK, key safety, typed missing/unavailable mapping, per-object batch failure và config timeout/init binding |
-| `mvn -B -ntp "-Dtest=MinioStorageIntegrationTest" test` | Đạt | 2026-09-18 | 2/2 với real `quay.io/minio/minio:latest` Testcontainer: bucket init/unversioned, stream upload/full/range read, stat, single/batch delete |
-| `mvn -B -ntp test` (M10 final) | Đạt | 2026-09-18 | Full suite 169 tests, 0 failures, 0 errors, 0 skipped |
-| `mvn -B -ntp clean verify` (M10 final) | Đạt | 2026-09-18 | BUILD SUCCESS; 169 tests, Spring Boot jar repackage pass |
-| Static M10 scope/boundary review | Đạt | 2026-09-18 | SDK chỉ trong storage adapter/config; no document API/M11/frontend/schema; no bucket policy/versioning/retention mutation; `minio_data:/data` preserved |
-| `mvn -B -ntp "-Dtest=DocumentApiIntegrationTest" test` | Đạt | 2026-09-18 | 3/3 PostgreSQL+MinIO+real SecurityFilterChain: upload/batch all-or-fail validation, same-project metadata, ownership/former-member/OWNER/ADMIN, stream/preview/range và project cascade |
-| `mvn -B -ntp "-Dtest=DocumentLifecycleStorageIntegrationTest" test` | Đạt | 2026-09-18 | 1/1 PostgreSQL+MinIO: upload PDF → stream → storage-first document delete → DB/DocumentTag cascade/object absent |
+| (không có blocker) | — | Phase mới cần owner approval | — |
 
 ## Rủi ro và Technical Debt Liên quan
 
-* Technical debt tracker: `docs/exec-plans/tech-debt-tracker.md`
-* Rủi ro hiện tại:
-
- * `AI M0–M11 đã đóng và AI v1 backend FROZEN 2026-09-26; agent tiếp theo dùng completed plans (đặc biệt M11 freeze report), không tự đoán lại runtime/freeze contract hoặc các retention/purge/security-race rule.`
-  * `Generated API Markdown snapshot được đồng bộ thủ công từ runtime /v3/api-docs đã verify; Core và AI M7 endpoint/DTO hiện khớp contract tests. Generated DB schema đã đồng bộ với migration V1–V4 nhưng chưa có generator tự động.`
-  * `M3 mapping dùng scalar FK + read-only association view để tương thích Hibernate 7; Flyway composite FK vẫn là lớp integrity authoritative và đã được negative-test.`
-  * `Full backend runtime với Flyway trên Compose local đã được verify trong M14 và re-verify trong M15; không coi migration/auth/authz Testcontainer verification là full application runtime smoke.`
-  * `JWT access token không có revocation: logout chỉ revoke refresh; access token cũ còn hiệu lực đến khi hết hạn trừ khi filter chặn theo DB status (DISABLED). Đây là baseline Core v1 đã chốt trong SD-07.`
-  * `OpenAPI Markdown snapshot (docs/generated/api-schema.md) vẫn được đồng bộ thủ công từ runtime /v3/api-docs; contract tests chặn drift ở mức security/multipart/binary/error-code nhưng chi tiết field-level trong Markdown phụ thuộc kỷ luật sync cùng thay đổi API.`
-  * `Gmail SMTP delivery thật (manual smoke với credential thật) chưa chạy; automated path dùng mail double.`
-  * `Google GenAI 1.65.0 trên selected Spring AI client path chỉ cung cấp request timeout qua HttpOptions, chưa có independent connect-timeout surface; typed connect-timeout vẫn được giữ cho future transport customization và không được claim là active.`
-  * `M11 runtime provider injection đã được repaired: packaged deterministic adapter chỉ activate khi AI enabled + mode deterministic + runtime-test profile + acknowledgement. Ngày 2026-09-26 bổ sung failure isolation per port, bounded chat-delay seam và runtime evidence cho chat/index/Redis/rate failure isolation; không dùng provider credential hoặc public Gemini.`
-  * `M7 chưa có durable chat-generation job hoặc startup recovery: JVM chết sau TX1 có thể để lại ASSISTANT PROCESSING. Ordinary request/provider failures đã chuyển FAILED; abrupt-death recovery là debt MEDIUM đang mở với verified safe workaround (creator DELETE giải phóng turn stuck, quota và generation lock) — theo tech-debt tracker, cần recovery slice được duyệt.`
-  * `Core v1 đã FROZEN ngày 2026-09-19 (M15 pass). AI v1 backend đã FROZEN ngày 2026-09-26 (M11 pass). Mọi thay đổi kế tiếp cần phase/plan mới được duyệt.`
+* Technical debt tracker (source of truth cho debt đang mở): `docs/exec-plans/tech-debt-tracker.md`
+* Debt AI đang mở (accepted, non-blocking): abrupt ASSISTANT PROCESSING recovery (MEDIUM, workaround verified — creator DELETE), worker lease/no heartbeat (MEDIUM), Gemini independent connect-timeout (LOW), transient revoke→rejoin failure-code precision (LOW).
+* Debt Core đang mở: PATCH document null semantics (L-02 — cần product decision), CI pipeline, Gmail production smoke, Redis OTP observability.
 
 ## Bước Tiếp theo
 
-1. `Không có active milestone: Core v1 và AI v1 backend đều FROZEN. Working tree M11 (docs) chờ operator review/commit.`
-2. `Phase mới (frontend, real-Gemini rollout, chat recovery policy, lease heartbeat) đều cần owner approval và plan mới; không tự tạo M12.`
-3. `Technical debt còn mở: PATCH null semantics (L-02), CI pipeline, Gmail production smoke, Redis OTP observability, AI abrupt-chat PROCESSING recovery (MEDIUM, workaround verified), worker lease/no heartbeat (MEDIUM), Gemini connect-timeout SDK limitation (LOW) — theo tracker.`
-
+1. `Không có active milestone: Core v1 và AI v1 đều FROZEN; working tree post-freeze audit chờ operator review/commit.`
+2. `Mọi phase mới (frontend, provider rollout, recovery policy, CI) cần owner duyệt plan riêng; không tự tạo M12.`
+3. `Session mới đọc file này + audit report + DEVELOPMENT.md là đủ vận hành; chỉ đọc completed plans khi cần historical context.`
 
 ## Quy tắc Cập nhật
 

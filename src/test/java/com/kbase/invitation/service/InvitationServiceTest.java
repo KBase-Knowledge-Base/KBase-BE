@@ -92,7 +92,7 @@ class InvitationServiceTest {
                 .thenReturn(false);
         when(invitationRepository.existsByProjectIdAndEmailAndStatus(
                 any(UUID.class), anyString(), any(InvitationStatus.class))).thenReturn(false);
-        when(invitationRepository.save(any(ProjectInvitation.class)))
+        when(invitationRepository.saveAndFlush(any(ProjectInvitation.class)))
                 .thenAnswer(invocation -> {
                     ProjectInvitation saved = invocation.getArgument(0);
                     java.lang.reflect.Field idField = ProjectInvitation.class.getDeclaredField("id");
@@ -116,7 +116,7 @@ class InvitationServiceTest {
 
         ArgumentCaptor<ProjectInvitation> invitationCaptor =
                 ArgumentCaptor.forClass(ProjectInvitation.class);
-        verify(invitationRepository).save(invitationCaptor.capture());
+        verify(invitationRepository).saveAndFlush(invitationCaptor.capture());
         ProjectInvitation persisted = invitationCaptor.getValue();
         assertThat(persisted.getStatus()).isEqualTo(InvitationStatus.PENDING);
         assertThat(persisted.getEmail()).isEqualTo("friend@example.com");

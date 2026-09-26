@@ -1,8 +1,12 @@
 spring:
   application:
     name: kbase-backend
-  profiles:
-    default: local
+  # No default profile on purpose: a production artifact started without an
+  # explicit SPRING_PROFILES_ACTIVE must not silently inherit local-only
+  # development behavior (Secure=false refresh cookie, storage auto-create).
+  # Local entry points select `local` explicitly (docker-compose.yml sets
+  # SPRING_PROFILES_ACTIVE with a local default; host runs export it) and
+  # deployments select `prod`.
   ai:
     # M1 adds the Spring AI dependencies but intentionally does not wire a
     # provider adapter. Keep both model auto-configurations disabled until the
