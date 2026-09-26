@@ -46,3 +46,7 @@ kbase:
     secret-key: ${KBASE_TEST_STORAGE_SECRET_KEY}
     auto-create-bucket: false
     initialize-on-startup: false
+  openapi:
+    # OpenAPI contract/disabled tests exercise the real springdoc runtime.
+    enabled: ${KBASE_OPENAPI_ENABLED:true}
+    swagger-ui-enabled: ${KBASE_OPENAPI_SWAGGER_UI_ENABLED:true}

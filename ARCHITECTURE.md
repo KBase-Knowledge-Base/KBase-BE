@@ -6,10 +6,10 @@ Tệp này là bản đồ cấp cao nhất của hệ thống. Nó nên ngắn 
 
 - Sản phẩm: `KBase – Knowledge Base`
 - Workflow Core đã frozen: `Đăng ký → xác minh email bằng OTP → đăng nhập → tạo/tham gia project → tổ chức và quản lý tài liệu project → tìm kiếm metadata → preview/download`
-- AI v1 workflow target: `upload supported knowledge → async index → Project Assistant hỏi/đáp có nguồn`; ngoài project có `KBase Guide` grounded trên approved product specs
+- AI v1 workflow (implemented, frozen): `upload supported knowledge → async index → Project Assistant hỏi/đáp có nguồn`; ngoài project có `KBase Guide` grounded trên approved product specs
 - Bề mặt runtime hiện tại: `Spring Boot REST backend + PostgreSQL/pgvector + Redis + MinIO + Gmail SMTP`; AI persistence/pgvector V4, Gemini adapters, document indexing, internal Project RAG và M7 private Project Assistant conversation/REST runtime đã được triển khai; Guide runtime thuộc M9
-- Frontend: `Optional và vẫn hoãn khỏi AI v1 backend phase`; streaming cũng deferred
-- Nguồn sự thật sản phẩm: Core = `docs/product-specs/KBase - Core v1 Specification.md`; AI active = `docs/product-specs/KBase - AI Chatbot v1 Specification.md`
+- Frontend: `Optional và vẫn hoãn` (không thuộc baseline backend frozen); streaming cũng deferred
+- Nguồn sự thật sản phẩm: Core = `docs/product-specs/KBase - Core v1 Specification.md`; AI v1 (frozen) = `docs/product-specs/KBase - AI Chatbot v1 Specification.md`
 
 ## Bản đồ Domain
 
@@ -22,7 +22,7 @@ Tệp này là bản đồ cấp cao nhất của hệ thống. Nó nên ngắn 
 | Knowledge Organization | Folder, category và tag trong project | `/api/v1/projects/{projectId}/folders|categories|tags`, `folder`, `category`, `tag` | `docs/design-docs/KBase - Core v1 REST API Specification.md`, `docs/design-docs/KBase - Core v1 JPA Entity Mapping Repository Design.md` |
 | Document & Search | Upload, metadata, preview, download, hard delete và metadata search | `/api/v1/projects/{projectId}/documents`, `/api/v1/documents/**`, `document`, `storage` | `docs/design-docs/KBase - Core v1 MinIO Integration Design.md`, `docs/design-docs/KBase - Core v1 Service Layer Detailed Design.md` |
 | Project Assistant (AI v1 M7) | Private project-scoped grounded RAG conversations + citations | `/api/v1/projects/{projectId}/ai/**`, `ai` | `docs/product-specs/KBase - AI Chatbot v1 Specification.md`, `docs/design-docs/KBase - AI Chatbot RAG Architecture.md` |
-| KBase Guide (AI v1 target) | Grounded product/help assistant from approved KBase product specs; no project data | `/api/v1/ai/guide/**`, `ai.guide` | `docs/product-specs/KBase - AI Chatbot v1 Specification.md`, `docs/design-docs/KBase - AI Chatbot REST API Specification.md` |
+| KBase Guide (AI v1) | Grounded product/help assistant from approved KBase product specs; no project data | `/api/v1/ai/guide/**`, `ai.guide` | `docs/product-specs/KBase - AI Chatbot v1 Specification.md`, `docs/design-docs/KBase - AI Chatbot REST API Specification.md` |
 
 ## Mô hình Lớp
 
@@ -82,8 +82,8 @@ M6 internal Project RAG đi qua `ProjectRagService -> ProjectEvidenceRetriever /
 | Cross-system integration | `docs/INTEGRATION.md` | PostgreSQL, Redis, MinIO, Gmail SMTP |
 | Testing | `docs/TESTING.md` | Unit + PostgreSQL/Redis/MinIO Testcontainers + API/security contract |
 | Deployment | `docs/DEPLOYMENT.md` | Backend-first; local Docker persistence và runtime dependency |
-| AI Provider (AI v1 target) | `AiChatModel` / `AiEmbeddingModel` KBase ports | Spring AI primary Gemini adapter; direct SDK only if M0 documents a gap |
-| Vector Search (AI v1 target) | KBase AI repository + Flyway-owned pgvector schema | cosine vector(768), mandatory project filter for project corpus |
+| AI Provider (AI v1) | `AiChatModel` / `AiEmbeddingModel` KBase ports | Spring AI primary Gemini adapter; direct SDK only if M0 documents a gap |
+| Vector Search (AI v1) | KBase AI repository + Flyway-owned pgvector schema | cosine vector(768), mandatory project filter for project corpus |
 | Background Jobs (AI v1 target) | PostgreSQL durable job table + worker | indexing, retention purge, Guide reindex; no broker required v1 |
 
 ## Điểm Nóng Hiện tại

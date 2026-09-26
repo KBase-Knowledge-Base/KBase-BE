@@ -224,9 +224,9 @@
   "scopeGuard": {
     "product": "KBase",
     "baseRelease": "Core v1 (frozen)",
-    "activeRelease": "AI v1",
+    "activeRelease": "none; Core v1 and AI v1 backend are frozen baselines with no active implementation phase",
     "implementationMode": "backend-only",
-    "frontend": "optional/deferred; do not create or modify frontend during the current AI backend phase",
+    "frontend": "optional/deferred; do not create or modify frontend without an owner-approved new phase",
     "coreV1Frozen": true,
     "excludedFromAiV1": [
       "frontend implementation",
@@ -240,6 +240,7 @@
       "Kafka/RabbitMQ",
       "persistent KBase Guide conversation history"
     ],
-    "activePlanControlsTaskScope": true
+    "activePlanControlsTaskScope": true,
+    "aiV1BackendFrozen": true
   }
 }

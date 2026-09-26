@@ -54,7 +54,7 @@ Non-goals: M12, AI v2, new feature milestone, Workspace, frontend, refresh-token
 
 ## Final result (2026-09-26)
 
-**PASS.** Toàn bộ gate điều kiện đạt: baseline độc lập PASS; F-01..F-04 đều CONFIRMED + fixed + regression test; 2 autonomous findings fixed; không HIGH/BLOCKER mở; focused + full regression 387/387 PASS; compose 8/8 + Docker smoke PASS; OpenAPI 38/57/15, Flyway V1–V4, 18 tables không đổi; security/log scan PASS; living docs chuyển sang baseline-first handoff. Changes left uncommitted for operator review.
+**PASS.** Toàn bộ gate điều kiện đạt: baseline độc lập PASS; F-01..F-04 đều CONFIRMED + fixed + regression test; 2 autonomous findings fixed; không HIGH/BLOCKER mở; focused + full regression 387/387 PASS; compose 8/8 + Docker smoke PASS; OpenAPI 38/57/15, Flyway V1–V4, 18 tables không đổi; security/log scan PASS; living docs chuyển sang baseline-first handoff. *(Handoff state note: audit này kết thúc với changes uncommitted chờ operator review; operator sau đó đã commit/push toàn bộ tại `9c96a9624e215e0ded44a00391a43f369996a729` — "Review và Update cuối cho core". Báo cáo giữ nguyên giá trị historical evidence.)*
 
 ## Handoff notes cho session tiếp theo
 

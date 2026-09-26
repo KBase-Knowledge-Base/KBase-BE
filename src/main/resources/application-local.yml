@@ -15,3 +15,7 @@ kbase:
   # Local runs over plain http, so the refresh cookie must not be Secure (prod stays true).
   refresh-cookie:
     secure: ${KBASE_REFRESH_COOKIE_SECURE:false}
+  openapi:
+    # Local development exposes API docs and Swagger UI; the prod-safe base defaults stay off.
+    enabled: ${KBASE_OPENAPI_ENABLED:true}
+    swagger-ui-enabled: ${KBASE_OPENAPI_SWAGGER_UI_ENABLED:true}

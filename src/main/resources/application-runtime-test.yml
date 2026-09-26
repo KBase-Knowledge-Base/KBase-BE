@@ -4,3 +4,8 @@ spring:
   config:
     activate:
       on-profile: runtime-test
+kbase:
+  openapi:
+    # M11 runtime verification reads /v3/api-docs; the profile stays
+    # verification-only and must never be deployed.
+    enabled: ${KBASE_OPENAPI_ENABLED:true}

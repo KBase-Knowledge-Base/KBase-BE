@@ -163,8 +163,11 @@ kbase:
     allowed-origins: ${KBASE_ALLOWED_ORIGINS:http://localhost:3000}
     allow-credentials: ${KBASE_CORS_ALLOW_CREDENTIALS:true}
   openapi:
-    enabled: ${KBASE_OPENAPI_ENABLED:true}
-    swagger-ui-enabled: ${KBASE_SWAGGER_UI_ENABLED:true}
+    # Production-safe base defaults: a no-profile artifact does not expose API
+    # docs or Swagger UI. Explicit profiles opt in (local and the verification
+    # test profiles enable them; prod keeps them off unless overridden).
+    enabled: ${KBASE_OPENAPI_ENABLED:false}
+    swagger-ui-enabled: ${KBASE_OPENAPI_SWAGGER_UI_ENABLED:false}
     api-docs-path: ${KBASE_OPENAPI_API_DOCS_PATH:/v3/api-docs}
     swagger-ui-path: ${KBASE_OPENAPI_SWAGGER_UI_PATH:/swagger-ui.html}
 

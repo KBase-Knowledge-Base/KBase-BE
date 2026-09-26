@@ -40,6 +40,9 @@ class ProfileFailSafeTest {
         assertThat(environment.getProperty("kbase.refresh-cookie.secure")).isEqualTo("true");
         assertThat(environment.getProperty("kbase.storage.auto-create-bucket")).isEqualTo("false");
         assertThat(environment.getProperty("kbase.storage.initialize-on-startup")).isEqualTo("false");
+        // API docs and Swagger UI stay off for an artifact that never chose a profile.
+        assertThat(environment.getProperty("kbase.openapi.enabled")).isEqualTo("false");
+        assertThat(environment.getProperty("kbase.openapi.swagger-ui-enabled")).isEqualTo("false");
     }
 
     @Test
@@ -50,6 +53,30 @@ class ProfileFailSafeTest {
         assertThat(environment.getProperty("kbase.refresh-cookie.secure")).isEqualTo("false");
         assertThat(environment.getProperty("kbase.storage.auto-create-bucket")).isEqualTo("true");
         assertThat(environment.getProperty("kbase.storage.initialize-on-startup")).isEqualTo("true");
+        // Local development intentionally exposes the documentation endpoints.
+        assertThat(environment.getProperty("kbase.openapi.enabled")).isEqualTo("true");
+        assertThat(environment.getProperty("kbase.openapi.swagger-ui-enabled")).isEqualTo("true");
+    }
+
+    @Test
+    void explicitProdProfileKeepsProductionSafeBehavior() {
+        StandardEnvironment environment = environmentFor(Map.of(
+                "spring.profiles.active", "prod"));
+
+        assertThat(environment.getProperty("kbase.refresh-cookie.secure")).isEqualTo("true");
+        assertThat(environment.getProperty("kbase.openapi.enabled")).isEqualTo("false");
+        assertThat(environment.getProperty("kbase.openapi.swagger-ui-enabled")).isEqualTo("false");
+    }
+
+    @Test
+    void runtimeTestProfileKeepsVerificationContract() {
+        StandardEnvironment environment = environmentFor(Map.of(
+                "spring.profiles.active", "runtime-test"));
+
+        // M11 runtime verification reads /v3/api-docs through this profile.
+        assertThat(environment.getProperty("kbase.openapi.enabled")).isEqualTo("true");
+        assertThat(environment.getProperty("kbase.refresh-cookie.secure")).isEqualTo("true");
+        assertThat(environment.getProperty("kbase.storage.auto-create-bucket")).isEqualTo("false");
     }
 
     @Test
