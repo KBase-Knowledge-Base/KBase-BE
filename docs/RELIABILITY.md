@@ -140,7 +140,7 @@ AI v1 target journeys (đã runtime-verified trong M11, 2026-09-26 — xem freez
 - Accepted `NO_EVIDENCE` and provider failures consume one request unit because the policy is request-based; no refund/reconciliation path can create an unbounded provider escape.
 - Telemetry is bounded and best effort. Micrometer recording cannot fail business requests, and job depth/stale/failed signals use finite job-state tags without raw content or provider material. No public metrics endpoint was added in M10.
 
-M10 verification: Redis guard 5/5, observability 3/3, Guide controller 1/1, Project Assistant/API contract focused regression pass, OpenAPI 38/57/15 and final clean verify 371/371. M11 now has a safe deterministic Docker path and proves clean V1–V4 startup, Project Assistant/Guide grounded and no-evidence paths, plus provider-unavailable AI 503 while Core remains healthy. Restart/recovery and the remaining runtime matrix are still unverified; real Gemini connectivity remains intentionally absent.
+M10 verification: Redis guard 5/5, observability 3/3, Guide controller 1/1, Project Assistant/API contract focused regression pass, OpenAPI 38/57/15 and final clean verify 371/371. *(M10-era statement — the runtime matrix below has since been verified in M11; real Gemini connectivity remains intentionally absent.)* M11 now has a safe deterministic Docker path and proves clean V1–V4 startup, Project Assistant/Guide grounded and no-evidence paths, plus provider-unavailable AI 503 while Core remains healthy.
 
 ### M11 runtime verification and freeze (2026-09-26)
 

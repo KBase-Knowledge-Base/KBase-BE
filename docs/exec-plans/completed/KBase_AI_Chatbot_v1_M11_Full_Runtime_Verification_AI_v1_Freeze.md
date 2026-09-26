@@ -225,6 +225,8 @@ M11 may be marked PASS only when all of the following are true:
 
 ## Handoff notes
 
+*(Notes from the handoff that created this plan, kept as chronological evidence; M11 has since been completed and AI v1 frozen 2026-09-26.)*
+
 - M10's Redis guard, OpenAPI, observability, and leakage audit are implementation evidence, not a substitute for this runtime gate.
-- The M10 plan is archived beside the completed M0–M9 AI plans; this file is the only active AI slice.
-- No M11 implementation has been performed in the handoff that created this plan.
+- The M10 plan is archived beside the completed M0–M9 AI plans; at handoff time this file was the only active AI slice (now completed — no active AI v1 milestone remains).
+- No M11 implementation had been performed in the handoff that created this plan.

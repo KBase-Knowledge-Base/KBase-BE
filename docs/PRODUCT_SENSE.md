@@ -13,7 +13,7 @@ Tệp này ghi lại phán xét sản phẩm lâu bền mà agent không thể s
 
 - Ưu tiên độ tin cậy có thể nhìn thấy của người dùng hơn số lượng tính năng.
 - Core v1 backend được hoàn thiện trước; frontend là optional và được hoãn sang phase sau.
-- Core v1 đã đạt freeze gate; AI v1 hiện là phase backend active riêng và phải giữ Core frozen làm baseline.
+- Core v1 đã đạt freeze gate; AI v1 backend cũng đã đạt freeze gate (M11, FROZEN 2026-09-26) và giữ Core frozen làm baseline. Cả hai là frozen baseline; phase mới cần owner approval.
 - OTP của Core v1 chỉ dùng để xác minh email đăng ký, không phải OTP login hoặc MFA/2FA.
 - Invitation vẫn dùng email invitation link/token riêng, không thay bằng OTP.
 - MEMBER rời/bị remove khỏi project không làm mất các document đã upload; quyền truy cập bị thu hồi nhưng provenance vẫn giữ ở `Document.uploadedBy`.
