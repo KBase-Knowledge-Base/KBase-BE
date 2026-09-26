@@ -14,7 +14,7 @@ Tạo một kế hoạch thực thi khi công việc:
 ## Vị trí Kế hoạch
 
 - `docs/exec-plans/KBase_Core_v1_Implementation_Plan.md`: master roadmap lịch sử của Core v1 đã frozen
-- `docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md`: master roadmap của AI v1 (M0–M11 đã hoàn tất — historical/dependency context); hiện không có active slice nào cho tới khi owner duyệt phase mới
+- `docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md`: master roadmap của AI v1 (M0–M11 đã hoàn tất — historical/dependency context); active owner-approved verification slice hiện tại là `docs/exec-plans/active/KBase_Real_Gemini_RAG_Golden_Journey.md`
 - `docs/exec-plans/active/`: các kế hoạch slice hiện đang thúc đẩy công việc
 - `docs/exec-plans/completed/`: các kế hoạch đã hoàn thành được giữ lại để cung cấp ngữ cảnh cho agent trong tương lai
 - `docs/exec-plans/tech-debt-tracker.md`: công việc đã hoãn và các follow-up

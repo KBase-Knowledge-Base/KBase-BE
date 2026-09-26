@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "registry": "kbase-source-documents",
-  "updatedOn": "2026-09-26",
+  "updatedOn": "2026-09-27",
   "pathBase": ".",
   "encoding": "UTF-8",
   "sourceDocumentCount": 19,
@@ -224,7 +224,7 @@
   "scopeGuard": {
     "product": "KBase",
     "baseRelease": "Core v1 (frozen)",
-    "activeRelease": "none; Core v1 and AI v1 backend are frozen baselines with no active implementation phase",
+    "activeRelease": "none (Core v1 and AI v1 backend remain frozen); active owner-approved verification slice: Real Gemini RAG Golden Journey",
     "implementationMode": "backend-only",
     "frontend": "optional/deferred; do not create or modify frontend without an owner-approved new phase",
     "coreV1Frozen": true,
