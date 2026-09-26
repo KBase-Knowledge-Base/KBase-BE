@@ -6,27 +6,26 @@
 ## Cập nhật Lần cuối
 
 * Ngày cập nhật: `2026-09-26`
-* Người hoặc agent cập nhật: `Codex - M11 Remaining Gate Fix`
+* Người hoặc agent cập nhật: `Codex - M11 Runtime Verification Completion / AI v1 Freeze`
 * Nhánh hiện tại: `feat-AI` (được tạo trực tiếp từ `dev`)
-* Core v1 frozen. AI M10 is complete: Redis-backed per-user interactive AI usage guard, stable 429/503 contracts, retrieval threshold `0.70`, bounded Micrometer observability, exact OpenAPI hardening, generated API synchronization and sensitive-data audit. No project corpus/conversation boundary was widened; M11 remains the active slice for full runtime verification/freeze.
-* M11 runtime repair ngày `2026-09-25`: packaged deterministic adapter now requires explicit `deterministic` mode + `runtime-test` profile + acknowledgement while Gemini remains the default. Post-fix `mvn -B -ntp clean verify` PASS 373/373 with jar repackage. Clean isolated Docker startup applied Flyway V1–V4 and Hibernate validation; real HTTP Project Assistant upload/index/grounded/no-evidence and Guide grounded/no-evidence journeys pass; deterministic provider unavailability gives AI 503 while Core project list remains 200. No real Gemini credential/network was used. M11 is active, not frozen: the remaining security, retention, restart/recovery, Redis-failure and final consistency evidence is still required.
-* M11 continuation ngày `2026-09-26`: Docker đã được khôi phục. Fresh `mvn -B -ntp clean verify` PASS 377/377; deterministic provider now isolates chat versus embedding failures and has a bounded deterministic-chat delay for the revoke/rejoin race; Compose passes the documented worker retry backoff. Isolated real HTTP proof now covers chat failure lifecycle, document-index embedding retry exhaustion, Redis guard outage/Core isolation, runtime shared rate limit and a zero-hit log sentinel scan. Security, retention, restart/recovery and final consistency evidence remain; AI v1 is unfrozen.
+* **Core v1 frozen (M15) và AI v1 backend FROZEN (M11, 2026-09-26).** M11 full runtime verification hoàn tất: security matrix 37/37, retention matrix (+P7D schedule, rejoin restore, runtime purge, in-flight revoke→rejoin race), restart/recovery (pending job resume, stale reclaim, persistence/ephemerality, abrupt chat JVM death classified với verified workaround), comprehensive retained-log audit 0 sensitive hits trên 518 dòng/9 scenario, và consistency audit config/DB/OpenAPI khớp source of truth. Final `mvn -B -ntp clean verify` 377/377. Không có code change trong M11 completion; frontend vẫn deferred; không tạo M12.
+* M11 continuation ngày `2026-09-26`: Docker đã được khôi phục. Fresh `mvn -B -ntp clean verify` PASS 377/377; deterministic provider now isolates chat versus embedding failures and has a bounded deterministic-chat delay for the revoke/rejoin race; Compose passes the documented worker retry backoff. Isolated real HTTP proof now covers chat failure lifecycle, document-index embedding retry exhaustion, Redis guard outage/Core isolation, runtime shared rate limit and a zero-hit log sentinel scan. Security, retention, restart/recovery and final consistency evidence remain; AI v1 is unfrozen. *(bản ghi cũ trước khi hoàn tất — giữ để đối chiếu)*
 
 ## Trạng thái Tổng quan
 
 | Khu vực          | Trạng thái    | Bằng chứng hoặc ghi chú |
 | ---------------- | ------------- | ----------------------- |
-| Build            | M11 AI-VERIFY-01 PASS / M11 in progress | Post-fix `mvn -B -ntp clean verify` → BUILD SUCCESS, 373/373; Compose base, mail-double and deterministic test profiles validate. |
+| Build            | AI v1 FROZEN — M11 AI-VERIFY-01..10 PASS | Final gate `mvn -B -ntp clean verify` → BUILD SUCCESS, 377/377, jar repackage; Compose base, mail-double và mọi M11 verification override validate. |
 | Frontend         | Không áp dụng | Frontend và streaming tiếp tục deferred khỏi AI v1 backend. |
-| Backend          | Core v1 frozen / M10 hardening complete | **Core v1 FROZEN** + M16 maintenance complete. Project Assistant và Guide giữ nguyên product boundaries; M10 thêm guard/observability/contract hardening, không đụng project corpus/conversation behavior. |
-| Database         | Core + AI persistence ổn định | Flyway V1–V4 tạo 18 persistent tables (10 Core + 8 AI); pgvector extension, `vector(768)`, HNSW, FK/delete rules và Hibernate validate đã verify trên PostgreSQL 17.11. |
-| API contract     | Core + M10 AI verified | Runtime OpenAPI 38 paths/57 operations, 15 tags; API-AI-001..010, stable M10 429/503 annotations, bearer/error/DTO schemas và generated API snapshot đồng bộ. API-AI-010 là authenticated stateless Guide query, không `projectId`. |
-| Integration      | Core + M10 AI boundary verified / M11 in progress | Real AI-enabled Docker startup, Project Assistant and Guide HTTP journeys now run through deterministic KBase ports; no real Gemini credential/network is used. Remaining M11 matrix is explicit in the active plan. |
-| Unit test        | M10 hardening verified | `AiObservabilityTest` 3/3, `GuideControllerTest` 1/1, retrieval threshold fixture evaluation and all prior M0–M9 suites pass; full gate 371/371. |
-| Integration test | M10 Redis/PostgreSQL/API verified | `RedisAiUsageGuardIntegrationTest` 5/5, Project Assistant focused regression, OpenAPI contract/disabled-docs 22/22; full Testcontainers regression pass. |
-| End-to-end test  | Core runtime verified / M11 initial AI runtime pass | Isolated pgvector Docker runtime proves V1–V4/Hibernate, supported-document `READY`, Project Assistant grounded/no-evidence and Guide grounded/no-evidence. Security, retention and restart cases remain unfinished. |
-| Security checks  | Core + M7 privacy verified | Current project access trước creator-scoped lookup, MEMBER/OWNER/ADMIN isolation, revoke trong và sau M6 trước finalization, no completed answer/source after revoke, source DTO không cấp permanent access. |
-| Deployment       | Core + deterministic verification profile verified / M11 in progress | Gemini remains disabled-by-default; explicit test-only mode pins pgvector and mail double for local verification. It is not a deployment/provider-connectivity claim. |
+| Backend          | Core v1 + AI v1 FROZEN | **Core v1 FROZEN (M15)** + **AI v1 backend FROZEN (M11, 2026-09-26)**. Project Assistant/Guide boundaries giữ nguyên; M11 chỉ verification + evidence-led correction, không mở product boundary. |
+| Database         | Core + AI persistence ổn định | Flyway V1–V4 tạo 18 persistent tables (10 Core + 8 AI); pgvector extension, `vector(768)`, HNSW cosine indexes, FK/delete rules và Hibernate validate re-verified trên isolated runtime 2026-09-26; `docs/generated/db-schema.md` khớp, không rewrite. |
+| API contract     | Core + AI verified frozen | Runtime OpenAPI 38 paths/57 operations, 15 tags; API-AI-001..010, 429/503 error contract chính xác trên 3 AI interactive operations, bearer 51 operations, `NO_EVIDENCE` documented successful outcome, generated API snapshot đồng bộ. |
+| Integration      | AI v1 runtime verified / frozen | Security/retention/restart journeys chạy qua real containerized HTTP boundary với isolated DB postconditions; no real Gemini credential/network used. |
+| Unit test        | M11 baseline verified | Full suite 377/377 gồm Redis guard 5/5, OpenAPI 22/22, deterministic configuration 14/14. |
+| Integration test | Core + AI PostgreSQL/Redis/MinIO verified | Testcontainers suites pass trong full gate; M11 runtime journeys bổ sung evidence ở tầng Docker runtime. |
+| End-to-end test  | AI v1 runtime matrix verified | Security 37/37, retention (schedule/restore/purge/race), restart/recovery (resume/stale/persistence/crash classification) — tất cả qua real Docker runtime 2026-09-26. |
+| Security checks  | Core + AI privacy verified runtime | Cross-project vector trap, creator-private conversations (MEMBER/OWNER/ADMIN/former/foreign), prompt injection, deleted-source lifecycle, source authorization sau revoke, Guide isolation — runtime-level evidence 2026-09-26; log audit 0 sensitive hits. |
+| Deployment       | Core + AI verification profile verified / frozen | Gemini disabled-by-default; explicit test-only mode pinned pgvector + mail double; không phải deployment/provider-connectivity claim; connect-timeout SDK limitation vẫn tracked. |
 
 Trạng thái nên dùng:
 
@@ -41,9 +40,9 @@ Trạng thái nên dùng:
 
 ### Ưu tiên Hiện tại
 
-* Mục tiêu: `Full Runtime Verification / AI v1 Freeze (M11) trên backend AI v1 đã được M10 harden, không frontend/streaming/Project Chat.`
-* Execution plan: `docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md` (AI master roadmap M0–M11)
-* Active slice: `docs/exec-plans/active/KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md`
+* Mục tiêu: `Không có active implementation milestone. AI v1 backend FROZEN 2026-09-26 (M0–M11 PASS); Core v1 frozen. Bất kỳ phase mới nào (frontend, provider rollout, recovery policy) cần owner approval.`
+* Execution plan: `docs/exec-plans/KBase_AI_Chatbot_v1_Implementation_Plan.md` (AI master roadmap M0–M11 — hoàn tất)
+* Freeze report: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md`
 * Product spec active: `docs/product-specs/KBase - AI Chatbot v1 Specification.md`; Core spec vẫn là source of truth cho frozen Core behavior
 * Design sources active: `KBase - AI Chatbot RAG Architecture.md`, `KBase - AI Chatbot Persistence and Vector Search Design.md`, `KBase - AI Chatbot REST API Specification.md`, `KBase - AI Chatbot Testing Strategy.md`
 
@@ -61,6 +60,10 @@ Trạng thái nên dùng:
 * `M10 Gate PASS: usage guard, observability, OpenAPI hardening, generated API synchronization and leakage audit completed; full 371/371. M11 owns full runtime verification/freeze and has not been implemented.`
 
 * `M11 runtime repair ngày 2026-09-25: deterministic Docker provider path, clean V1–V4 startup, Project Assistant/Guide grounded + NO_EVIDENCE và AI-provider 503/Core 200 isolation đã có evidence. M11 giữ ACTIVE; security, retention, restart/recovery, Redis failure và final audit chưa hoàn tất; AI v1 không được tuyên bố FROZEN.`
+
+* `M11 Gate PASS ngày 2026-09-26: AI-VERIFY-01..10 PASS → AI v1 backend FROZEN.`
+
+  * Bằng chứng: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md` (freeze report + verification record); security matrix 37/37; retention 15/15+10/11+16/16; restart/recovery 6/6+9/9+persistence+7/7; log audit 0 hits/518 dòng; config/DB/OpenAPI audit khớp; final gate 377/377.
 
 * `M10 Gate PASS ngày 2026-09-25: AI-HARD-01..06 đã hoàn tất. Redis fixed-window guard dùng atomic Lua counter theo user với shared Project Assistant/Guide budget; guarded operations trả stable `AI_RATE_LIMIT_EXCEEDED`/429 hoặc Redis-failure `AI_USAGE_GUARD_UNAVAILABLE`/503. M10 chọn retrieval threshold `0.70`, thêm bounded Micrometer metrics/job signals, exact OpenAPI annotations/tests, generated API snapshot sync và sensitive-data/log audit. Full gate 371/371; runtime OpenAPI 38/57/15; V1–V4 và generated DB không đổi.`
 
@@ -185,7 +188,7 @@ Trạng thái nên dùng:
 
 | Blocker | Ảnh hưởng | Hướng xử lý | Trạng thái |
 | ------- | --------- | ----------- | ---------- |
-| (không có blocker môi trường hiện tại) | — | Continue M11 security, retention, restart/recovery and consistency matrix | — |
+| (không có blocker hiện tại) | — | Không có active milestone; phase mới cần owner approval | — |
 
 Blocker cũ "Archive không có Git metadata" đã được xử lý: repository hiện có Git history đầy đủ trên nhánh `dev` (commits theo milestone M0–M15); không còn cản trở đối chiếu.
 
@@ -322,9 +325,9 @@ Không ghi toàn bộ danh sách file đã sửa. Git history chịu trách nhi�
 
 ## Bước Tiếp theo
 
-1. `M11 Full Runtime Verification / AI v1 Freeze vẫn ACTIVE; tiếp tục AI-VERIFY-05/06/08/09 trước freeze claim.`
-2. `Giữ Core v1 frozen; không mở frontend, không gọi real Gemini automated dependency và không tạo M12.`
-3. `Core tech-debt cũ (PATCH null semantics, CI, Gmail production smoke, Redis OTP observability) và AI worker/chat recovery limitations vẫn theo tracker.`
+1. `Không có active milestone: Core v1 và AI v1 backend đều FROZEN. Working tree M11 (docs) chờ operator review/commit.`
+2. `Phase mới (frontend, real-Gemini rollout, chat recovery policy, lease heartbeat) đều cần owner approval và plan mới; không tự tạo M12.`
+3. `Technical debt còn mở: PATCH null semantics (L-02), CI pipeline, Gmail production smoke, Redis OTP observability, AI abrupt-chat PROCESSING recovery (MEDIUM, workaround verified), worker lease/no heartbeat (MEDIUM), Gemini connect-timeout SDK limitation (LOW) — theo tracker.`
 
 
 ## Quy tắc Cập nhật

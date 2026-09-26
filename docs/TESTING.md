@@ -191,3 +191,11 @@ AI-specific source: `docs/design-docs/KBase - AI Chatbot Testing Strategy.md`.
 - Clean isolated Compose with the approved pgvector image, Redis, MinIO and mail double applies Flyway V1–V4, validates Hibernate and serves `/v3/api-docs` 200.
 - Real HTTP verification proves supported Markdown upload reaches `READY`, Project Assistant returns grounded + one source and strict no-evidence + zero sources, and Guide does the same against packaged allowlisted corpus.
 - The deterministic unavailable override returns AI 503 while authenticated Core project list remains 200. Remaining failure variants, security/retention/restart and final audit remain M11 work; no real Gemini credential or public network was used.
+
+### AI v1 M11 runtime verification (freeze, 2026-09-26)
+
+- Final gate `mvn -B -ntp clean verify`: `BUILD SUCCESS`, 377 tests, 0 failures/errors/skips. Compose base + mail-test + mọi M11 verification override pass `config --quiet`; `git diff --check` clean.
+- M11 runtime matrix đã chạy trên isolated Compose project `kbase-m11fix` qua real HTTP boundary: security matrix 37/37; retention matrix (+P7D schedule, rejoin restore/cancel/quota, runtime purge qua due-time DB fixture chỉ trên job hợp lệ, no resurrection, in-flight revoke→rejoin race 403/FAILED/0 citations); restart/recovery (pending job resume sau backend-only stop, stale-PROCESSING reclaim với lease-token guard 0-row, PostgreSQL/MinIO persistence, Redis ephemerality, abrupt chat JVM death classification + verified creator-DELETE workaround).
+- Comprehensive retained-log audit: 0 sensitive hits trên 518 dòng/9 scenario types; error logs category-only.
+- Consistency audits: config defaults đồng bộ (AiProperties = application.yml = .env.example = docker-compose.yml = DEPLOYMENT.md); Flyway V1–V4 + 18 tables + `vector(768)` + HNSW runtime-verified; runtime OpenAPI 38/57/15 = contract test = generated snapshot.
+- No code/schema/API/generated-snapshot change trong M11 completion; real Gemini không dùng. AI v1 backend FROZEN 2026-09-26.

@@ -156,3 +156,8 @@ Các lệnh cụ thể được khai báo trong `docs/DEVELOPMENT.md`.
 - `AiObservability` là best-effort Micrometer facade với finite operation/outcome/provider/job tags. Nó ghi request/provider/job latency, rate outcomes, retrieval candidate count, `NO_EVIDENCE`, job depth và failed/stale gauges; telemetry không được làm request fail và không tạo public metrics endpoint.
 - Retrieval production default là `0.70`, được chọn từ deterministic fixture evaluation. Nullable blank override vẫn fail-closed cho Guide test behavior; không đổi project authorization hoặc Guide two-source allowlist.
 - Controllers document stable M10 429/503 responses and expose only DTOs. M10 runtime contract remains 38 paths / 57 operations / 15 tags; generated API Markdown is synchronized and no Flyway/generated DB change occurred.
+
+### AI v1 M11 runtime verification (freeze, 2026-09-26)
+
+- M11 runtime gate chứng minh backend behavior ở tầng Docker runtime: membership continuity guard (`StartedTurn.membershipId` equality) chặn completed result cho in-flight request bị revoke→rejoin; purge handler recheck membership và bulk-delete đúng scope với advisory lock; job claim/lease guards chặn stale owner transition (0-row verified); quota lock giữ đúng sau rejoin restore.
+- Full runtime matrix (security/retention/restart/audit) pass với 0 code change; final gate 377/377; AI v1 backend FROZEN 2026-09-26. Tracked debts: abrupt PROCESSING recovery (MEDIUM, verified creator-DELETE workaround), lease/no heartbeat (MEDIUM, correctness proven), connect-timeout SDK limitation (LOW), transient revoke→rejoin failure-code precision (LOW).

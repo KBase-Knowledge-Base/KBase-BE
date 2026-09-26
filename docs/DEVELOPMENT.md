@@ -28,6 +28,8 @@ AI v1 M10 – Usage Guard / OpenAPI / Observability / Hardening đã hoàn tất
 
 AI v1 M11 runtime repair ngày `2026-09-25` thêm deterministic provider adapter chỉ cho explicit `runtime-test` profile + acknowledgement; Gemini vẫn là default production mode. Clean isolated Compose pinned pgvector đã apply Flyway V1–V4/Hibernate và real HTTP Project Assistant/Guide grounded + no-evidence journeys pass; deterministic unavailable maps AI to 503 while Core project list remains 200. Không gọi real Gemini. M11 vẫn ACTIVE, chưa FROZEN: security, retention, restart/recovery, Redis-failure và final consistency evidence còn phải chạy.
 
+AI v1 M11 – Full Runtime Verification / AI v1 Freeze đã hoàn tất ngày `2026-09-26` và **AI v1 backend FROZEN**: final gate 377/377; M11 runtime matrix (security 37/37, retention +P7D/restore/runtime-purge/race, restart/recovery resume+stale-reclaim+persistence+abrupt-chat-death classification với verified creator-DELETE workaround, comprehensive log audit 0 hits/518 dòng/9 scenario, config/DB/OpenAPI consistency audits) đã chạy qua isolated Compose project `kbase-m11fix` với real HTTP boundary và isolated DB postconditions. Không code change, không schema/API/generated-snapshot change, không real Gemini credential/network. Chi tiết: `docs/exec-plans/completed/KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md`.
+
 M2 – PostgreSQL / Flyway Schema đã hoàn tất ngày `2026-09-17`: 3 Flyway migrations tạo 10 persistent tables với đầy đủ constraint, partial/expression unique index và query index theo Physical Database Design; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; Hibernate `ddl-auto=validate` pass.
 
 M3 – JPA Entities & Repositories đã hoàn tất ngày `2026-09-17`: 10 entity persistent, 5 enum, `DocumentTagId`, 10 feature-local repository, projection/query/fetch graph/lock và document specification đã được implement; mapping integration test 11/11 pass trên PostgreSQL 17 Testcontainer với Flyway từ database rỗng và Hibernate `ddl-auto=validate`. Không có OTP entity/repository.
@@ -368,6 +370,23 @@ M10 không thay đổi Flyway migration, REST endpoint hay generated API/DB sche
 | Sensitive-data/scope scan | Pass | No raw prompt/chunk/answer/vector/hash/storage key/job lease/worker/Redis/provider/credential emission; no real Gemini network. |
 
 M10 automated verification uses deterministic fakes and does not require `KBASE_AI_GEMINI_API_KEY`. M11 remains responsible for provider-backed Docker golden journeys, restart/recovery and AI v1 freeze.
+
+### AI v1 M11 verification record (AI v1 Freeze, 2026-09-26)
+
+Chạy trên isolated Compose project `kbase-m11fix` (alternate host ports 18080/15432/16379/19000, pinned pgvector, Mailpit, `runtime-test` deterministic provider); project `kbase` chính không bị chạm đến:
+
+| Lệnh hoặc kiểm tra | Kết quả | Ghi chú |
+|---|---|---|
+| Final gate `mvn -B -ntp clean verify` | Pass — `BUILD SUCCESS`; 377 tests, 0 failures/errors/skips; jar repackage | Teardown warnings non-fatal. |
+| Compose `config --quiet` (base, base+mail-test, +mỗi M11 override: runtime-test, chat-failure, embedding-failure, race, rate, worker-paused) | Pass | Không đổi production defaults. |
+| AI-VERIFY-05 security matrix | Pass — 37/37 | Cross-project vector trap; MEMBER/OWNER/ADMIN non-creator 404 ×5 ops; foreign/former 403 ×5; prompt injection; deleted-source lifecycle; source authz; Guide isolation (2 packaged READY sources; project/private sentinels NO_EVIDENCE). |
+| AI-VERIFY-06 retention matrix | Pass — 15/15, 10/11 + observation, 16/16 | `run_at` = loss + 7.00000 days; rejoin restore + purge CANCELLED + quota inclusion; in-flight revoke→rejoin race 403/FAILED/0 citations; runtime purge qua due-time fixture chỉ trên job hợp lệ; no resurrection. |
+| AI-VERIFY-08 restart/recovery | Pass — 6/6, 9/9, persistence, 7/7 | Pending job resume sau backend-only stop; stale PROCESSING reclaim (attempt 2, stale token transition 0 rows); PostgreSQL/MinIO persistence qua restart; Redis ephemerality; abrupt chat JVM death: PROCESSING stuck + 409 `AI_REQUEST_IN_PROGRESS` + creator DELETE workaround verified. |
+| AI-VERIFY-04 comprehensive log audit | Pass — 0 sensitive hits / 518 dòng / 9 scenario | Question/answer/context/Guide evidence/vector/hash/storageKey/payload/lease/JWT/OTP/password/credential/provider raw response/Redis rate key: 0; error logs chỉ category-only. |
+| AI-VERIFY-09 consistency audits | Pass | Config defaults đồng bộ 5 nguồn; Flyway V1–V4 + 18 tables + `vector(768)` + HNSW + Hibernate validate; runtime OpenAPI 38/57/15 = contract test = generated snapshot; 429/503 contract đúng 3 AI interactive ops. |
+| `git diff --check` | Pass | Không whitespace error; working tree chỉ chứa doc updates cho review. |
+
+Không có code/schema/API change trong M11 completion; `docs/generated/db-schema.md` và `docs/generated/api-schema.md` không cần tái sinh. Real Gemini credential/network không được dùng. **AI v1 backend FROZEN 2026-09-26.**
 
 ### M13 verification record
 

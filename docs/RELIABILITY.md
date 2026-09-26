@@ -32,15 +32,15 @@ Tài liệu này định nghĩa các yêu cầu về độ tin cậy và bằng 
 - `OWNER remove MEMBER → document của user vẫn tồn tại → former MEMBER mất toàn bộ project/document access`
 - `OWNER hard-delete project → MinIO objects được xử lý theo design → PostgreSQL project-related data bị xóa theo rule`
 
-AI v1 target journeys (chưa được coi là verified cho tới M11):
+AI v1 target journeys (đã runtime-verified trong M11, 2026-09-26 — xem freeze report):
 
-- `Upload supported document → Core upload thành công → durable indexing → READY → Project Assistant grounded answer + citation`
-- `Question không có current evidence → deterministic NO_EVIDENCE, không general model fallback`
-- `Gemini unavailable → AI fails/retries safely → Core upload/download/metadata search vẫn healthy`
-- `MEMBER bị remove → AI access deny ngay → rejoin trong 7 ngày restore hoặc quá hạn hard-purge private conversations`
-- `Delete source document → new retrieval không dùng source → historical citation chuyển unavailable`
-- `Backend restart với pending/stale AI job → durable worker resume/recover`
-- `KBase Guide → chỉ approved product-spec corpus → grounded answer/refusal; không project data`
+- `Upload supported document → Core upload thành công → durable indexing → READY → Project Assistant grounded answer + citation` — VERIFIED (isolated Docker runtime)
+- `Question không có current evidence → deterministic NO_EVIDENCE, không general model fallback` — VERIFIED (deterministic provider path)
+- `Gemini unavailable → AI fails/retries safely → Core upload/download/metadata search vẫn healthy` — VERIFIED ở deterministic unavailable/timeout modes; real Gemini connectivity vẫn intentionally outside automated evidence
+- `MEMBER bị remove → AI access deny ngay → rejoin trong 7 ngày restore hoặc quá hạn hard-purge private conversations` — VERIFIED (+P7D schedule, rejoin cancel/quota, runtime purge, in-flight revoke→rejoin race)
+- `Delete source document → new retrieval không dùng source → historical citation chuyển unavailable` — VERIFIED
+- `Backend restart với pending/stale AI job → durable worker resume/recover` — VERIFIED (pending resume + stale-lease reclaim với lease-token guard)
+- `KBase Guide → chỉ approved product-spec corpus → grounded answer/refusal; không project data` — VERIFIED (2 packaged READY sources; project/private sentinels NO_EVIDENCE)
 
 - Mỗi journey vàng nên có đường dẫn xác minh có thể lặp lại và tín hiệu thất bại rõ ràng.
 - Việc kiểm thử journey vàng phải tuân theo `docs/TESTING.md`.
@@ -141,3 +141,10 @@ AI v1 target journeys (chưa được coi là verified cho tới M11):
 - Telemetry is bounded and best effort. Micrometer recording cannot fail business requests, and job depth/stale/failed signals use finite job-state tags without raw content or provider material. No public metrics endpoint was added in M10.
 
 M10 verification: Redis guard 5/5, observability 3/3, Guide controller 1/1, Project Assistant/API contract focused regression pass, OpenAPI 38/57/15 and final clean verify 371/371. M11 now has a safe deterministic Docker path and proves clean V1–V4 startup, Project Assistant/Guide grounded and no-evidence paths, plus provider-unavailable AI 503 while Core remains healthy. Restart/recovery and the remaining runtime matrix are still unverified; real Gemini connectivity remains intentionally absent.
+
+### M11 runtime verification and freeze (2026-09-26)
+
+- M11 runtime matrix verified qua isolated Compose project với real HTTP boundary: security 37/37, retention (+P7D exact schedule, rejoin restore/cancel/quota, runtime purge qua due-time fixture trên job hợp lệ, no resurrection, in-flight revoke→rejoin race), restart/recovery (pending job resume, stale-PROCESSING reclaim với lease-token guard, PostgreSQL/MinIO persistence, Redis ephemerality), và comprehensive log audit 0 sensitive hits trên 518 dòng/9 scenario. Final gate 377/377; **AI v1 backend FROZEN**.
+- Abrupt JVM death giữa chat generation có thể để lại ASSISTANT PROCESSING vô thời hạn (reproduced runtime): marker giữ null content, send mới trên conversation đó 409 `AI_REQUEST_IN_PROGRESS`; verified workaround — creator DELETE conversation xóa rows và giải phóng quota + generation lock. Debt MEDIUM, tracked, không chặn freeze.
+- Worker lease cố định không heartbeat: correctness được giữ bởi lease-token guards (stale owner không activate/DONE/RETRY/FAILED — verified 0-row transition), nhưng reclaim có thể gây duplicate computation. Debt MEDIUM, tracked, không chặn freeze.
+- Transient revoke→rejoin turn persist `failure_code=AI_PROVIDER_UNAVAILABLE` (observability precision, LOW) — contract M7/M8 chỉ assert 403/FAILED/0 sources.
