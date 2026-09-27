@@ -1,6 +1,6 @@
 # Active Plans
 
-- **Active implementation plan: NONE.** Real Gemini RAG Golden Journey đã PASS và được lưu tại `../completed/KBase_Real_Gemini_RAG_Golden_Journey.md` (2026-09-27). Không có active slice nào; mọi công việc mới cần phase/plan mới được owner duyệt.
+- **Active implementation plan: `KBase_RAG_Hardening.md`.** Owner đã duyệt phase post-freeze RAG Hardening ngày 2026-09-27; M0 `Baseline & Lease Edge Reproduction` là bước hiện tại. Core v1 và AI v1 product behavior vẫn FROZEN; plan chỉ được harden reliability/evaluation/CI/performance trong guard đã ghi.
 - **Core v1: FROZEN** (M15 + M16).
 - **AI v1 backend: FROZEN** (M0–M11 PASS; freeze report `../completed/KBase_AI_Chatbot_v1_M11_Full_Runtime_Verification_AI_v1_Freeze.md`).
 - **Post-freeze final codebase audit: PASS** (2026-09-26; report `../completed/KBase_Post_Freeze_Final_Codebase_Audit.md`).

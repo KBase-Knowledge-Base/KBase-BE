@@ -6,13 +6,14 @@
 ## Cập nhật Lần cuối
 
 * Ngày cập nhật: `2026-09-27`
-* Người hoặc agent cập nhật: `Real Gemini RAG Golden Journey Execution`
+* Người hoặc agent cập nhật: `RAG Hardening Phase Activation`
 * Nhánh hiện tại: `feat-AI` (được tạo trực tiếp từ `dev`)
 
 ## Trạng thái Tổng quan
 
 * **Core v1 backend: FROZEN** (M15 pass 2026-09-19; M16 post-audit maintenance pass).
 * **AI v1 backend: FROZEN** (M0–M11 PASS; M11 freeze report 2026-09-26).
+* **RAG Hardening: ACTIVE** (owner-approved 2026-09-27 — `docs/exec-plans/active/KBase_RAG_Hardening.md`). Đây là post-freeze hardening phase cho lease correctness/renewal, CI, retrieval evaluation/calibration và indexing performance; không mở AI v2, public API hoặc schema scope.
 * **Post-freeze final codebase audit: PASS** (2026-09-26 — `docs/exec-plans/completed/KBase_Post_Freeze_Final_Codebase_Audit.md`): 4 reviewer findings xác nhận và sửa (storage exception log sanitization, invitation flush-before-mail, profile fail-safe, MinIO 5xx classification), 2 autonomous findings sửa (A-01/A-02 sanitization), full regression PASS.
 * **Final handoff cleanup PASS** (2026-09-26): OpenAPI/Swagger chuyển fail-closed ở base config (no-profile artifact không expose docs — Docker smoke 401; local/test/runtime-test enable tường minh — `ProfileFailSafeTest` 6/6 + smoke runtime-test provider vẫn hoạt động), `AGENTS.md` + harness registry phản ánh frozen baseline, docs baseline-first đồng bộ. Đã commit/push tại 18a7cdde (Review cuối).
 * **Real Gemini provider adapter smoke: PASS** (2026-09-26, owner-approved narrow slice `docs/exec-plans/completed/KBase_Real_Gemini_Provider_Smoke.md`): backend khởi động profile `local` với `KBASE_AI_ENABLED=true`, mode `gemini`, key từ .env (không commit); direct chat adapter PASS — `SpringAiGeminiChatAdapter` (chat model runtime candidate `gemini-3.5-flash-lite`) trả "KBASE_GEMINI_OK"; direct embedding adapter PASS — `SpringAiGeminiEmbeddingAdapter` (`gemini-embedding-2`) trả vector **768** allFinite. **Full live RAG golden journey CHƯA chạy** — belongs to a future owner-approved slice. Default chat model trong config vẫn là `gemini-2.5-flash`; việc đổi canonical model là quyết định riêng sau live verification.
@@ -63,19 +64,19 @@ Chi tiết lệnh và bằng chứng từng milestone: xem các freeze report v�
 
 | Blocker | Ảnh hưởng | Hướng xử lý | Trạng thái |
 | ------- | --------- | ----------- | ---------- |
-| (không có blocker) | — | Không còn active slice; mọi công việc mới cần phase/plan mới được owner duyệt | — |
+| (không có blocker tại activation) | — | RAG Hardening đã được owner duyệt; bắt đầu M0 baseline + reproduce lease edge trước mọi production fix | ACTIVE |
 
 ## Rủi ro và Technical Debt Liên quan
 
 * Technical debt tracker (source of truth cho debt đang mở): `docs/exec-plans/tech-debt-tracker.md`
-* Debt AI đang mở (accepted, non-blocking): abrupt ASSISTANT PROCESSING recovery (MEDIUM, workaround verified — creator DELETE), worker lease/no heartbeat (MEDIUM), Gemini independent connect-timeout (LOW), transient revoke→rejoin failure-code precision (LOW).
+* Debt AI đang mở: worker lease/no heartbeat (MEDIUM) hiện là target của active RAG Hardening; abrupt ASSISTANT PROCESSING recovery (MEDIUM, workaround verified — creator DELETE), Gemini independent connect-timeout (LOW), transient revoke→rejoin failure-code precision (LOW) vẫn ngoài scope phase.
 * Debt Core đang mở: PATCH document null semantics (L-02 — cần product decision), CI pipeline, Gmail production smoke, Redis OTP observability.
 
 ## Bước Tiếp theo
 
-1. `Không có active plan. Real Gemini full live RAG đã verified PASS 2026-09-27 (completed report); Core + AI vẫn FROZEN.`
-2. `Owner decisions còn mở (riêng lẻ, cần duyệt mới): promote gemini-3.5-flash-lite thành canonical/default chat model; các phase mới (frontend/streaming/AI v2) không tự mở.`
-3. `Technical debt mở giữ nguyên trong tracker (không có debt mới từ Golden Journey).`
+1. `Thực thi docs/exec-plans/active/KBase_RAG_Hardening.md từ M0; trước tiên baseline + reproduce expired-but-not-reclaimed lease edge bằng test.`
+2. `Sau lease correctness/renewal: thiết lập CI, evaluation/calibration, indexing benchmark và deterministic/live hardening gates theo M3–M8.`
+3. `Core + AI v1 product behavior vẫn FROZEN; default model promotion, frontend/streaming/AI v2 và các debt ngoài scope không tự mở.`
 
 ## Quy tắc Cập nhật
 

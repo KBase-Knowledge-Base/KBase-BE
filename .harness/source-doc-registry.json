@@ -224,7 +224,7 @@
   "scopeGuard": {
     "product": "KBase",
     "baseRelease": "Core v1 (frozen)",
-    "activeRelease": "none (Core v1 and AI v1 backend remain frozen; Real Gemini adapter smoke, hardening and full live RAG Golden Journey all PASS 2026-09-26/27 — no active slice)",
+    "activeRelease": "RAG Hardening ACTIVE (owner-approved 2026-09-27; docs/exec-plans/active/KBase_RAG_Hardening.md; Core v1 and AI v1 product behavior remain frozen)",
     "implementationMode": "backend-only",
     "frontend": "optional/deferred; do not create or modify frontend without an owner-approved new phase",
     "coreV1Frozen": true,

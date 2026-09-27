@@ -50,7 +50,7 @@ Trước khi thay đổi mã:
 
 ## Hợp đồng Làm việc
 
-- Core v1 đã frozen và AI v1 backend đã frozen — cả hai là baseline không được reinterpret. Real Gemini adapter smoke, hardening và full live RAG Golden Journey đã PASS (2026-09-26/27, reports trong `docs/exec-plans/completed/`). Hiện KHÔNG có active implementation slice: không tự tạo M12, không mở AI v2/frontend/streaming/Workspace; mọi công việc mới cần một phase/plan mới được owner duyệt. Frontend vẫn optional/deferred.
+- Core v1 đã frozen và AI v1 backend đã frozen — cả hai là baseline không được reinterpret. Real Gemini adapter smoke, hardening và full live RAG Golden Journey đã PASS (2026-09-26/27, reports trong `docs/exec-plans/completed/`). Owner đã duyệt active post-freeze phase `docs/exec-plans/active/KBase_RAG_Hardening.md`: chỉ harden lease correctness/renewal, CI, retrieval evaluation/calibration và indexing performance theo M0–M9; không tự tạo M12, không mở AI v2/frontend/streaming/Workspace, public API hoặc schema. Frontend vẫn optional/deferred.
 - Completed AI plans (M0–M11) và các freeze report là historical evidence và source-of-truth cho behavior đã frozen: khi task mới chạm behavior frozen, đọc lại chúng thay vì suy đoán; nhưng không tiếp tục triển khai milestone cũ từ chúng.
 - Làm việc từ một kế hoạch có ranh giới hoặc slice tính năng tại một thời điểm.
 - Nếu thiếu hoặc không nhớ chắc một rule KBase, coi đó là thiếu context: đọc lại product spec, design document và execution plan liên quan trước khi tiếp tục; không suy đoán để lấp khoảng trống.
