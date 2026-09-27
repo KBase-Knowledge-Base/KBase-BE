@@ -6,7 +6,7 @@
 ## Cập nhật Lần cuối
 
 * Ngày cập nhật: `2026-09-27`
-* Người hoặc agent cập nhật: `Real Gemini RAG Golden Journey Planning`
+* Người hoặc agent cập nhật: `Real Gemini RAG Golden Journey Execution`
 * Nhánh hiện tại: `feat-AI` (được tạo trực tiếp từ `dev`)
 
 ## Trạng thái Tổng quan
@@ -17,7 +17,7 @@
 * **Final handoff cleanup PASS** (2026-09-26): OpenAPI/Swagger chuyển fail-closed ở base config (no-profile artifact không expose docs — Docker smoke 401; local/test/runtime-test enable tường minh — `ProfileFailSafeTest` 6/6 + smoke runtime-test provider vẫn hoạt động), `AGENTS.md` + harness registry phản ánh frozen baseline, docs baseline-first đồng bộ. Đã commit/push tại 18a7cdde (Review cuối).
 * **Real Gemini provider adapter smoke: PASS** (2026-09-26, owner-approved narrow slice `docs/exec-plans/completed/KBase_Real_Gemini_Provider_Smoke.md`): backend khởi động profile `local` với `KBASE_AI_ENABLED=true`, mode `gemini`, key từ .env (không commit); direct chat adapter PASS — `SpringAiGeminiChatAdapter` (chat model runtime candidate `gemini-3.5-flash-lite`) trả "KBASE_GEMINI_OK"; direct embedding adapter PASS — `SpringAiGeminiEmbeddingAdapter` (`gemini-embedding-2`) trả vector **768** allFinite. **Full live RAG golden journey CHƯA chạy** — belongs to a future owner-approved slice. Default chat model trong config vẫn là `gemini-2.5-flash`; việc đổi canonical model là quyết định riêng sau live verification.
 * **Real Gemini smoke hardening: PASS** (2026-09-26 — `docs/exec-plans/completed/KBase_Real_Gemini_Provider_Smoke_Hardening.md`): manual smoke giờ mechanically isolate background AI scheduling (`kbase.ai.worker.scheduling-enabled=false`, production default giữ nguyên) + preflight fail-before-provider-call theo candidate được duyệt; full gate **400 tests, 0 failures/errors/skipped**.
-* **Active owner-approved verification slice: Real Gemini RAG Golden Journey.** Plan: `docs/exec-plans/active/KBase_Real_Gemini_RAG_Golden_Journey.md`. Đây là verification/rollout slice trên frozen AI v1 behavior, không phải M12/AI v2 và không tự mở feature mới.
+* **Real Gemini RAG Golden Journey: PASS** (2026-09-27 — `docs/exec-plans/completed/KBase_Real_Gemini_RAG_Golden_Journey.md`): full live RAG end-to-end với Gemini thật trên isolated Compose project `kbase-real-gemini-rag` (fresh volumes, profile `local`, worker ON): synthetic document upload → durable DOCUMENT_INDEX → **READY** với `gemini-embedding-2`/768; Project Assistant GROUNDED answer + structured citation đúng Aurora source; cross-project Borealis trap sạch ở cả API lẫn DB persisted mapping; strict NO_EVIDENCE; deleted-source không resurrect (snapshot UNAVAILABLE); Guide reindex 2 specs (169 chunks) + grounded allowlist + off-topic NO_EVIDENCE; Core 200 trong suốt journey; log/secret audit 0 hits. Entry + final regression **400/400**; OpenAPI 38/57/15, Flyway V1–V4, 18 tables, `vector(768)` unchanged. Không có code/schema/API change. Promote `gemini-3.5-flash-lite` thành canonical default là owner decision riêng — repo default vẫn `gemini-2.5-flash`.
 * Frontend và streaming: deferred, không thuộc phase backend hiện tại.
 
 Bảng tổng quan:
@@ -28,9 +28,10 @@ Bảng tổng quan:
 | Backend          | Core + AI FROZEN | Project Assistant (private creator conversations), Guide (2 packaged specs), document indexing/semantic retrieval, durable job engine, usage guard — toàn bộ frozen behavior. |
 | Database         | Ổn định | Flyway V1–V4, 18 persistent tables, pgvector `vector(768)`, HNSW cosine indexes, Hibernate validate. |
 | API contract     | Ổn định | Runtime OpenAPI 38 paths / 57 operations / 15 tags; API-AI-001..010; generated snapshots đồng bộ. |
-| Security         | Verified runtime | Security matrix 37/37 (M11): cross-project isolation, creator privacy, prompt injection, source authz, Guide isolation; profile fail-safe thêm sau audit. |
-| Reliability      | Verified runtime | Retention (+P7D, purge, race), restart/recovery (stale reclaim, persistence), failure isolation, 0-hit log audit (M11). |
+| Security         | Verified runtime | Security matrix 37/37 (M11): cross-project isolation, creator privacy, prompt injection, source authz, Guide isolation; profile fail-safe thêm sau audit; real-Gemini Golden Journey thêm bằng chứng cross-project trap sạch ở API + DB. |
+| Reliability      | Verified runtime | Retention (+P7D, purge, race), restart/recovery (stale reclaim, persistence), failure isolation, 0-hit log audit (M11); real-Gemini journey 0-hit log audit và transient provider failure được bounded retry xử lý đúng. |
 | Deployment       | Ổn định | Explicit profile contract: compose = `local` tường minh, production = `prod`, artifact không profile fail-fast. |
+| Real provider    | Verified live | Full live RAG Golden Journey PASS với Gemini thật (2026-09-27); runtime candidate `gemini-3.5-flash-lite` + `gemini-embedding-2`/768; repo default vẫn `gemini-2.5-flash` (promote là owner decision). |
 
 ## Kiến trúc & Capability hiện tại (tóm tắt)
 
@@ -42,10 +43,11 @@ Bảng tổng quan:
 
 | Kiểm tra | Kết quả | Thời điểm |
 | --- | --- | --- |
-| `mvn -B -ntp clean verify` (full gate hiện tại, sau smoke hardening) | BUILD SUCCESS — **400 tests, 0 failures/errors/skipped** | 2026-09-27 |
+| `mvn -B -ntp clean verify` (full gate hiện tại) | BUILD SUCCESS — **400 tests, 0 failures/errors/skipped** | 2026-09-27 (entry + final của Golden Journey) |
+| Real Gemini RAG Golden Journey (isolated Compose `kbase-real-gemini-rag`, real Gemini embedding+chat, journey A–F) | PASS — READY index 768, GROUNDED + citation đúng nguồn, cross-project trap sạch (API+DB), NO_EVIDENCE, delete lifecycle, Guide 169 chunks + grounded allowlist + NO_EVIDENCE, Core 200, log audit 0 hits | 2026-09-27 |
 | M11 runtime matrix (security 37/37, retention, restart/recovery, log audit 0 hits) | PASS | 2026-09-26 |
 | Profile fail-safe (`ProfileFailSafeTest` 6/6 + Docker smoke local/runtime-test) | PASS | 2026-09-26 |
-| Runtime OpenAPI = 38/57/15; Flyway V1–V4; 18 tables | PASS | 2026-09-26 |
+| Runtime OpenAPI = 38/57/15; Flyway V1–V4; 18 tables | PASS | 2026-09-27 (re-verified trong Golden Journey) |
 
 Chi tiết lệnh và bằng chứng từng milestone: xem các freeze report và `docs/DEVELOPMENT.md` (verification records).
 
@@ -61,7 +63,7 @@ Chi tiết lệnh và bằng chứng từng milestone: xem các freeze report v�
 
 | Blocker | Ảnh hưởng | Hướng xử lý | Trạng thái |
 | ------- | --------- | ----------- | ---------- |
-| (không có blocker) | — | Thực thi active Real Gemini RAG Golden Journey plan; nếu cần đổi product/API/schema thì BLOCK và xin owner decision | — |
+| (không có blocker) | — | Không còn active slice; mọi công việc mới cần phase/plan mới được owner duyệt | — |
 
 ## Rủi ro và Technical Debt Liên quan
 
@@ -71,9 +73,9 @@ Chi tiết lệnh và bằng chứng từng milestone: xem các freeze report v�
 
 ## Bước Tiếp theo
 
-1. `Active plan: docs/exec-plans/active/KBase_Real_Gemini_RAG_Golden_Journey.md — owner-approved, READY TO EXECUTE trên baseline 636ea264.`
-2. `Mục tiêu: verify end-to-end real-provider RAG qua HTTP boundary bằng synthetic data: real document embedding/indexing → pgvector retrieval → grounded Project Assistant answer/citations + strict NO_EVIDENCE + Guide grounded/no-evidence; không đổi frozen product/API/schema nếu không có bug xác nhận.`
-3. `Không tạo M12. Sau PASS, archive plan và trả active plan về NONE; quyết định promote gemini-3.5-flash-lite thành canonical default (nếu có) là owner decision riêng.`
+1. `Không có active plan. Real Gemini full live RAG đã verified PASS 2026-09-27 (completed report); Core + AI vẫn FROZEN.`
+2. `Owner decisions còn mở (riêng lẻ, cần duyệt mới): promote gemini-3.5-flash-lite thành canonical/default chat model; các phase mới (frontend/streaming/AI v2) không tự mở.`
+3. `Technical debt mở giữ nguyên trong tracker (không có debt mới từ Golden Journey).`
 
 ## Quy tắc Cập nhật
 

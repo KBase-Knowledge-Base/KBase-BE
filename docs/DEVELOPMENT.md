@@ -34,6 +34,39 @@ Post-Freeze Final Codebase Audit đã PASS ngày `2026-09-26` (bảo trì sau fr
 
 Real Gemini provider adapter smoke đã PASS ngày `2026-09-26` (owner-approved narrow slice, không phải milestone): harness manual `RealGeminiAdapterManualSmoke` (src/test, main() — không chạy trong Surefire, full gate vẫn 0 skipped) boot profile `local` + `.env` operator (KBASE_AI_ENABLED=true, mode=gemini, key từ env, không in/print key) và gọi trực tiếp hai KBase ports: `AiChatModel`/`SpringAiGeminiChatAdapter` với candidate `gemini-3.5-flash-lite` (response "KBASE_GEMINI_OK") và `AiEmbeddingModel`/`SpringAiGeminiEmbeddingAdapter` với `gemini-embedding-2` (768 dimensions, allFinite). Lệnh chạy harness: `mvn -q test-compile org.codehaus.mojo:exec-maven-plugin:3.1.0:java -Dexec.mainClass=com.kbase.ai.provider.manual.RealGeminiAdapterManualSmoke -Dexec.classpathScope=test` (yêu cầu deps Compose: `docker compose up -d postgres minio redis`). Đây là manual smoke — KHÔNG thuộc automated gate; full live RAG golden journey chưa chạy. **Isolation contract:** manual smoke disables background AI scheduling/job execution (`kbase.ai.worker.scheduling-enabled=false` — scheduling infrastructure bị loại khỏi context nên AiJobScheduler không thể claim pending DOCUMENT_INDEX/GUIDE_REINDEX) và chỉ thực hiện đúng 2 explicit adapter calls (chat + embedding); preflight fail-before-provider-call nếu config lệch khỏi candidate được duyệt (mode=gemini, chat=gemini-3.5-flash-lite, embedding=gemini-embedding-2, dims=768).
 
+Real Gemini RAG Golden Journey đã PASS ngày `2026-09-27` (owner-approved verification slice; report `docs/exec-plans/completed/KBase_Real_Gemini_RAG_Golden_Journey.md`): full live RAG end-to-end với Gemini thật qua HTTP boundary trên isolated Compose project. Journey A–F PASS: synthetic document → durable DOCUMENT_INDEX → READY với `gemini-embedding-2`/768; grounded answer + structured citation đúng nguồn project; cross-project trap sạch ở API và DB persisted mapping; strict NO_EVIDENCE; deleted-source không resurrect (snapshot UNAVAILABLE); Guide reindex 2 allowlist specs (169 chunks READY, vector 768); Guide grounded + off-topic NO_EVIDENCE; Core endpoint 200 trong suốt journey; log/secret audit 0 hits; transient provider failure một lần được safe 503/FAILED marker + retry thành công. Entry + final `mvn -B -ntp clean verify` **400/400**; OpenAPI 38/57/15, Flyway V1–V4, 18 tables, `vector(768)` unchanged; không code/schema/API change.
+
+Runbook tái lập isolated real-provider runtime (đã chạy thật 2026-09-27):
+
+```text
+# 1. .env (git-ignored) phải có: KBASE_AI_ENABLED=true, KBASE_AI_PROVIDER_MODE=gemini,
+#    KBASE_AI_GEMINI_CHAT_MODEL=gemini-3.5-flash-lite, KBASE_AI_GEMINI_EMBEDDING_MODEL=gemini-embedding-2,
+#    KBASE_AI_GEMINI_EMBEDDING_DIMENSIONS=768, KBASE_AI_GEMINI_API_KEY=<non-blank>.
+#    KHÔNG set KBASE_AI_WORKER_SCHEDULING_ENABLED — worker phải ON cho indexing/Guide reindex.
+# 2. Khởi động isolated Compose project (fresh volumes tự tách theo project name; host ports
+#    override bằng OS env để không đụng stack khác; SMTP trỏ vào mail double; mailpit ports
+#    remap qua override file với `!override` nếu 1025/8025 đã bị chiếm):
+export KBASE_SERVER_PORT=18081 KBASE_POSTGRES_PORT=15433 KBASE_REDIS_PORT=16381 \
+       KBASE_STORAGE_API_PORT=19002 KBASE_STORAGE_CONSOLE_PORT=19003 \
+       KBASE_GMAIL_SMTP_HOST=mail-test KBASE_GMAIL_SMTP_PORT=1025 \
+       KBASE_GMAIL_SMTP_AUTH=false KBASE_GMAIL_SMTP_STARTTLS=false
+docker compose -p kbase-real-gemini-rag -f docker-compose.yml -f docker-compose.mail-test.yml \
+       -f <mail-ports-override.yml> up -d --build
+#    Nội dung mail-ports-override.yml (chỉ tạo khi 1025/8025 đã bị stack khác chiếm):
+#      services:
+#        mail-test:
+#          ports: !override
+#            - "11025:1025"
+#            - "18025:8025"
+# 3. Evidence khởi động: log Flyway "Empty Schema → ... now at version v4", Hibernate validate,
+#    Started KBaseApplication; DB: 18 persistent tables, pgvector, document_ai_chunks.embedding typmod 768,
+#    ai_guide_sources 2 rows (reindex tự chạy bởi worker); GET :18081/v3/api-docs = 38/57/15.
+# 4. Journey HTTP: register/verify (OTP đọc từ mailpit API :18025) → login → create project →
+#    upload MD (multipart: part `file` + part `metadata` phải có Content-Type application/json) →
+#    poll GET .../ai-index tới READY → conversation grounded/NO_EVIDENCE → guide query.
+# 5. Dọn dẹp: docker compose -p kbase-real-gemini-rag down (giữ volumes) hoặc down -v (reset).
+```
+
 M2 – PostgreSQL / Flyway Schema đã hoàn tất ngày `2026-09-17`: 3 Flyway migrations tạo 10 persistent tables với đầy đủ constraint, partial/expression unique index và query index theo Physical Database Design; migration integrity test 12/12 pass trên PostgreSQL 17 Testcontainer; Hibernate `ddl-auto=validate` pass.
 
 M3 – JPA Entities & Repositories đã hoàn tất ngày `2026-09-17`: 10 entity persistent, 5 enum, `DocumentTagId`, 10 feature-local repository, projection/query/fetch graph/lock và document specification đã được implement; mapping integration test 11/11 pass trên PostgreSQL 17 Testcontainer với Flyway từ database rỗng và Hibernate `ddl-auto=validate`. Không có OTP entity/repository.

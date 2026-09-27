@@ -1,7 +1,7 @@
 # KBase – Real Gemini RAG Golden Journey
 
-**Status:** ACTIVE – READY TO EXECUTE (2026-09-27)
-**Baseline:** `feat-AI` @ `636ea26469823bc475732d1e0f79f147556d1f63` (`Review adapter v3`)
+**Status:** PASS – COMPLETED (2026-09-27)
+**Baseline:** `feat-AI` @ `636ea26469823bc475732d1e0f79f147556d1f63` (`Review adapter v3`); executed at HEAD `126f3f505f9b80a5280eb1f36b29428ec9b55598` (`Thêm tài liệu cho phase RAG`, docs-only descendant)
 **Type:** Owner-approved real-provider verification / rollout slice
 **Not a milestone:** Không phải M12, không phải AI v2, không mở feature mới
 
@@ -480,3 +480,70 @@ READY / BLOCKED with exact reason
 ## 21. Progress log
 
 - `2026-09-27`: Plan created and activated by owner approval. Execution not started yet.
+- `2026-09-27`: Execution PASS trên HEAD `126f3f50` (docs-only descendant của baseline `636ea264`, zero code diff). Entry gate: `mvn -B -ntp clean verify` BUILD SUCCESS **400/400/0/0/0**; `docker compose -f docker-compose.yml config --quiet` PASS; `git diff --check` PASS. Secret/config preflight: `.env` git-ignored, `KBASE_AI_ENABLED=true`, mode `gemini`, chat `gemini-3.5-flash-lite`, embedding `gemini-embedding-2`, dims `768`, key non-blank (không bao giờ in), không override `KBASE_AI_WORKER_SCHEDULING_ENABLED` → worker scheduling default ON. Chi tiết Final result bên dưới.
+
+## 22. Final result (2026-09-27)
+
+**REAL_GEMINI_RAG_GOLDEN_JOURNEY_PASS.** Toàn bộ acceptance gate (§18) PASS. Không có bug sản phẩm; không có code/schema/API change; không commit/push.
+
+### Runtime
+
+- Isolated Compose project **`kbase-real-gemini-rag`** (fresh volumes `kbase-real-gemini-rag_postgres_data`/`_minio_data`, không reuse deterministic data), host ports 18081 (backend) / 15433 (postgres) / 16381 (redis) / 19002+19003 (minio) / 11025+18025 (mailpit remap qua override `!override`, stack M11 leftover không bị chạm).
+- Backend container: profile `local`, `KBASE_AI_ENABLED=true`, `KBASE_AI_PROVIDER_MODE=gemini`, chat `gemini-3.5-flash-lite`, embedding `gemini-embedding-2`, dims `768`, key non-blank trong container env (value không in), worker scheduling không bị override (default ON, `AiWorkerSchedulingConfiguration` matchIfMissing=true).
+- Fresh DB evidence: Flyway `Empty Schema → V1 → V2 → V3 → V4 → successfully applied 4 migrations, now at version v4`; Hibernate validate pass (context started); **18 persistent tables**; extension `vector` present; `document_ai_chunks.embedding` typmod **768**; runtime OpenAPI **38 paths / 57 operations / 15 tags**.
+
+### Journey A — Real document indexing (PASS)
+
+- Synthetic user register 201 → OTP qua mail double → verify 200 → login 200.
+- Project Aurora 201 (OWNER). Upload `aurora-runbook.md` (synthetic fixture) 201.
+- `GET .../ai-index` → **READY** (indexed_at 18:33:09Z, ~12s sau upload; durable job DONE attempts=1).
+- DB: `document_ai_indexes` status=READY, `embedding_model=gemini-embedding-2`, `embedding_dimensions=768`, active_version=1; `document_ai_chunks` 1 chunk, `vector_dims(embedding)=768`, non-null. Không dump vector.
+
+### Journey B — Cross-project trap (PASS)
+
+- Project Borealis 201; trap fixture upload 201 → READY (semantic overlap cố tình cao hơn).
+- Aurora conversation create 201: `answerType=GROUNDED`, answer chứa `AURORA-ROLLBACK-741 [SOURCE_1]`; **0 hit** `BOREALIS-LEAK-999` trong answer/sources.
+- Source duy nhất: `documentId=313bd10d…` (Aurora Deployment Runbook), availability=AVAILABLE.
+- DB postcondition: 1 row `ai_message_sources` cho turn, đúng Aurora doc + Aurora chunk; **Borealis referenced = 0** (không filter-muộn — mapping persisted từ backend).
+
+### Journey C — Citation integrity (PASS)
+
+- Structured citation `[SOURCE_1]` map đúng 1 backend-issued source; `documentNameSnapshot` đúng fixture; `availability=AVAILABLE`; `sectionTitle` thật (heading MD), `pageNumber/slideNumber` null vì không có thật.
+- DTO chỉ gồm order/documentId/documentName/page/slide/section/availability — không score/chunkId/vector/hash/storageKey/URL/provider internals.
+
+### Journey D — Strict NO_EVIDENCE (PASS)
+
+- `What is the cafeteria Wi-Fi password?` → 200, `answerType=NO_EVIDENCE`, `sources=[]`, refusal deterministic đúng frozen text; không general knowledge; history của grounded turn không được dùng làm evidence.
+
+### Journey E — Deleted source lifecycle (PASS)
+
+- `DELETE /documents/{auroraDocId}` 204. DB: 0 chunks, 0 index rows còn lại (cascade).
+- Historical grounded turn: snapshot name còn, `documentId=null`, `chunkId=null`, API availability=**UNAVAILABLE**.
+- Hỏi lại rollback question → `NO_EVIDENCE`, `sources=[]`, không resurrect `AURORA-ROLLBACK-741` (không trực tiếp xóa AI rows).
+
+### Journey F — Real Guide RAG (PASS)
+
+- Startup reconciliation enqueue đúng 2 allowlist sources; worker reindex bằng real `gemini-embedding-2`: **cả 2 sources READY v1/1, 169 chunks**, jobs DONE attempts=1, mọi guide vector `vector_dims=768`.
+- Grounded query (conversation sharing) → `answerType=GROUNDED`, answer đúng documented behavior với `[SOURCE_1]`; source duy nhất `sourceKey=docs/product-specs/KBase - AI Chatbot v1 Specification.md` (allowlist; không project/plan/repo file).
+- Off-topic query (thời tiết) → `answerType=NO_EVIDENCE`, `sources=[]`, refusal deterministic.
+
+### Transient provider event (không phải bug)
+
+- Một lần `503 AI_PROVIDER_UNAVAILABLE` trên send-message (attempt đầu của Journey D); generation marker hiển thị safe `failureCode=AI_PROVIDER_INVALID_RESPONSE`, USER message được giữ theo FR-AI-MSG-005. Retry có kiểm soát một lần sau 30s → 200 NO_EVIDENCE. Bounded retry/failure mapping hiện tại xử lý đúng; không đổi model/threshold/policy.
+
+### Security / Core health
+
+- Log audit trên toàn bộ backend log (60 dòng): **0 hits** cho AIza key, Bearer token, OTP, refresh token, storage credential, raw embedding, raw provider payload, fixture content (cả 2 code), prompt/answer content.
+- Tracked content: `git grep AIza…` 0 hits; `git status` sạch; `.env` vẫn ignored.
+- Core health trong/sau journey: `GET /projects` 200, `GET /documents/{id}` 200 — Core không phụ thuộc provider.
+
+### Final regression
+
+- `mvn -B -ntp clean verify` BUILD SUCCESS **400 tests, 0 failures, 0 errors, 0 skipped** (không thêm test — không có bug fix).
+- `docker compose -f docker-compose.yml config --quiet` PASS; `git diff --check` PASS; working tree sạch trước lifecycle docs.
+- Invariants re-verified: OpenAPI 38/57/15 (live), Flyway V1–V4, 18 tables, `vector(768)`; generated API/DB docs không đổi.
+
+### Remaining scope (owner decisions, không thuộc phase này)
+
+- Promote `gemini-3.5-flash-lite` thành canonical/default chat model là quyết định riêng của owner.
+- Technical debt tracker không đổi (không phát hiện debt mới).
