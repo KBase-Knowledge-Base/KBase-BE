@@ -90,23 +90,40 @@ public class AiJobScheduler {
         }
 
         try {
+            boolean persisted;
             if (result == null || result.outcome() == null) {
-                jobStore.markFailed(claim, "INVALID_HANDLER_RESULT");
+                persisted = jobStore.markFailed(claim, "INVALID_HANDLER_RESULT");
+                if (!persisted) {
+                    logLostOwnership(claim, "FAILURE");
+                }
                 return;
             }
 
             switch (result.outcome()) {
-                case SUCCESS -> jobStore.markDone(claim);
+                case SUCCESS -> {
+                    persisted = jobStore.markDone(claim);
+                    if (!persisted) {
+                        logLostOwnership(claim, result.outcome().name());
+                    }
+                }
                 case RETRY -> {
                     Instant nextRunAt = result.nextRunAt() == null
                             ? jobStore.now().plus(jobStore.retryBackoff()) : result.nextRunAt();
                     if (claim.attemptCount() >= claim.maxAttempts()) {
-                        jobStore.markFailed(claim, result.errorCode());
+                        persisted = jobStore.markFailed(claim, result.errorCode());
                     } else {
-                        jobStore.markRetry(claim, nextRunAt, result.errorCode());
+                        persisted = jobStore.markRetry(claim, nextRunAt, result.errorCode());
+                    }
+                    if (!persisted) {
+                        logLostOwnership(claim, result.outcome().name());
                     }
                 }
-                case FAILURE -> jobStore.markFailed(claim, result.errorCode());
+                case FAILURE -> {
+                    persisted = jobStore.markFailed(claim, result.errorCode());
+                    if (!persisted) {
+                        logLostOwnership(claim, result.outcome().name());
+                    }
+                }
             }
         } finally {
             observability.recordJobExecution(claim.jobType().name(),
@@ -114,5 +131,15 @@ public class AiJobScheduler {
                             ? AiJobExecutionOutcome.FAILURE.name() : result.outcome().name(),
                     System.nanoTime() - startedAt);
         }
+    }
+
+    /**
+     * A zero-row terminal transition means ownership expired or was reclaimed
+     * before finalization. The row is left to normal stale/reclaim recovery;
+     * only a category-safe log line is emitted, never raw claim material.
+     */
+    private void logLostOwnership(AiJobClaim claim, String outcome) {
+        LOGGER.warn("AI job finalization skipped jobType={} outcome={} reason=OWNERSHIP_LOST",
+                claim.jobType(), outcome);
     }
 }

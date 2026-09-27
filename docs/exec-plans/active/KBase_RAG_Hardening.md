@@ -855,6 +855,23 @@ Do not close these unless owner creates/expands an approved plan:
 
 - 2026-09-27: Owner approved creation of RAG Hardening phase.
 - 2026-09-27: Plan created from 'feat-AI' baseline '38bb3b534241dc576f7c5a8759ee5860c601dce8'. Harness activated. Execution has not started; M0 is READY.
+- 2026-09-27 (M0-02 lease path inspection, before any code change): exact invariant traced end-to-end.
+  - 'AiJobClaimRepository.markDone/markRetry/markFailed' transition SQL predicate is only
+    'id = :id AND status = 'PROCESSING' AND locked_by = :leaseToken' — **no 'lease_until > :now' term**.
+  - Index-side workflow transitions in 'AiVectorRepository' ('markDocumentIndexProcessing', 'markDocumentIndexRetry',
+    'markDocumentIndexFailure', 'markDocumentIndexUnsupported', 'stageDocumentChunks', 'activateDocumentVersion')
+    all join 'ai_jobs' by job id + exact token **and** require 'lease_until > :now' — the stronger rule already
+    exists in this codebase ('hasCurrentConversationPurgeLease' likewise requires a live lease).
+  - 'DocumentIndexJobHandler' deliberately returns 'AiJobExecutionResult.success()' when 'beginProcessing'/'
+    stage'/'activate' return false (comment: must not write a late staging/activation result).
+  - 'AiJobScheduler.executeOne' maps SUCCESS to 'jobStore.markDone(claim)'; 'AiJobStore' delegates to the
+    repository predicate above with 'clock.instant()'.
+  - Therefore the hypothesized window is statically confirmed: lease expires → no reclaim yet → index-side
+    stage/activate refuse → handler reports SUCCESS → 'markDone' matches 'PROCESSING + locked_by' → job DONE
+    while 'document_ai_indexes' stays PROCESSING/PENDING with no remaining active job and manual retry
+    disallowed from PROCESSING (stuck index). Same window allows an expired owner to RETRY/FAILED the job.
+  - Required fix invariant (M1): terminal worker transitions must require
+    'job id matches AND status = PROCESSING AND locked_by = exact token AND lease_until > transition time'.
 
 ## 25. Milestone evidence log
 
@@ -862,8 +879,8 @@ Fill during execution; do not pre-claim results.
 
 | Milestone | Status | Evidence | Findings / Fixes |
 | --- | --- | --- | --- |
-| M0 | READY | pending | pending |
-| M1 | TODO | pending | pending |
+| M0 | DONE | Entry baseline (HEAD `a42e4cbfd8e9497f571be15d3f78510028221b47`, clean tree except this plan doc): `mvn -B -ntp clean verify` BUILD SUCCESS **400 tests / 0 failures / 0 errors / 0 skipped** (8:16 min; OpenAPI 38/57/15 + Flyway V1–V4 + 18 tables + `vector(768)` asserted green inside the gate by OpenApiContractIntegrationTest + FlywayMigrationIntegrityTest); `docker compose -f docker-compose.yml config --quiet` PASS; `git diff --check` PASS. M0-02 invariant traced and recorded in Progress Log (markDone/markRetry/markFailed missing `lease_until > now`; index-side + purge predicates already have it). M0-03 reproduction: 2 new deterministic PostgreSQL tests added to `AiJobEngineIntegrationTest` — focused run `mvn -B -ntp "-Dtest=AiJobEngineIntegrationTest" test` → 11 run, **2 FAILURES (expected red reproduction), 9 pass**: `expiredUnreclaimedOwnerCannotTerminateJobWhileTokenStillMatches` (expired unreclaimed owner markDone/markRetry/markFailed all succeed — violation) and `expiredOwnerSuccessOutcomeCannotDoneJobWhileIndexStaysProcessing` (full real scheduler path: lease expires during fake embedding → real stage/activate refuse → handler SUCCESS → scheduler markDone → job DONE while index stays PROCESSING — violation). No production code changed. | RH-F01 CONFIRMED (executable evidence). Root cause: `AiJobClaimRepository` terminal transitions lack lease validity predicate. |
+| M1 | DONE | Fix: `AiJobClaimRepository.markDone/markRetry/markFailed` now require `status='PROCESSING' AND locked_by=:token AND lease_until IS NOT NULL AND lease_until > :now` (M1-01/M1-02; no lease extension, no schema change). M1-03: `AiJobScheduler` lost-ownership handling — zero-row terminal transition no longer reports persisted DONE/RETRY/FAILED; row left reclaimable; single category-only warn line (`jobType`/`outcome`/`OWNERSHIP_LOST`, no claim material). Regression matrix (M1-04): `AiJobEngineIntegrationTest` extended to 12 tests — valid owner DONE (existing), valid owner RETRY (existing), valid owner FAILED + terminal-cannot-reopen (new `validOwnerCanFailAndTerminalJobsCannotBeReopened`), expired unreclaimed owner cannot DONE/RETRY/FAILED (`expiredUnreclaimedOwnerCannotTerminateJobWhileTokenStillMatches`), reclaimed old token cannot transition + new token can (existing), stale exhausted terminal policy (existing `staleLeaseWithExhaustedAttemptsBecomesFailedWithoutExecution`), end-to-end expired-owner SUCCESS cannot DONE while index stays PROCESSING (`expiredOwnerSuccessOutcomeCannotDoneJobWhileIndexStaysProcessing`). Focused gates: `mvn -B -ntp "-Dtest=AiJobEngineIntegrationTest,AiJobSchedulerTest,DocumentIndexJobHandlerTest,DocumentAiIndexPersistenceIntegrationTest" test` → 30/30 PASS (red reproduction tests now green; M3/M5 stale-reclaim suites still green). Full regression: `mvn -B -ntp clean verify` BUILD SUCCESS **403 tests / 0 failures / 0 errors / 0 skipped** (400 baseline + 3 new); `docker compose -f docker-compose.yml config --quiet` PASS; `git diff --check` PASS. No job can reach DONE while its index remains PROCESSING from stale/expired finalization. | RH-F01 closed at code level; 4 pre-existing BASE-time tests were corrected to wall-clock-valid leases (transitions now validate against the store clock — the old fixtures carried already-expired leases that were invisible before the predicate existed) |
 | M2 | TODO | pending | pending |
 | M3 | TODO | pending | pending |
 | M4 | TODO | pending | pending |

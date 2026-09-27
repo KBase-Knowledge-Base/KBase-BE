@@ -240,6 +240,7 @@ public class AiJobClaimRepository {
                    SET status = 'DONE', completed_at = :now, lease_until = NULL,
                        locked_by = NULL, last_error_code = NULL, updated_at = :now
                  WHERE id = :id AND status = 'PROCESSING' AND locked_by = :leaseToken
+                   AND lease_until IS NOT NULL AND lease_until > :now
                 """, new MapSqlParameterSource()
                 .addValue("id", jobId)
                 .addValue("leaseToken", leaseToken)
@@ -254,6 +255,7 @@ public class AiJobClaimRepository {
                        locked_by = NULL, completed_at = NULL,
                        last_error_code = :errorCode, updated_at = :now
                  WHERE id = :id AND status = 'PROCESSING' AND locked_by = :leaseToken
+                   AND lease_until IS NOT NULL AND lease_until > :now
                 """, new MapSqlParameterSource()
                 .addValue("id", jobId)
                 .addValue("leaseToken", leaseToken)
@@ -268,6 +270,7 @@ public class AiJobClaimRepository {
                    SET status = 'FAILED', completed_at = :now, lease_until = NULL,
                        locked_by = NULL, last_error_code = :errorCode, updated_at = :now
                  WHERE id = :id AND status = 'PROCESSING' AND locked_by = :leaseToken
+                   AND lease_until IS NOT NULL AND lease_until > :now
                 """, new MapSqlParameterSource()
                 .addValue("id", jobId)
                 .addValue("leaseToken", leaseToken)
