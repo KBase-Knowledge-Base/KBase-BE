@@ -1,0 +1,58 @@
+name: CI Release Gate
+
+# Automated release gate for KBase backend. It is deterministic and requires
+# no Gemini/Gmail/production secret: AI provider defaults stay disabled and
+# every automated test uses fakes/Testcontainers.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, dev]
+
+concurrency:
+  group: ci-release-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  release-gate:
+    name: clean verify + compose config + diff check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 with Maven cache
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Full Core+AI regression including PostgreSQL/Redis/MinIO Testcontainers,
+      # Flyway migration integrity, OpenAPI contract and job/lease suites.
+      - name: mvn -B -ntp clean verify
+        run: mvn -B -ntp clean verify
+
+      # Compose configuration validation with process-only placeholder values
+      # (never a real credential); mirrors the local baseline verification.
+      - name: docker compose config --quiet (base + mail-test)
+        env:
+          KBASE_JWT_SECRET: ci-placeholder-jwt-signing-secret-at-least-256-bits
+          KBASE_OTP_HASH_SECRET: ci-placeholder-otp-hash-secret
+          KBASE_POSTGRES_DB: kbase
+          KBASE_POSTGRES_USERNAME: kbase
+          KBASE_POSTGRES_PASSWORD: ci-placeholder-postgres-password
+          KBASE_STORAGE_ACCESS_KEY: ci-placeholder-access-key
+          KBASE_STORAGE_SECRET_KEY: ci-placeholder-secret-key
+          KBASE_GMAIL_SMTP_USERNAME: ci-placeholder@example.invalid
+          KBASE_GMAIL_SMTP_APP_PASSWORD: ci-placeholder-app-password
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.mail-test.yml config --quiet
+
+      - name: git diff --check
+        run: git diff --check
