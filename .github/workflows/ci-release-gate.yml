@@ -16,6 +16,14 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Pinned images matching the test suites (PostgresTestSupport.IMAGE and the
+  # MinIO test containers). Pre-pulling avoids per-test registry flakiness;
+  # the tarball cache means quay.io is only contacted on a cold cache.
+  POSTGRES_TEST_IMAGE: pgvector/pgvector:0.8.6-pg17-bookworm
+  REDIS_TEST_IMAGE: redis:7.4-alpine
+  MINIO_TEST_IMAGE: quay.io/minio/minio:latest
+
 jobs:
   release-gate:
     name: clean verify + compose config + diff check
@@ -24,6 +32,49 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Restore Testcontainers image cache
+        id: image-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/testcontainers-images
+          key: testcontainers-images-v1
+
+      # quay.io rejects anonymous pulls from some cloud IP ranges; a bounded
+      # retry loop plus the cached tarball keeps the gate deterministic.
+      - name: Pull Testcontainers images (bounded retries)
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/testcontainers-images
+          pull_with_retries() {
+            local image="$1" attempts=5
+            for attempt in $(seq 1 $attempts); do
+              echo "Pulling $image (attempt $attempt/$attempts)"
+              if docker pull "$image"; then
+                return 0
+              fi
+              sleep $((attempt * 30))
+            done
+            echo "::error::Failed to pull $image after $attempts attempts"
+            return 1
+          }
+          pull_with_retries "$POSTGRES_TEST_IMAGE"
+          pull_with_retries "$REDIS_TEST_IMAGE"
+          pull_with_retries "$MINIO_TEST_IMAGE"
+
+      - name: Save Testcontainers images to cache
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        run: |
+          docker save "$POSTGRES_TEST_IMAGE" -o /tmp/testcontainers-images/postgres.tar
+          docker save "$REDIS_TEST_IMAGE" -o /tmp/testcontainers-images/redis.tar
+          docker save "$MINIO_TEST_IMAGE" -o /tmp/testcontainers-images/minio.tar
+
+      - name: Load Testcontainers images from cache
+        if: steps.image-cache.outputs.cache-hit == 'true'
+        run: |
+          docker load -i /tmp/testcontainers-images/postgres.tar
+          docker load -i /tmp/testcontainers-images/redis.tar
+          docker load -i /tmp/testcontainers-images/minio.tar
 
       - name: Set up JDK 21 with Maven cache
         uses: actions/setup-java@v4
