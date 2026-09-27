@@ -71,7 +71,7 @@ jobs:
           mkdir -p /tmp/minio-bin
           docker run --rm -v /tmp/minio-src:/src -v /tmp/minio-bin:/out golang:1.24-alpine \
             sh -c "cd /src && CGO_ENABLED=0 go build -trimpath -buildvcs=false -o /out/minio ."
-          printf 'FROM alpine:3.20\nCOPY minio /usr/bin/minio\nENTRYPOINT ["/usr/bin/minio"]\n' \
+          printf 'FROM alpine:3.20\nRUN apk add --no-cache curl\nCOPY minio /usr/bin/minio\nENTRYPOINT ["/usr/bin/minio"]\n' \
             > /tmp/minio-bin/Dockerfile
           docker build -t "$MINIO_TEST_IMAGE" /tmp/minio-bin
 
