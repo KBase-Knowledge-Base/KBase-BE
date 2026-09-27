@@ -139,6 +139,17 @@ class AiJobEngineIntegrationTest {
     @BeforeEach
     void clearJobs() {
         jdbcTemplate.update("DELETE FROM ai_jobs");
+        // Mockito mocks bypass interface default methods: route the batch path
+        // through the per-test single-request stubs.
+        when(embeddings.embedAll(any())).thenAnswer(invocation -> {
+            List<AiEmbeddingRequest> requests = invocation.getArgument(0);
+            List<com.kbase.ai.provider.model.AiEmbeddingResult> results =
+                    new ArrayList<>(requests.size());
+            for (AiEmbeddingRequest request : requests) {
+                results.add(embeddings.embed(request));
+            }
+            return results;
+        });
     }
 
     @Test

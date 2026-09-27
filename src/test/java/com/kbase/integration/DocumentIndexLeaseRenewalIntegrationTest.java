@@ -139,6 +139,16 @@ class DocumentIndexLeaseRenewalIntegrationTest {
         jdbcTemplate.update("DELETE FROM documents");
         jdbcTemplate.update("DELETE FROM projects");
         jdbcTemplate.update("DELETE FROM users");
+        // Mockito mocks bypass interface default methods: route the batch path
+        // through the per-test single-request stubs.
+        when(embeddings.embedAll(any())).thenAnswer(invocation -> {
+            List<AiEmbeddingRequest> requests = invocation.getArgument(0);
+            List<AiEmbeddingResult> results = new java.util.ArrayList<>(requests.size());
+            for (AiEmbeddingRequest request : requests) {
+                results.add(embeddings.embed(request));
+            }
+            return results;
+        });
     }
 
     @Test

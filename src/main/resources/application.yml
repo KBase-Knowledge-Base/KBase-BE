@@ -91,6 +91,8 @@ kbase:
       mode: ${KBASE_AI_PROVIDER_MODE:gemini}
       connect-timeout: ${KBASE_AI_PROVIDER_CONNECT_TIMEOUT:10s}
       request-timeout: ${KBASE_AI_PROVIDER_REQUEST_TIMEOUT:60s}
+      # 1 = historical serial transport; bounded provider batch calls above 1.
+      embedding-batch-size: ${KBASE_AI_EMBEDDING_BATCH_SIZE:1}
       deterministic:
         runtime-test-acknowledged: ${KBASE_AI_DETERMINISTIC_RUNTIME_TEST_ACKNOWLEDGED:false}
         failure-mode: ${KBASE_AI_DETERMINISTIC_FAILURE_MODE:none}

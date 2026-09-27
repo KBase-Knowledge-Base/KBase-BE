@@ -280,6 +280,16 @@ public class AiProperties {
         @NotNull
         private Duration requestTimeout = Duration.ofSeconds(60);
 
+        /**
+         * Bounded document-embedding batch size. 1 keeps the historical
+         * serial one-request-per-chunk transport; larger values issue one
+         * provider batch call per group while chunk order, per-vector
+         * validation and lease renewal between batches are preserved.
+         */
+        @Min(1)
+        @Max(64)
+        private int embeddingBatchSize = 1;
+
         public ProviderMode getMode() {
             return mode;
         }
@@ -310,6 +320,14 @@ public class AiProperties {
 
         public void setRequestTimeout(Duration requestTimeout) {
             this.requestTimeout = requestTimeout;
+        }
+
+        public int getEmbeddingBatchSize() {
+            return embeddingBatchSize;
+        }
+
+        public void setEmbeddingBatchSize(int embeddingBatchSize) {
+            this.embeddingBatchSize = embeddingBatchSize;
         }
 
         @AssertTrue(message = "AI provider timeouts must be positive")

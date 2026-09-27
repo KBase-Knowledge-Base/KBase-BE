@@ -253,19 +253,37 @@ public final class DocumentIndexJobHandler implements AiJobHandler {
 
     private List<DocumentAiChunkInsert> embed(Document document, AiJobClaim claim,
             long indexVersion, ChunkedDocument chunked) {
-        List<DocumentAiChunkInsert> rows = new java.util.ArrayList<>(chunked.chunks().size());
-        for (DocumentChunk chunk : chunked.chunks()) {
+        int batchSize = Math.max(1, aiProperties.getProvider().getEmbeddingBatchSize());
+        List<DocumentChunk> chunks = chunked.chunks();
+        List<DocumentAiChunkInsert> rows = new java.util.ArrayList<>(chunks.size());
+        int from = 0;
+        while (from < chunks.size()) {
+            int to = Math.min(from + batchSize, chunks.size());
+            // Lease renewal between provider calls keeps long documents owned;
+            // an ownership loss stops the worker before more provider work.
             if (!retainOwnership(claim)) {
                 return null;
             }
-            AiEmbeddingResult result = embeddingModel.embed(
-                    AiEmbeddingRequest.document(document.getDisplayName(), chunk.content()));
-            float[] vector = toVector(result);
-            rows.add(new DocumentAiChunkInsert(
-                    java.util.UUID.randomUUID(), claim.projectId(), claim.documentId(), indexVersion,
-                    chunk.chunkIndex(), chunk.content(), chunk.sourceLocation().pageNumber(),
-                    chunk.sourceLocation().slideNumber(), chunk.sourceLocation().sectionTitle(),
-                    chunk.tokenCount(), chunk.contentHash(), vector));
+            List<AiEmbeddingRequest> requests = new java.util.ArrayList<>(to - from);
+            for (int index = from; index < to; index++) {
+                requests.add(AiEmbeddingRequest.document(
+                        document.getDisplayName(), chunks.get(index).content()));
+            }
+            List<AiEmbeddingResult> results = embeddingModel.embedAll(requests);
+            if (results.size() != requests.size()) {
+                // Defensive: the port contract is one-to-one ordered results.
+                throw new InvalidEmbeddingException();
+            }
+            for (int index = from; index < to; index++) {
+                float[] vector = toVector(results.get(index - from));
+                DocumentChunk chunk = chunks.get(index);
+                rows.add(new DocumentAiChunkInsert(
+                        java.util.UUID.randomUUID(), claim.projectId(), claim.documentId(), indexVersion,
+                        chunk.chunkIndex(), chunk.content(), chunk.sourceLocation().pageNumber(),
+                        chunk.sourceLocation().slideNumber(), chunk.sourceLocation().sectionTitle(),
+                        chunk.tokenCount(), chunk.contentHash(), vector));
+            }
+            from = to;
         }
         return List.copyOf(rows);
     }

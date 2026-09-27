@@ -19,10 +19,11 @@ permissions:
 env:
   # Pinned images matching the test suites (PostgresTestSupport.IMAGE and the
   # MinIO test containers). Pre-pulling avoids per-test registry flakiness;
-  # the tarball cache means quay.io is only contacted on a cold cache.
+  # the tarball cache means registry access only happens on a cold cache.
   POSTGRES_TEST_IMAGE: pgvector/pgvector:0.8.6-pg17-bookworm
   REDIS_TEST_IMAGE: redis:7.4-alpine
   MINIO_TEST_IMAGE: quay.io/minio/minio:latest
+  MINIO_SOURCE_TAG: RELEASE.2025-09-07T16-13-09Z
 
 jobs:
   release-gate:
@@ -40,9 +41,11 @@ jobs:
           path: /tmp/testcontainers-images
           key: testcontainers-images-v1
 
-      # quay.io rejects anonymous pulls from some cloud IP ranges; a bounded
-      # retry loop plus the cached tarball keeps the gate deterministic.
-      - name: Pull Testcontainers images (bounded retries)
+      # quay.io rejects anonymous pulls from cloud runner IP ranges (the MinIO
+      # Docker Hub org no longer exists), so the MinIO test image is built from
+      # the official source repository at the pinned release tag instead of
+      # being pulled. pgvector/redis still come from Docker Hub with retries.
+      - name: Pull pgvector/redis test images (bounded retries)
         if: steps.image-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p /tmp/testcontainers-images
@@ -60,7 +63,17 @@ jobs:
           }
           pull_with_retries "$POSTGRES_TEST_IMAGE"
           pull_with_retries "$REDIS_TEST_IMAGE"
-          pull_with_retries "$MINIO_TEST_IMAGE"
+
+      - name: Build MinIO test image from official source
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$MINIO_SOURCE_TAG" https://github.com/minio/minio.git /tmp/minio-src
+          mkdir -p /tmp/minio-bin
+          docker run --rm -v /tmp/minio-src:/src -v /tmp/minio-bin:/out golang:1.24-alpine \
+            sh -c "cd /src && CGO_ENABLED=0 go build -trimpath -buildvcs=false -o /out/minio ."
+          printf 'FROM alpine:3.20\nCOPY minio /usr/bin/minio\nENTRYPOINT ["/usr/bin/minio"]\n' \
+            > /tmp/minio-bin/Dockerfile
+          docker build -t "$MINIO_TEST_IMAGE" /tmp/minio-bin
 
       - name: Save Testcontainers images to cache
         if: steps.image-cache.outputs.cache-hit != 'true'

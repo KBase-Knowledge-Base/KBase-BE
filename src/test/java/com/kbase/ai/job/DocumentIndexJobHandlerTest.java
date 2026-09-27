@@ -34,6 +34,7 @@ import com.kbase.ai.provider.error.AiProviderException;
 import com.kbase.ai.provider.model.AiEmbeddingRequest;
 import com.kbase.ai.provider.model.AiEmbeddingResult;
 import com.kbase.ai.provider.port.AiEmbeddingModel;
+import com.kbase.ai.repository.DocumentAiChunkInsert;
 import com.kbase.ai.repository.DocumentAiIndexRepository;
 import com.kbase.ai.service.AiDocumentSupportPolicy;
 import com.kbase.ai.service.DocumentAiIndexPersistenceService;
@@ -295,10 +296,78 @@ class DocumentIndexJobHandlerTest {
             DocumentAiIndexPersistenceService persistence) {
         com.kbase.ai.service.AiJobStore jobStore = mock(com.kbase.ai.service.AiJobStore.class);
         when(jobStore.renewLease(any())).thenReturn(true);
+        stubBatchDelegation(embeddings);
         return new DocumentIndexJobHandler(documents, indexes, new AiDocumentSupportPolicy(), extractor,
                 chunker, embeddings, storage, persistence, jobStore,
                 new com.kbase.ai.observability.AiObservability(), new UploadProperties(), new AiProperties(),
                 Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    /**
+     * Mockito mocks bypass interface default methods, so the batch path is
+     * stubbed to delegate through the single-request stubs above.
+     */
+    private static void stubBatchDelegation(AiEmbeddingModel embeddings) {
+        when(embeddings.embedAll(any())).thenAnswer(invocation -> {
+            List<AiEmbeddingRequest> requests = invocation.getArgument(0);
+            List<AiEmbeddingResult> results = new java.util.ArrayList<>(requests.size());
+            for (AiEmbeddingRequest request : requests) {
+                results.add(embeddings.embed(request));
+            }
+            return results;
+        });
+    }
+
+    @Test
+    void batchedEmbeddingPreservesChunkOrderAndStagesEveryChunkInOneGroup() throws IOException {
+        DocumentRepository documents = mock(DocumentRepository.class);
+        DocumentAiIndexRepository indexes = mock(DocumentAiIndexRepository.class);
+        DocumentContentExtractor extractor = mock(DocumentContentExtractor.class);
+        StructureAwareDocumentChunker chunker = mock(StructureAwareDocumentChunker.class);
+        AiEmbeddingModel embeddings = mock(AiEmbeddingModel.class);
+        StorageService storage = mock(StorageService.class);
+        DocumentAiIndexPersistenceService persistence = mock(DocumentAiIndexPersistenceService.class);
+        UUID documentId = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+        byte[] source = "three chunks".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Document document = document(documentId, projectId, source.length, "txt");
+        when(documents.findByIdAndProjectId(documentId, projectId)).thenReturn(java.util.Optional.of(document));
+        when(indexes.findByDocumentIdAndProjectId(documentId, projectId)).thenReturn(java.util.Optional.of(
+                new DocumentAiIndex(documentId, projectId, DocumentAiIndexStatus.PENDING, 1,
+                        "chunk-v1", "gemini-embedding-2", 768)));
+        when(persistence.beginProcessing(any(), anyLong())).thenReturn(true);
+        when(storage.get(any())).thenReturn(new StoredResource(new ByteArrayInputStream(source), source.length,
+                "text/plain"));
+        when(extractor.extract(any(), any())).thenReturn(new ExtractedDocument(List.of(
+                new ExtractedBlock("body", SourceLocation.none()))));
+        when(chunker.chunk(any())).thenReturn(new ChunkedDocument("chunk-v1", List.of(
+                new DocumentChunk(0, "alpha", SourceLocation.none(), 1, "alpha-hash"),
+                new DocumentChunk(1, "beta", SourceLocation.none(), 1, "beta-hash"),
+                new DocumentChunk(2, "gamma", SourceLocation.none(), 1, "gamma-hash"))));
+        stubBatchDelegation(embeddings);
+        when(embeddings.embed(any())).thenReturn(new AiEmbeddingResult(Collections.nCopies(768, 0.5)));
+        when(persistence.stage(any(), anyLong(), any())).thenReturn(true);
+        when(persistence.activate(any(), anyLong(), any())).thenReturn(true);
+        com.kbase.ai.service.AiJobStore jobStore = mock(com.kbase.ai.service.AiJobStore.class);
+        when(jobStore.renewLease(any())).thenReturn(true);
+
+        AiProperties batchProperties = new AiProperties();
+        batchProperties.getProvider().setEmbeddingBatchSize(8);
+        org.mockito.ArgumentCaptor<List<DocumentAiChunkInsert>> staged =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        AiJobExecutionResult result = new DocumentIndexJobHandler(documents, indexes,
+                new AiDocumentSupportPolicy(), extractor, chunker, embeddings, storage, persistence,
+                jobStore, new com.kbase.ai.observability.AiObservability(), new UploadProperties(),
+                batchProperties, Clock.fixed(NOW, ZoneOffset.UTC)).handle(claim(documentId, projectId, 1, 3));
+
+        assertThat(result.outcome()).isEqualTo(AiJobExecutionOutcome.SUCCESS);
+        verify(persistence).stage(any(), anyLong(), staged.capture());
+        assertThat(staged.getValue()).extracting(DocumentAiChunkInsert::chunkIndex)
+                .containsExactly(0, 1, 2);
+        assertThat(staged.getValue()).extracting(DocumentAiChunkInsert::content)
+                .containsExactly("alpha", "beta", "gamma");
+        verify(embeddings, org.mockito.Mockito.times(1)).embedAll(any());
+        verify(persistence, org.mockito.Mockito.times(1)).activate(any(), anyLong(), any());
     }
 
     @Test
@@ -367,6 +436,7 @@ class DocumentIndexJobHandlerTest {
         when(chunker.chunk(any())).thenReturn(new ChunkedDocument("chunk-v1", List.of(
                 new DocumentChunk(0, "only", SourceLocation.none(), 1, "hash"))));
         when(embeddings.embed(any())).thenReturn(new AiEmbeddingResult(Collections.nCopies(768, 0.25)));
+        stubBatchDelegation(embeddings);
         com.kbase.ai.service.AiJobStore jobStore = mock(com.kbase.ai.service.AiJobStore.class);
         // Renewals succeed during embedding but the lease is lost before staging.
         when(jobStore.renewLease(any())).thenReturn(true).thenReturn(true).thenReturn(false);

@@ -70,13 +70,26 @@ public final class GuideReindexJobHandler implements AiJobHandler {
         try {
             List<GuideChunk> chunks = chunker.chunk(loaded.text());
             if (chunks.isEmpty()) return failed(claim, payload.desiredVersion(), "GUIDE_CONTENT_EMPTY");
+            int batchSize = Math.max(1, properties.getProvider().getEmbeddingBatchSize());
             List<GuideChunkInsert> rows = new ArrayList<>(chunks.size());
-            for (GuideChunk chunk : chunks) {
+            for (int from = 0; from < chunks.size(); from += batchSize) {
+                // Bounded lease renewal between provider calls; ownership loss
+                // stops the reindex before stale staging or activation.
                 if (!jobStore.renewLease(claim)) return AiJobExecutionResult.success();
-                rows.add(new GuideChunkInsert(UUID.randomUUID(), source.getId(),
-                        payload.desiredVersion(), chunk.chunkIndex(), chunk.content(), chunk.headingPath(),
-                        chunk.tokenCount(), chunk.contentHash(), vector(embeddings.embed(
-                                AiEmbeddingRequest.document(loaded.definition().publicTitle(), chunk.content())))));
+                int to = Math.min(from + batchSize, chunks.size());
+                List<AiEmbeddingRequest> requests = new ArrayList<>(to - from);
+                for (int index = from; index < to; index++) {
+                    requests.add(AiEmbeddingRequest.document(
+                            loaded.definition().publicTitle(), chunks.get(index).content()));
+                }
+                List<AiEmbeddingResult> results = embeddings.embedAll(requests);
+                if (results.size() != requests.size()) return failed(claim, payload.desiredVersion(), "GUIDE_PROCESSING_ERROR");
+                for (int index = from; index < to; index++) {
+                    GuideChunk chunk = chunks.get(index);
+                    rows.add(new GuideChunkInsert(UUID.randomUUID(), source.getId(),
+                            payload.desiredVersion(), chunk.chunkIndex(), chunk.content(), chunk.headingPath(),
+                            chunk.tokenCount(), chunk.contentHash(), vector(results.get(index - from))));
+                }
             }
             if (!jobStore.renewLease(claim)) return AiJobExecutionResult.success();
             if (!persistence.stage(claim, payload.desiredVersion(), rows)) return AiJobExecutionResult.success();

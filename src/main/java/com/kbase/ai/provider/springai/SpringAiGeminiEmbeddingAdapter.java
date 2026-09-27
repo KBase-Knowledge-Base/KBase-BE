@@ -41,25 +41,70 @@ public final class SpringAiGeminiEmbeddingAdapter implements AiEmbeddingModel {
     @Override
     public AiEmbeddingResult embed(AiEmbeddingRequest request) {
         Objects.requireNonNull(request, "request must not be null");
-        String preparedInput = SpringAiGeminiEmbeddingPreparation.prepare(request);
-        GoogleGenAiTextEmbeddingOptions options = GoogleGenAiTextEmbeddingOptions.builder()
+        EmbeddingResponse response;
+        try {
+            response = delegate.call(new EmbeddingRequest(
+                    List.of(SpringAiGeminiEmbeddingPreparation.prepare(request)), options()));
+        }
+        catch (RuntimeException failure) {
+            throw SpringAiGeminiErrorTranslator.translate(failure);
+        }
+        return toSingleResult(response);
+    }
+
+    /**
+     * One provider batch call for the whole bounded batch. Query/document
+     * preparation stays per request, results map one-to-one in input order,
+     * and every vector passes the same validation as the single path; any
+     * mismatch is a safe INVALID_RESPONSE, never a partial success.
+     */
+    @Override
+    public List<AiEmbeddingResult> embedAll(List<AiEmbeddingRequest> requests) {
+        Objects.requireNonNull(requests, "requests must not be null");
+        if (requests.isEmpty()) {
+            return List.of();
+        }
+        if (requests.size() == 1) {
+            return List.of(embed(requests.getFirst()));
+        }
+        List<String> prepared = new ArrayList<>(requests.size());
+        for (AiEmbeddingRequest request : requests) {
+            Objects.requireNonNull(request, "request must not be null");
+            prepared.add(SpringAiGeminiEmbeddingPreparation.prepare(request));
+        }
+        EmbeddingResponse response;
+        try {
+            response = delegate.call(new EmbeddingRequest(prepared, options()));
+        }
+        catch (RuntimeException failure) {
+            throw SpringAiGeminiErrorTranslator.translate(failure);
+        }
+        if (response == null || response.getResults() == null
+                || response.getResults().size() != requests.size()) {
+            throw invalidResponse();
+        }
+        List<AiEmbeddingResult> results = new ArrayList<>(requests.size());
+        for (int index = 0; index < requests.size(); index++) {
+            Embedding embedding = response.getResults().get(index);
+            if (embedding == null || embedding.getOutput() == null
+                    || embedding.getOutput().length != configuredDimensions) {
+                throw invalidResponse();
+            }
+            results.add(toResult(embedding, configuredModel));
+        }
+        return List.copyOf(results);
+    }
+
+    private GoogleGenAiTextEmbeddingOptions options() {
+        return GoogleGenAiTextEmbeddingOptions.builder()
                 .model(configuredModel)
                 .dimensions(configuredDimensions)
                 // M0 confirmed that gemini-embedding-2 does not use task_type on this path.
                 // Query/document semantics are therefore owned by preparedInput above.
                 .build();
-        EmbeddingResponse response;
-        try {
-            response = delegate.call(new EmbeddingRequest(List.of(preparedInput), options));
-        }
-        catch (RuntimeException failure) {
-            throw SpringAiGeminiErrorTranslator.translate(failure);
-        }
-
-        return toResult(response);
     }
 
-    private AiEmbeddingResult toResult(EmbeddingResponse response) {
+    private AiEmbeddingResult toSingleResult(EmbeddingResponse response) {
         if (response == null || response.getResults() == null || response.getResults().size() != 1) {
             throw invalidResponse();
         }
@@ -68,16 +113,18 @@ public final class SpringAiGeminiEmbeddingAdapter implements AiEmbeddingModel {
                 || embedding.getOutput().length != configuredDimensions) {
             throw invalidResponse();
         }
+        String modelId = configuredModel;
+        if (response.getMetadata() != null && StringUtils.hasText(response.getMetadata().getModel())) {
+            modelId = response.getMetadata().getModel();
+        }
+        return toResult(embedding, modelId);
+    }
 
+    private AiEmbeddingResult toResult(Embedding embedding, String modelId) {
         float[] output = embedding.getOutput();
         List<Double> values = new ArrayList<>(output.length);
         for (float value : output) {
             values.add((double) value);
-        }
-
-        String modelId = configuredModel;
-        if (response.getMetadata() != null && StringUtils.hasText(response.getMetadata().getModel())) {
-            modelId = response.getMetadata().getModel();
         }
         try {
             return new AiEmbeddingResult(values, modelId);
