@@ -22,6 +22,7 @@ import com.kbase.ai.provider.model.AiEmbeddingResult;
 import com.kbase.ai.provider.port.AiEmbeddingModel;
 import com.kbase.ai.repository.AiGuideSourceRepository;
 import com.kbase.ai.repository.GuideChunkInsert;
+import com.kbase.ai.service.AiJobStore;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -37,15 +38,17 @@ public final class GuideReindexJobHandler implements AiJobHandler {
     private final GuideMarkdownChunker chunker;
     private final AiEmbeddingModel embeddings;
     private final GuideIndexPersistenceService persistence;
+    private final AiJobStore jobStore;
     private final AiProperties properties;
     private final Clock clock;
 
     public GuideReindexJobHandler(AiGuideSourceRepository sources,
             GuideSourceCatalog catalog, GuideSourceLoader loader, GuideMarkdownChunker chunker,
             AiEmbeddingModel embeddings, GuideIndexPersistenceService persistence,
-            AiProperties properties, @Qualifier("aiClock") Clock clock) {
+            AiJobStore jobStore, AiProperties properties, @Qualifier("aiClock") Clock clock) {
         this.sources = sources; this.catalog = catalog; this.loader = loader;
         this.chunker = chunker; this.embeddings = embeddings; this.persistence = persistence;
+        this.jobStore = jobStore;
         this.properties = properties; this.clock = clock;
     }
 
@@ -68,11 +71,16 @@ public final class GuideReindexJobHandler implements AiJobHandler {
             List<GuideChunk> chunks = chunker.chunk(loaded.text());
             if (chunks.isEmpty()) return failed(claim, payload.desiredVersion(), "GUIDE_CONTENT_EMPTY");
             List<GuideChunkInsert> rows = new ArrayList<>(chunks.size());
-            for (GuideChunk chunk : chunks) rows.add(new GuideChunkInsert(UUID.randomUUID(), source.getId(),
-                    payload.desiredVersion(), chunk.chunkIndex(), chunk.content(), chunk.headingPath(),
-                    chunk.tokenCount(), chunk.contentHash(), vector(embeddings.embed(
-                            AiEmbeddingRequest.document(loaded.definition().publicTitle(), chunk.content())))));
+            for (GuideChunk chunk : chunks) {
+                if (!jobStore.renewLease(claim)) return AiJobExecutionResult.success();
+                rows.add(new GuideChunkInsert(UUID.randomUUID(), source.getId(),
+                        payload.desiredVersion(), chunk.chunkIndex(), chunk.content(), chunk.headingPath(),
+                        chunk.tokenCount(), chunk.contentHash(), vector(embeddings.embed(
+                                AiEmbeddingRequest.document(loaded.definition().publicTitle(), chunk.content())))));
+            }
+            if (!jobStore.renewLease(claim)) return AiJobExecutionResult.success();
             if (!persistence.stage(claim, payload.desiredVersion(), rows)) return AiJobExecutionResult.success();
+            if (!jobStore.renewLease(claim)) return AiJobExecutionResult.success();
             if (!persistence.activate(claim, payload.desiredVersion())) return AiJobExecutionResult.success();
             return AiJobExecutionResult.success();
         } catch (AiProviderException exception) {

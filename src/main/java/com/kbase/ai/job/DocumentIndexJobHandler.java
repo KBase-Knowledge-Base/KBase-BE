@@ -20,6 +20,7 @@ import com.kbase.ai.extraction.DocumentExtractionRequest;
 import com.kbase.ai.extraction.ExtractedDocument;
 import com.kbase.ai.extraction.DocumentSourceReadException;
 import com.kbase.ai.extraction.StructureAwareDocumentChunker;
+import com.kbase.ai.observability.AiObservability;
 import com.kbase.ai.provider.error.AiProviderErrorCategory;
 import com.kbase.ai.provider.error.AiProviderException;
 import com.kbase.ai.provider.model.AiEmbeddingRequest;
@@ -28,6 +29,7 @@ import com.kbase.ai.provider.port.AiEmbeddingModel;
 import com.kbase.ai.repository.DocumentAiChunkInsert;
 import com.kbase.ai.repository.DocumentAiIndexRepository;
 import com.kbase.ai.service.AiDocumentSupportPolicy;
+import com.kbase.ai.service.AiJobStore;
 import com.kbase.ai.service.BoundedDigestInputStream;
 import com.kbase.ai.service.DocumentAiIndexPersistenceService;
 import com.kbase.ai.service.DocumentTooLargeException;
@@ -67,6 +69,8 @@ public final class DocumentIndexJobHandler implements AiJobHandler {
     private final AiEmbeddingModel embeddingModel;
     private final StorageService storageService;
     private final DocumentAiIndexPersistenceService indexPersistence;
+    private final AiJobStore jobStore;
+    private final AiObservability observability;
     private final UploadProperties uploadProperties;
     private final AiProperties aiProperties;
     private final Clock clock;
@@ -79,6 +83,8 @@ public final class DocumentIndexJobHandler implements AiJobHandler {
             AiEmbeddingModel embeddingModel,
             StorageService storageService,
             DocumentAiIndexPersistenceService indexPersistence,
+            AiJobStore jobStore,
+            AiObservability observability,
             UploadProperties uploadProperties,
             AiProperties aiProperties,
             @Qualifier("aiClock") Clock clock) {
@@ -90,6 +96,8 @@ public final class DocumentIndexJobHandler implements AiJobHandler {
         this.embeddingModel = Objects.requireNonNull(embeddingModel, "embeddingModel");
         this.storageService = Objects.requireNonNull(storageService, "storageService");
         this.indexPersistence = Objects.requireNonNull(indexPersistence, "indexPersistence");
+        this.jobStore = Objects.requireNonNull(jobStore, "jobStore");
+        this.observability = Objects.requireNonNull(observability, "observability");
         this.uploadProperties = Objects.requireNonNull(uploadProperties, "uploadProperties");
         this.aiProperties = Objects.requireNonNull(aiProperties, "aiProperties");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -138,6 +146,9 @@ public final class DocumentIndexJobHandler implements AiJobHandler {
         }
 
         try {
+            if (!retainOwnership(claim)) {
+                return AiJobExecutionResult.success();
+            }
             SourcePayload source = readAndExtract(document);
             ChunkedDocument chunked = chunker.chunk(source.extractedDocument());
             if (!chunked.hasChunks()) {
@@ -145,7 +156,13 @@ public final class DocumentIndexJobHandler implements AiJobHandler {
             }
 
             List<DocumentAiChunkInsert> rows = embed(document, claim, indexVersion, chunked);
+            if (rows == null || !retainOwnership(claim)) {
+                return AiJobExecutionResult.success();
+            }
             if (!indexPersistence.stage(claim, indexVersion, rows)) {
+                return AiJobExecutionResult.success();
+            }
+            if (!retainOwnership(claim)) {
                 return AiJobExecutionResult.success();
             }
             if (!indexPersistence.activate(claim, indexVersion, source.sourceHash())) {
@@ -223,10 +240,24 @@ public final class DocumentIndexJobHandler implements AiJobHandler {
         }
     }
 
+    /**
+     * Bounded lease renewal between potentially expensive phases. A lost or
+     * expired lease stops the worker at the next safe point without staging,
+     * activating or finalizing stale work; normal stale recovery owns the row.
+     */
+    private boolean retainOwnership(AiJobClaim claim) {
+        boolean renewed = jobStore.renewLease(claim);
+        observability.recordLeaseRenewal(claim.jobType().name(), renewed);
+        return renewed;
+    }
+
     private List<DocumentAiChunkInsert> embed(Document document, AiJobClaim claim,
             long indexVersion, ChunkedDocument chunked) {
         List<DocumentAiChunkInsert> rows = new java.util.ArrayList<>(chunked.chunks().size());
         for (DocumentChunk chunk : chunked.chunks()) {
+            if (!retainOwnership(claim)) {
+                return null;
+            }
             AiEmbeddingResult result = embeddingModel.embed(
                     AiEmbeddingRequest.document(document.getDisplayName(), chunk.content()));
             float[] vector = toVector(result);

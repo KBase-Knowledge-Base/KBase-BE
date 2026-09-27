@@ -293,9 +293,92 @@ class DocumentIndexJobHandlerTest {
             DocumentContentExtractor extractor, StructureAwareDocumentChunker chunker,
             AiEmbeddingModel embeddings, StorageService storage,
             DocumentAiIndexPersistenceService persistence) {
+        com.kbase.ai.service.AiJobStore jobStore = mock(com.kbase.ai.service.AiJobStore.class);
+        when(jobStore.renewLease(any())).thenReturn(true);
         return new DocumentIndexJobHandler(documents, indexes, new AiDocumentSupportPolicy(), extractor,
-                chunker, embeddings, storage, persistence, new UploadProperties(), new AiProperties(),
+                chunker, embeddings, storage, persistence, jobStore,
+                new com.kbase.ai.observability.AiObservability(), new UploadProperties(), new AiProperties(),
                 Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    @Test
+    void leaseRenewalFailureMidEmbeddingStopsWithoutStagingOrActivating() throws IOException {
+        DocumentRepository documents = mock(DocumentRepository.class);
+        DocumentAiIndexRepository indexes = mock(DocumentAiIndexRepository.class);
+        DocumentContentExtractor extractor = mock(DocumentContentExtractor.class);
+        StructureAwareDocumentChunker chunker = mock(StructureAwareDocumentChunker.class);
+        AiEmbeddingModel embeddings = mock(AiEmbeddingModel.class);
+        StorageService storage = mock(StorageService.class);
+        DocumentAiIndexPersistenceService persistence = mock(DocumentAiIndexPersistenceService.class);
+        UUID documentId = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+        byte[] source = "two chunks".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Document document = document(documentId, projectId, source.length, "txt");
+        when(documents.findByIdAndProjectId(documentId, projectId)).thenReturn(java.util.Optional.of(document));
+        when(indexes.findByDocumentIdAndProjectId(documentId, projectId)).thenReturn(java.util.Optional.of(
+                new DocumentAiIndex(documentId, projectId, DocumentAiIndexStatus.PENDING, 1,
+                        "chunk-v1", "gemini-embedding-2", 768)));
+        when(persistence.beginProcessing(any(), anyLong())).thenReturn(true);
+        when(storage.get(any())).thenReturn(new StoredResource(new ByteArrayInputStream(source), source.length,
+                "text/plain"));
+        when(extractor.extract(any(), any())).thenReturn(new ExtractedDocument(List.of(
+                new ExtractedBlock("first", SourceLocation.none()))));
+        DocumentChunk first = new DocumentChunk(0, "first", SourceLocation.none(), 1, "first-hash");
+        DocumentChunk second = new DocumentChunk(1, "second", SourceLocation.none(), 1, "second-hash");
+        when(chunker.chunk(any())).thenReturn(new ChunkedDocument("chunk-v1", List.of(first, second)));
+        // Ownership is lost between the two embedding calls (expired/reclaimed lease).
+        com.kbase.ai.service.AiJobStore jobStore = mock(com.kbase.ai.service.AiJobStore.class);
+        when(jobStore.renewLease(any())).thenReturn(true).thenReturn(false);
+        when(embeddings.embed(any())).thenReturn(new AiEmbeddingResult(Collections.nCopies(768, 0.25)));
+
+        AiJobExecutionResult result = new DocumentIndexJobHandler(documents, indexes,
+                new AiDocumentSupportPolicy(), extractor, chunker, embeddings, storage, persistence,
+                jobStore, new com.kbase.ai.observability.AiObservability(), new UploadProperties(),
+                new AiProperties(), Clock.fixed(NOW, ZoneOffset.UTC)).handle(claim(documentId, projectId, 1, 3));
+
+        assertThat(result.outcome()).isEqualTo(AiJobExecutionOutcome.SUCCESS);
+        verify(persistence, never()).stage(any(), anyLong(), any());
+        verify(persistence, never()).activate(any(), anyLong(), any());
+        verify(persistence, never()).markFailure(any(), anyLong(), any(), any());
+    }
+
+    @Test
+    void leaseRenewalFailureBeforeStageStopsWithoutStaleActivation() throws IOException {
+        DocumentRepository documents = mock(DocumentRepository.class);
+        DocumentAiIndexRepository indexes = mock(DocumentAiIndexRepository.class);
+        DocumentContentExtractor extractor = mock(DocumentContentExtractor.class);
+        StructureAwareDocumentChunker chunker = mock(StructureAwareDocumentChunker.class);
+        AiEmbeddingModel embeddings = mock(AiEmbeddingModel.class);
+        StorageService storage = mock(StorageService.class);
+        DocumentAiIndexPersistenceService persistence = mock(DocumentAiIndexPersistenceService.class);
+        UUID documentId = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+        byte[] source = "one chunk".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Document document = document(documentId, projectId, source.length, "txt");
+        when(documents.findByIdAndProjectId(documentId, projectId)).thenReturn(java.util.Optional.of(document));
+        when(indexes.findByDocumentIdAndProjectId(documentId, projectId)).thenReturn(java.util.Optional.of(
+                new DocumentAiIndex(documentId, projectId, DocumentAiIndexStatus.PENDING, 1,
+                        "chunk-v1", "gemini-embedding-2", 768)));
+        when(persistence.beginProcessing(any(), anyLong())).thenReturn(true);
+        when(storage.get(any())).thenReturn(new StoredResource(new ByteArrayInputStream(source), source.length,
+                "text/plain"));
+        when(extractor.extract(any(), any())).thenReturn(new ExtractedDocument(List.of(
+                new ExtractedBlock("only", SourceLocation.none()))));
+        when(chunker.chunk(any())).thenReturn(new ChunkedDocument("chunk-v1", List.of(
+                new DocumentChunk(0, "only", SourceLocation.none(), 1, "hash"))));
+        when(embeddings.embed(any())).thenReturn(new AiEmbeddingResult(Collections.nCopies(768, 0.25)));
+        com.kbase.ai.service.AiJobStore jobStore = mock(com.kbase.ai.service.AiJobStore.class);
+        // Renewals succeed during embedding but the lease is lost before staging.
+        when(jobStore.renewLease(any())).thenReturn(true).thenReturn(true).thenReturn(false);
+
+        AiJobExecutionResult result = new DocumentIndexJobHandler(documents, indexes,
+                new AiDocumentSupportPolicy(), extractor, chunker, embeddings, storage, persistence,
+                jobStore, new com.kbase.ai.observability.AiObservability(), new UploadProperties(),
+                new AiProperties(), Clock.fixed(NOW, ZoneOffset.UTC)).handle(claim(documentId, projectId, 1, 3));
+
+        assertThat(result.outcome()).isEqualTo(AiJobExecutionOutcome.SUCCESS);
+        verify(persistence, never()).stage(any(), anyLong(), any());
+        verify(persistence, never()).activate(any(), anyLong(), any());
     }
 
     private static AiJobClaim claim(UUID documentId, UUID projectId, int attempt, int maxAttempts) {

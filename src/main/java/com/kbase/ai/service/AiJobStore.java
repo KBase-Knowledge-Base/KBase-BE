@@ -95,6 +95,18 @@ public class AiJobStore {
                 safeErrorCode(errorCode, "WORKER_FAILURE"), clock.instant()));
     }
 
+    /**
+     * Bounded lease renewal for long-running handler work: requires the exact
+     * token on a still-live PROCESSING lease and extends to now + configured
+     * lease timeout only. A lost/expired/reclaimed lease is never revived.
+     */
+    public boolean renewLease(AiJobClaim claim) {
+        Objects.requireNonNull(claim, "claim");
+        return Boolean.TRUE.equals(transactionTemplate.execute(status ->
+                repository.renewLease(claim.id(), claim.leaseToken(), clock.instant(),
+                        properties.getWorker().getLeaseTimeout()) == 1));
+    }
+
     public int cancelActiveByDedupKey(String dedupKey) {
         requireNonBlank(dedupKey, "dedupKey");
         return transactionTemplate.execute(status -> repository.cancelActiveByDedupKey(

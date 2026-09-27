@@ -154,6 +154,31 @@ public class AiJobClaimRepository {
         return claims;
     }
 
+    /**
+     * Extends one live processing lease to 'now + leaseTimeout' for the exact
+     * token. Expired, reclaimed, terminal and cancelled rows never match, so a
+     * renewal cannot revive lost ownership or create an unbounded lease.
+     */
+    public int renewLease(UUID jobId, String leaseToken, Instant now, Duration leaseTimeout) {
+        Objects.requireNonNull(jobId, "jobId");
+        Objects.requireNonNull(leaseToken, "leaseToken");
+        Objects.requireNonNull(now, "now");
+        Objects.requireNonNull(leaseTimeout, "leaseTimeout");
+        if (leaseTimeout.isZero() || leaseTimeout.isNegative()) {
+            throw new IllegalArgumentException("leaseTimeout must be positive");
+        }
+        return jdbcTemplate.update("""
+                UPDATE ai_jobs
+                   SET lease_until = :leaseUntil, updated_at = :now
+                 WHERE id = :id AND status = 'PROCESSING' AND locked_by = :leaseToken
+                   AND lease_until IS NOT NULL AND lease_until > :now
+                """, new MapSqlParameterSource()
+                .addValue("id", jobId)
+                .addValue("leaseToken", leaseToken)
+                .addValue("leaseUntil", timestamp(now.plus(leaseTimeout)))
+                .addValue("now", timestamp(now)));
+    }
+
     /** Marks stale processing rows with no remaining attempt as terminal. */
     public int failExhaustedStaleJobs(Set<AiJobType> allowedTypes, Instant now) {
         List<String> jobTypes = jobTypeNames(allowedTypes);

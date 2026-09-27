@@ -409,6 +409,66 @@ class AiJobEngineIntegrationTest {
     }
 
     @Test
+    void leaseRenewalExtendsOnlyLiveOwnedProcessingLeases() {
+        Instant liveLease = Instant.now().plusSeconds(30);
+        Instant expiredLease = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS)
+                .minusSeconds(5);
+        UUID liveJob = insertJob(AiJobStatus.PROCESSING, BASE.minusSeconds(20), 1, 3,
+                liveLease, "worker-a:live");
+        UUID expiredJob = insertJob(AiJobStatus.PROCESSING, BASE.minusSeconds(20), 1, 3,
+                expiredLease, "worker-a:expired");
+        UUID doneJob = insertJob(AiJobStatus.DONE, BASE.minusSeconds(20), 1, 3,
+                liveLease, "worker-a:done");
+        UUID retryJob = insertJob(AiJobStatus.RETRY, BASE.minusSeconds(20), 1, 3,
+                null, null);
+
+        AiJobClaim live = claimWithLease(liveJob, "worker-a:live", liveLease);
+        AiJobClaim expired = claimWithLease(expiredJob, "worker-a:expired", expiredLease);
+        AiJobClaim done = claimWithLease(doneJob, "worker-a:done", liveLease);
+        AiJobClaim retry = new AiJobClaim(retryJob, AiJobType.DOCUMENT_INDEX, null, null, null,
+                "job-test:" + retryJob, null, BASE.minusSeconds(20), 1, 3, null, "worker-a:retry");
+
+        assertThat(jobStore.renewLease(live)).isTrue();
+        assertThat(jobStore.renewLease(expired)).isFalse();
+        assertThat(jobStore.renewLease(done)).isFalse();
+        assertThat(jobStore.renewLease(retry)).isFalse();
+
+        AiJob renewed = jobRepository.findById(liveJob).orElseThrow();
+        assertThat(renewed.getStatus()).isEqualTo(AiJobStatus.PROCESSING);
+        // The renewed lease is bounded: now + configured lease timeout, not cumulative.
+        assertThat(renewed.getLeaseUntil()).isAfter(Instant.now().plusSeconds(60));
+        assertThat(renewed.getLeaseUntil())
+                .isBefore(Instant.now().plusSeconds(aiProperties.getWorker().getLeaseTimeout()
+                        .toSeconds() + 30));
+        // The expired row stays exactly as it was: reclaimable, not revived.
+        assertThat(jobRepository.findById(expiredJob).orElseThrow().getLeaseUntil())
+                .isEqualTo(expiredLease);
+        assertThat(jobRepository.findById(doneJob).orElseThrow().getStatus())
+                .isEqualTo(AiJobStatus.DONE);
+    }
+
+    @Test
+    void oldTokenCannotRenewAfterAnotherWorkerReclaims() {
+        UUID jobId = insertJob(AiJobStatus.PROCESSING, BASE.minusSeconds(10), 1, 3,
+                Instant.now().minusSeconds(1), "worker-a:old");
+        AiJobClaim reclaimed = jobStore.claimDueJobs(
+                Set.of(AiJobType.DOCUMENT_INDEX), 1, Instant.now()).getFirst();
+        AiJobClaim oldClaim = new AiJobClaim(jobId, AiJobType.DOCUMENT_INDEX, null, null, null,
+                "old", null, BASE.minusSeconds(10), 1, 3, Instant.now().minusSeconds(1),
+                "worker-a:old");
+
+        assertThat(jobStore.renewLease(oldClaim)).isFalse();
+        assertThat(jobStore.renewLease(reclaimed)).isTrue();
+        assertThat(jobRepository.findById(jobId).orElseThrow().getLockedBy())
+                .isEqualTo(reclaimed.leaseToken());
+    }
+
+    private AiJobClaim claimWithLease(UUID jobId, String leaseToken, Instant leaseUntil) {
+        return new AiJobClaim(jobId, AiJobType.DOCUMENT_INDEX, null, null, null,
+                "job-test:" + jobId, null, BASE.minusSeconds(20), 1, 3, leaseUntil, leaseToken);
+    }
+
+    @Test
     void expiredOwnerSuccessOutcomeCannotDoneJobWhileIndexStaysProcessing() {
         Fixture fixture = fixture();
         AiJobSchedule schedule = new AiJobSchedule(AiJobType.DOCUMENT_INDEX, fixture.projectId(),
@@ -430,6 +490,7 @@ class AiJobEngineIntegrationTest {
         DocumentIndexJobHandler handler = new DocumentIndexJobHandler(mockDocuments(fixture),
                 mockIndexes(fixture), new com.kbase.ai.service.AiDocumentSupportPolicy(),
                 extractor, chunker, embeddings, storage, indexPersistence,
+                jobStore, new com.kbase.ai.observability.AiObservability(),
                 new com.kbase.config.properties.UploadProperties(), aiProperties, aiClock);
 
         // The scheduler maps a handler SUCCESS outcome to jobStore.markDone(claim);

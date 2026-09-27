@@ -40,6 +40,7 @@ public final class AiObservability {
     public static final String JOB_DURATION = "kbase.ai.jobs.duration";
     public static final String JOB_DEPTH = "kbase.ai.jobs.depth";
     public static final String JOB_SIGNALS = "kbase.ai.jobs.signals";
+    public static final String JOB_LEASE_RENEWALS = "kbase.ai.jobs.lease_renewals";
 
     private static final Set<String> OPERATIONS = Set.of(
             "PROJECT_ASSISTANT_CREATE", "PROJECT_ASSISTANT_SEND", "GUIDE_QUERY");
@@ -122,6 +123,13 @@ public final class AiObservability {
                     .register(registry)
                     .record(Math.max(0L, durationNanos), java.util.concurrent.TimeUnit.NANOSECONDS);
         });
+    }
+
+    /** Bounded worker-lease heartbeat signal: renewed vs lost, per job type. */
+    public void recordLeaseRenewal(String jobType, boolean renewed) {
+        safe(() -> registry.counter(JOB_LEASE_RENEWALS,
+                "job_type", boundedJobType(jobType),
+                "outcome", renewed ? "RENEWED" : "LOST").increment());
     }
 
     public void recordJobDepth(Map<String, Long> depths, long staleJobs) {
